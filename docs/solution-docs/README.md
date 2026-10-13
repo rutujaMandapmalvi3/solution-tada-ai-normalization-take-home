@@ -43,9 +43,11 @@ You can use AI as much as you want throughout this project.
 
 ## Setup
 <!-- Prerequisites, install, env vars (never real secrets) -->
+source .venv/bin/activate
 
 ## Usage
 <!-- Commands: normalize, generate fixtures, run tests -->
+normalization runs the CLI, the same as python -m normalization
 
 ## Architecture
 <!-- Components and data flow -->

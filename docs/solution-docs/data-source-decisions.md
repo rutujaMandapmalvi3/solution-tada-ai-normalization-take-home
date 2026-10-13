@@ -18,6 +18,8 @@ Which provider APIs this solution uses and why, plus related decisions, assumpti
 | Direct deposits | UKG | `GET …/employees/{aid}/direct-deposits` | Returns the employee's direct deposit accounts |
 | Deductions (setup) | PrismHR | `GET /deductions/v1/getDeductions` | Returns the rules for the employee's payroll deductions |
 | Deductions (taken in payroll) | PrismHR | `GET /payroll/v1/getPayrollVoucherForBatch` | Paychecks list the deductions taken from each payment |
+| Deductions (taken in payroll) | isolved | `GET …/employees/{employeeId}/checks/{id}` | Check details list the deductions taken from each payment |
+| Deductions (taken in payroll) | UKG | `GET …/payrolls/{id}/pay-statements/{id}` | Pay statement details list the deductions taken from each payment |
 | Deductions | isolved | `GET …/employees/{employeeId}/payItems` | Returns the employee's deductions and other pay items |
 | Deductions | UKG | `GET …/lookup/deduction-codes` | Employee deductions are not available; returns the company's deduction types |
 | Payroll runs | PrismHR | `GET /payroll/v1/getBatchListByDate` (`dateType=PAY`) | Returns payroll runs within a pay date range |
@@ -38,6 +40,15 @@ Which provider APIs this solution uses and why, plus related decisions, assumpti
 | Map data types with no live data from the documentation | Some demo accounts have no data for them |
 | Request the isolved full record with organization, extra pay rate, labor and custom field flags | Without them, those sections are not returned |
 | Keep only isolved pay items whose `payItemType` is `Deduction` | The endpoint also returns earnings and memo items (sample: 19 deductions, 17 memo, 5 earnings) |
+| Give every canonical record an ID built from provider, record type and the record's own key; keep the provider's ID separately | One ID rule for all providers; works when a provider returns no ID (e.g. PrismHR direct deposits); same ID on every run |
+| Link each record to its owner with the ID used in the request, or with the owner ID in the record when the request is company-wide | Some responses do not include the owner's ID; the request always identifies who was asked for |
+| Include company as a minimal record: ID (required) and name (optional; not available from UKG) | The README lists company and requires company–employee links, though company is not listed under the data types to normalize |
+| Use Python with Pydantic; no web framework | The task is a data transformation; Pydantic covers validation and JSON conversion |
+| No database; records are linked by IDs in the JSON output | The README requires linked records and local runs, not storage |
+| One canonical schema per record type, shared by all providers; one mapper per provider per record type | Keeps output consistent; a new provider only needs its own mappers |
+| Use live field names where they differ from the documentation | The code reads live responses; the names were confirmed across repeated calls |
+| Make IDs and links required; all other canonical fields optional | Every provider is missing some fields |
+| Keep provider-only fields that fit a README category as optional canonical fields; store the rest in `provider_extras` | Covers complete employee data without losing provider-specific data |
 
 ## Assumptions
 
@@ -60,4 +71,4 @@ Which provider APIs this solution uses and why, plus related decisions, assumpti
 | PrismHR `getScheduledDeductions` returns only one-time or temporary deductions | Its description excludes standard deductions and garnishments |
 | UKG `pay-info` has no pay rate or salary | Live response has 7 fields, none with pay amounts |
 | isolved employee payrolls endpoint returns no data | `…/employees/{employeeId}/payroll` returns 404 |
-| The isolved demo account has no paychecks | Company-wide, pay-group and per-employee check requests return "not found"; paycheck details are mapped from the documentation |
+| UKG returns no company name | All 478 UKG schemas checked; only the company ID (from sign-in and URLs) and EINs (`…/lookup/eins`) are available |
