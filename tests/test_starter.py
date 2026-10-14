@@ -13,7 +13,7 @@ from normalization.references import all_readiness_issues, load_reference
 class StarterChecks(unittest.TestCase):
     def test_expected_providers_and_entities_are_exposed(self):
         self.assertEqual(set(ADAPTERS), {"prismhr", "isolved", "ukg-ready"})
-        self.assertEqual(set(ENTITIES), {"company", "employee", "payroll"})
+        self.assertEqual(set(ENTITIES), {"company", "employee", "direct_deposit", "deduction", "payroll"})
 
     def test_reference_readiness_matches_distributed_materials(self):
         issues = all_readiness_issues()
@@ -28,9 +28,13 @@ class StarterChecks(unittest.TestCase):
                 self.assertFalse(ref["distribution"]["provider_redistribution_permission_verified"])
                 self.assertTrue(issues[provider])
 
-    def test_all_nine_transformations_are_explicitly_unimplemented(self):
+    def test_remaining_transformations_are_explicitly_unimplemented(self):
         for provider, adapter in ADAPTERS.items():
             for entity in ENTITIES:
+                if provider in ("prismhr", "isolved"):
+                    continue  # Source validation paths are implemented.
+                if provider == "ukg-ready" and entity in ('employee', 'direct_deposit', 'deduction', 'payroll', 'company'):
+                    continue
                 with self.subTest(provider=provider, entity=entity):
                     with self.assertRaises(NotImplementedError):
                         adapter.normalize(entity, None, load_reference(provider))

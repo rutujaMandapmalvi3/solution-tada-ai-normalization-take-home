@@ -42,6 +42,7 @@ class ReferenceIntegrityChecks(unittest.TestCase):
         cls.payload = cls.path.read_bytes()
         cls.document = json.loads(cls.payload)
 
+    # PrismHR spec checksum, version and license match the lookup file.
     def test_distributed_contract_matches_recorded_checksum_and_license(self):
         self.assertEqual(hashlib.sha256(self.payload).hexdigest(),
                          self.reference["openapi"]["sha256"])
@@ -52,6 +53,7 @@ class ReferenceIntegrityChecks(unittest.TestCase):
         self.assertIn("Version 2.0, January 2004", license_text)
         self.assertTrue((self.base / "NOTICE.md").is_file())
 
+    # PrismHR spec: every $ref resolves; all 340 examples present.
     def test_internal_schema_references_resolve_and_documented_examples_are_included(self):
         example_count = 0
         for node in walk(self.document):
@@ -64,6 +66,7 @@ class ReferenceIntegrityChecks(unittest.TestCase):
         self.assertEqual(example_count, 340)
         self.assertTrue(self.document["x-tada-hiring-derivative"]["documented_examples_included"])
 
+    # PrismHR lookup codes cite real spec descriptions.
     def test_lookup_citations_match_the_distributed_source_descriptions(self):
         for domain in self.reference["lookups"]:
             self.assertTrue(domain["completeness"])
@@ -80,6 +83,7 @@ class ReferenceIntegrityChecks(unittest.TestCase):
 
 
 class PrivateUploadIntegrityChecks(unittest.TestCase):
+    # isolved and UKG file checksums match their manifests.
     def test_private_uploaded_files_match_manifests(self):
         for provider in ("isolved", "ukg-ready"):
             base = ROOT / "contracts" / provider
@@ -95,6 +99,7 @@ class PrivateUploadIntegrityChecks(unittest.TestCase):
                 self.assertEqual(hashlib.sha256((base / "reference-schemas.json").read_bytes()).hexdigest(),
                                  manifest["reference_schemas_sha256"])
 
+    # isolved and UKG lookup codes exactly match the spec values they cite.
     def test_private_lookup_entries_are_exact_cited_values(self):
         for provider in ("isolved", "ukg-ready"):
             base = ROOT / "contracts" / provider
@@ -109,6 +114,7 @@ class PrivateUploadIntegrityChecks(unittest.TestCase):
                         self.assertIsNone(entry["meaning"])
                         self.assertTrue(entry["meaning_status"])
 
+    # isolved specs are valid Swagger 2.0; UKG schemas are not OpenAPI and link to real pages.
     def test_private_schema_contracts_preserve_format_boundaries(self):
         base = ROOT / "contracts" / "isolved"
         manifest = json.loads((base / "SOURCE_MANIFEST.json").read_text())

@@ -1,150 +1,153 @@
 # Solution Approach
 
-How the platform turns provider responses into canonical records.
+This is a local, file-based normalization pipeline for PrismHR, isolved, and UKG Ready. Keep the starter repository's provider modules and shared `normalize(entity, response, reference)` function interface. No abstract target, adapter classes, or result contract from the removed `base.py` are part of this approach.
 
-## Stack
+## Stack and boundaries
 
-| Choice | Use | Reason |
-|---|---|---|
-| Python + Pydantic | Provider models, canonical models, validation, serialization | The task is a transformation pipeline; Pydantic covers validation and JSON in/out |
-| Plain Python functions | Mapping provider → canonical | No framework needed |
-| pytest | Tests on synthetic fixtures | Tests must run offline without credentials |
-| Django | Not used | Its ORM, database and admin are not needed |
-| FastAPI | Optional, later | Only if an API or the write path is added; built on Pydantic, so no rewrite |
+- Python for the CLI and provider-specific transformation functions.
+- Pydantic for source and canonical model validation. Models are still to be implemented.
+- pytest for deterministic, offline transformation tests.
+- No database or web framework for this stage. Canonical JSON records carry their relationships as IDs.
+- Live responses and the local Postman collection inform discovery and manual checks. Submitted fixtures must be synthetic and must not require credentials or live services.
 
-## Flow
+## What exists today
 
-```
-Provider response
-  → Pick adapter (PrismHR / isolved / UKG)
-  → Deserialize (response → Python objects; check incoming data)
-  → Map (→ our standard format)
-  → Validate (check our standard format)
-  → Serialize (→ JSON)
-  → Output (one file per provider and record type + errors file)
-
-RUN:  python -m normalizer --provider <name> --type <record type> --input <file> --output <folder>
-TEST: synthetic fixtures → adapter (deserialize + map) → validate → serialize → pytest compares with expected standard JSON
-```
-
-## Database
-
-| Decision | Reason |
+| File | Current responsibility and status |
 |---|---|
-| No database | The README requires linked records and local runs, not storage or queries |
+| `src/normalization/__main__.py` | Parses CLI arguments, checks reference readiness, reads and deserializes JSON, selects a provider module, calls `normalize`, serializes the returned value, and writes one output file without overwriting an existing file. |
+| `src/normalization/adapters/__init__.py` | Registers provider modules. The original GitHub starter accepts `company`, `employee`, and `payroll`; the local implementation has also added `direct_deposit` and `deduction`. |
+| `src/normalization/adapters/prismhr.py` | Contains the unimplemented PrismHR `normalize` function. |
+| `src/normalization/adapters/isolved.py` | Contains the unimplemented isolved `normalize` function. |
+| `src/normalization/adapters/ukg_ready.py` | Contains the unimplemented UKG Ready `normalize` function. |
+| `src/normalization/references.py` | Loads provider lookup references and checks reference metadata. Its current readiness rules block isolved and UKG normalization. |
+| `scripts/generate_fixtures.py` | Fixture-generation stub. |
+| `tests/test_starter.py` | Tests starter wiring and currently expects provider transformations to be unimplemented. |
+| `tests/test_reference_integrity.py` | Checks the distributed reference artifacts, checksums, and citations. |
 
-- Records are linked by ID fields in the JSON output, which play the role of foreign keys:
+The CLI logic is implemented, not a placeholder: it performs the file-processing and dispatch steps described above. Normalization is not working end to end yet because the provider functions remain stubs and readiness checks block isolved and UKG. Canonical models, source models, record mapping, and transformation tests are not implemented yet. The design below describes the work to build, not functionality already available.
 
+## Runtime flow
+
+```text
+CLI (__main__.py)
+  Parse arguments
+  Check provider reference readiness
+  Open the input file
+  Read and deserialize JSON with json.load
+  Select the provider module from ADAPTERS
+  Load its lookup reference
+  Call normalize(entity, response, reference)
+
+Provider module
+  Dispatch to an entity-specific transformation function
+  Validate the response envelope and check provider-reported errors
+  Extract the records
+  For each record:
+    Validate the source record
+    Resolve IDs and owner relationships
+    Map fields and normalize documented values
+    Validate the canonical record
+    Build the canonical output
+  Return a JSON-serializable value (return annotation remains Any)
+
+CLI (__main__.py)
+  Serialize the result
+  Write the output file
 ```
-company_id ← employee.company_id
-employee_id ← deposit.employee_id, deduction.employee_id, paycheck.employee_id
-payroll_run_id ← paycheck.payroll_run_id
-```
 
-- SQLite can be added later without changing the pipeline.
+The adapter receives an already-deserialized Python object. It does not reopen the input file or write output files. JSON deserialization and source-model validation are separate operations.
 
-## Deep Dive
+## Provider functions
 
-### Step 1: Input
+Keep `normalize` as the public entry point in each provider module. Use small internal functions for entity-specific work, such as `normalize_employees` and `normalize_company`, rather than placing every mapping in one large function.
 
-The input is a file of provider JSON. The CLI is given the provider and data type, so it picks the right model and mapper.
+Each provider handles its own response shapes. For example, PrismHR employees are under `employee[]`, isolved employee lists use `results[]` while an individual employee response is an object, and UKG uses entity-specific envelopes such as `deposits[]` and `payrolls[]`.
 
-| Source | Used for |
-|---|---|
-| Synthetic fixtures (provider response shape) | Tests |
-| Saved live responses (kept outside Git) | Manual runs on real data |
-| Live API calls (optional, later) | Fetching data directly |
+Check the envelope before validating records individually. A malformed envelope or provider-reported failure must not be treated as an empty dataset. A valid empty collection is different from a failure. Whether to reject the operation or preserve valid records when one record is invalid remains an implementation decision; no partial-result policy is fixed yet.
 
-### Pick Adapter
-
-Chooses the code for the provider given in `--provider`.
+Keep the existing entry-point signature:
 
 ```python
-ADAPTERS = {"prismhr": PrismHRAdapter, "isolved": IsolvedAdapter, "ukg": UKGAdapter}
-adapter = ADAPTERS[provider]()
+def normalize(entity: str, response: Any, reference: Dict[str, Any]) -> Any:
 ```
 
-- All adapters have the same methods: `company()`, `employees()`, `direct_deposits()`, `deductions()`, `payroll_runs()`, `paychecks()`.
-- The rest of the program calls these methods without knowing the provider.
-- Unknown provider name → stop with a message listing valid names.
-- New provider → write one adapter class, add one line to `ADAPTERS`.
+- `entity` selects the transformation.
+- `response` is the already-deserialized provider response.
+- `reference` contains provider lookup information loaded by the CLI.
 
-### Step 2: Deserialize (inside the adapter)
+The return annotation stays `Any`. Leave the exact output structure open while implementing. There is no required `data`/`errors`/`metadata` wrapper and no prescribed normalization status enum. Canonical fields should remain consistent across providers once defined.
 
+The returned value must still be JSON-serializable because the CLI uses `json.dumps(result, indent=2, allow_nan=False)`. Convert any internal Pydantic models, dates, Decimal values, or other custom objects into JSON-compatible values before returning. If using Pydantic internally, `model_dump(mode="json")` can perform that conversion.
+
+The current CLI does not inspect the return value for record errors or statuses. If normalization returns normally and the file is written, it exits with `0`. It catches `OSError`, `ValueError`, `TypeError`, and `NotImplementedError`, prints the exception to stderr, and exits with `1` without writing the normalization output. Reference-readiness failures exit with `2`. These process exit codes are separate from HTTP status codes or any future normalization status.
+
+## Models and mappings
+
+Build models alongside the first transformation rather than defining all providers up front.
+
+- Source models retain provider field names and validate one record at a time. Preserve additional fields, including additional fields in nested objects.
+- Canonical models use the same names and meanings across providers. Define company, employee, direct-deposit setup, deduction setup, payroll-run, and paycheck records as those transformations are implemented.
+- Required fields are those needed for identity and valid relationships. Other fields may be absent depending on the provider and response.
+- Preserve provider-specific or unmapped information in `provider_extras`; do not silently discard it.
+- Translate codes only when their meanings are supported by the lookup reference or field documentation. Preserve unknown and tenant-configured source codes without guessing their meaning.
+- Preserve distinctions such as union membership versus union ID, deduction balance versus arrears tracking, and paper-check amount versus net pay.
+- Use Decimal for monetary values internally and choose an explicit JSON representation. Use documented date and duration semantics; UKG `standard_work_day` is documented in milliseconds and cannot be copied directly into an hours field.
+- Do not impose blanket nonnegative constraints on payroll amounts without checking whether adjustments or reversals are allowed.
+
+The comparison documents are mapping research. Check the cited contract and saved response as each field is implemented; a shared table row does not by itself prove that all fields have identical meanings.
+
+## IDs and input context
+
+PrismHR employee responses already include employer IDs in `person.employerId[]` (contract name: `person.employerIds[]`). These may identify companies, but their relationship to client/company IDs is unconfirmed; verify before using them for company links.
+
+Canonical records must retain source IDs and link company, employee, and payroll records consistently. Include the owner scope needed to avoid collisions when constructing IDs. For isolved, distinguish the parent client from the legal company.
+
+The existing signature does not receive request context. Some responses omit company, employee, pay-group, or run IDs that were present only in the request. Inspect the first employee transformation for missing owner IDs and determine which IDs can be obtained from the supplied response. A context file, extra CLI arguments, or an additional function parameter are possible options, not agreed interface changes. Keep the current signature until a concrete mapping requires a decision. Do not guess missing owner IDs or read them from lookup metadata.
+
+For records without source IDs, choose and test a deterministic key rule using the relevant owner scope. For isolved paychecks, a run number alone does not identify a payroll run; the documented matching proposal also needs pay group and pay date, with ambiguity reported rather than silently choosing a run.
+
+## Multiple responses and payroll
+
+The current CLI accepts one input JSON file per invocation. It does not merge responses or fetch additional pages.
+
+- UKG employee coverage needs profile, pay-info, and compensation responses. Define how these are supplied and joined by employee before claiming full employee coverage.
+- isolved salary responses provide additional compensation and pay-group information. The earlier proposal to defer these endpoints remains a coverage gap, not a completed mapping.
+- UKG paycheck lists contain headers; statement details are needed for earnings, taxes, and deductions. isolved pay-group checks may also need separate detail responses.
+- Keep employee deduction setup separate from deductions taken on a paycheck. UKG company deduction codes are catalog entries and cannot substitute for employee deduction rules.
+- Payroll runs and paychecks are distinct canonical records. The current `payroll` CLI entity needs an explicit way to select them, or an explicitly defined combined input, when payroll is implemented.
+- Offline normalization processes supplied data. How to preserve pagination information in the output remains open; following pagination links belongs to a future data-fetching layer.
+
+## Start implementing: PrismHR employees
+
+The first implementation goes in `src/normalization/adapters/prismhr.py`, behind the existing `normalize` function's `employee` branch.
+
+1. Inspect the saved `prismHR - employeeFullRecord` response and the contract's `Employee` schema. Use the employee comparison table as the field inventory.
+2. Start the `employee` branch in the existing `normalize(entity, response, reference) -> Any` function. Build the employee mapping and any needed source/canonical models alongside it. Leave the overall output format open and identify any missing company context.
+3. Validate the PrismHR envelope and success code, then extract `employee[]`.
+4. Validate and map employee records: build IDs and links, map identity/contact/employment/job/compensation fields, preserve extras, and validate the output. Decide how invalid records are handled when implementing this step.
+5. Create synthetic inputs and tests for normal records, missing optional fields, unknown codes, invalid fields, mixed valid and invalid records, an empty employee collection, and a provider error.
+6. Run the transformation through the existing CLI and inspect the JSON result. Expand the employee mapping until it covers the available fields before declaring it complete.
+
+After that first path works, implement the remaining PrismHR entities, then reuse the canonical schemas for isolved and UKG Ready. Refine schemas where the next provider exposes a meaningful distinction.
+
+## Local collection and validation
+
+The collection is stored outside the implementation repository at `/Users/rutuja/Downloads/TADA/tada/samples/TADA collection.postman_collection.json`. Inspect saved response bodies and their saved request URLs, not just example names. In the current collection, UKG compensation is saved under a pay-info request, the UKG profile request has no saved response, and the example attached to the pay-statement-details request is an empty benefits response. isolved payroll-run and paycheck examples are HTTP 404 responses with empty bodies, not successful empty datasets.
+
+Use these observations to guide manual investigation. Do not copy credentials or live records into synthetic fixtures or the submission.
+
+Replace tests that assert `NotImplementedError` as each transformation is implemented. Keep reference-integrity tests. Add deterministic fixture generation incrementally and verify mappings and relationships, not just output shapes.
+
+## CLI usage and remaining integration work
+
+The current command shape is:
+
+```sh
+python -m normalization normalize --provider prismhr --entity employee --input <input.json> --output <output.json>
 ```
-JSON text → json.loads → Python dict → model_validate → provider object
-```
 
-**Unwrap the envelope first**
+The installed `normalization` command invokes the same entry point. `--output` is a file, not a folder. Its parent directory must exist, and the file must not already exist because the CLI opens it in mode `"x"`. NaN and infinity are rejected during serialization. The CLI writes the entire returned value; it does not require status or error fields.
 
-| Provider | Unwrap |
-|---|---|
-| PrismHR | Check `errorCode == "0"`, take `employee[]` |
-| isolved | Take `results[]`; follow `nextPageUrl` for more pages |
-| UKG | Use the response directly |
+Before all three providers can run end to end, reconcile the readiness gate with the distributed reference pack and the README. It currently enforces metadata that blocks isolved and UKG and assumes an OpenAPI artifact, although UKG supplies cached documentation and extracted schemas. Preserve reference provenance and integrity checks while addressing local runtime readiness. This behavior has not been changed yet.
 
-**Provider model rules**
-
-- One Pydantic model per JSON object level, nested the same way as the response:
-  - nested JSON object → nested model
-  - JSON list → `list[Model]`
-- Provider's exact field names; only fields in the field mapping documents.
-- Fields optional (`None`) except IDs needed for linking.
-- `extra="allow"`: unmapped fields kept in `model_extra`, later `provider_extras`.
-- No renaming or converting; that is the mapping step.
-
-**How `model_validate` works**
-
-- Field by field: take the value → check the declared type (convert when safe, e.g. `"12"` → `12`) → keep it.
-- Object is built only after every field passes.
-- Any failure → no object; one error listing all failed fields.
-- Errors are caught per record: log it, skip it, continue with the rest.
-
-### Step 3: Map (inside the adapter)
-
-Turns provider objects into our standard records.
-
-- One mapper per record type per provider: 6 types (company, employee, direct deposit, deduction, payroll run, paycheck) × 3 providers = 18.
-- All three providers' mappers fill the same standard schema per record type.
-
-| Job | Example |
-|---|---|
-| Rename fields | `firstName` / `nameAddress.firstName` / `first_name` → `first_name` |
-| Translate codes | PrismHR status `A` → `ACTIVE` |
-| One format for dates and money | dates → `YYYY-MM-DD`; money → decimal |
-| Build IDs | record ID = provider + record type + record's own key; provider's ID kept as `source_id` |
-| Build owner links | from the request (Method 1) or from a field in the record (Method 4) |
-| Combine APIs | UKG name (API 1) + job info (API 2) → one employee |
-| Keep the rest | unmapped fields → `provider_extras` |
-
-- Mapper handles meaning (codes, combining); Pydantic handles types (text → date, text → number).
-
-### Step 4: Validate
-
-Checks each finished standard record.
-
-| Check | How |
-|---|---|
-| Required fields present (IDs, links) | Declared in the schema |
-| Right types | Declared in the schema |
-| Allowed coded values | Enums |
-| Simple limits (e.g. amount ≥ 0) | `Field(ge=0)` |
-| Rules using two fields (e.g. amount or percent) | Small validator function |
-
-- Failed record → noted with reason → skipped → run continues (`try/except`).
-- First validation checks provider data coming in; this one checks our data going out.
-
-### Step 5: Serialize
-
-Turns standard records into JSON: `record.model_dump_json()`.
-
-- Dates → `"2025-03-28"`; coded values → `"ACTIVE"`; nested records → nested JSON.
-- Open choices: keep empty fields as `null` or leave them out; money as number or text.
-
-### Step 6: Output
-
-| Output | Location |
-|---|---|
-| Good records | `<folder>/<provider>/<record type>.json` |
-| Failed records + reasons | `<folder>/<provider>/errors.json` |
-| Summary on screen | e.g. "PrismHR employees: 20 saved, 1 failed" |
+Review context input, payroll selection, multi-response input, and error handling as their transformations require them; none is a reason to recreate the removed target or fix an output wrapper now. Update the final README and decisions to describe the implemented behavior. Live API fetching and the optional provider write path are later work.
