@@ -1,0 +1,47 @@
+# One validated payroll record per map call; preserve links through engine fallback.
+# Shared fields require verified meanings; provider fields retain separate nested scopes.
+version: 1
+provider: prismhr
+entity: payroll
+fields:
+- kind: field
+  source: batchId
+  target: payroll_run_id
+  transform:
+    name: identifier
+- kind: field
+  source: payDate
+  target: payroll_run_pay_date
+  transform:
+    name: date
+- kind: field
+  source: batchType
+  target: provider_fields.prismhr.batch_type
+- kind: field
+  source: batchStatus
+  target: provider_fields.prismhr.batch_status
+- kind: list
+  source: payGroup
+  target: provider_fields.prismhr.pay_group
+  fields:
+  - kind: field
+    source: payGroupId
+    target: pay_group_id
+    transform:
+      name: identifier
+  - kind: field
+    source: payPeriodStartDate
+    target: pay_period_start_date
+    transform:
+      name: date
+  - kind: field
+    source: payPeriodEndDate
+    target: pay_period_end_date
+    transform:
+      name: date
+  - kind: field
+    source: weeksWorked
+    target: weeks_worked
+  - kind: field
+    source: deductPeriod
+    target: deduct_period

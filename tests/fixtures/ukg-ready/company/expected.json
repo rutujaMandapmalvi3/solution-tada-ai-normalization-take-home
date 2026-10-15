@@ -1,0 +1,44 @@
+{
+  "provider": "ukg-ready",
+  "companies": [
+    {
+      "provider": "ukg-ready",
+      "source_record_type": "ein",
+      "source_record_id": "1",
+      "ukg_ein_tax_id": "SYNTHETIC-TAX-ID",
+      "ukg_ein_name": "Example EIN",
+      "source_metadata": {
+        "original_values": {
+          "id": 1,
+          "ein_tax_id": "SYNTHETIC-TAX-ID"
+        },
+        "ukg-ready": {
+          "source_location": {
+            "record_index": 0
+          }
+        }
+      },
+      "source_extras": {
+        "ukg-ready": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "source_metadata": {
+    "ukg-ready": {
+      "response": {},
+      "reference_pack": {
+        "provider": "ukg-ready",
+        "reference_version": "cached-v2-private-reference-1",
+        "distribution_status": "user_approved_private_upload",
+        "warnings": [
+          "Candidate-distribution permission has not been verified.",
+          "OpenAPI artifact is absent or unverified.",
+          "Approved OpenAPI filename is missing.",
+          "OpenAPI provenance/version/checksum metadata is incomplete."
+        ]
+      }
+    }
+  }
+}

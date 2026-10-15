@@ -1,0 +1,39 @@
+{
+  "provider": "isolved",
+  "companies": [
+    {
+      "provider": "isolved",
+      "source_record_type": "legal_company",
+      "source_record_id": "1",
+      "legal_name": "Example Company",
+      "trade_name": "Example Trade",
+      "source_metadata": {
+        "original_values": {
+          "id": 1
+        },
+        "isolved": {
+          "source_location": {
+            "record_index": 0
+          }
+        }
+      },
+      "source_extras": {
+        "isolved": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "source_metadata": {
+    "isolved": {
+      "reference_pack": {
+        "provider": "isolved",
+        "reference_version": "6-private-reference-1",
+        "distribution_status": "user_approved_private_upload",
+        "warnings": [
+          "Candidate-distribution permission has not been verified."
+        ]
+      }
+    }
+  }
+}

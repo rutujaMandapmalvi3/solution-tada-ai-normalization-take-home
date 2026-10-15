@@ -1,0 +1,93 @@
+# prismhr direct_deposit: one validated PrismHRAchVoucher per engine.map() call.
+# This file maps records, not wrappers; the adapter validates/unwraps the response.
+# Uses shared conversions and conditional_number; engine and adapter are unchanged.
+# Record links retain source nesting in provider_fields.prismhr.unmapped.
+# Undeclared fields retain nesting in source_extras.prismhr; wrappers/context
+# and parent settings belong to result metadata/provider fields, not fake records.
+# Source-specific fields stay separate; no inferred joins, scale or currency conversion.
+# No source deposit_id exists: adapter must pass context.deposit_id=null explicitly.
+# Never substitute a bank number, deduction code or employee ID as a record ID.
+# Adapter supplies agreed employee_id context and checks source/context conflicts.
+# EmployeeDirectDeposit settings outside achVoucher, if supplied, are preserved by
+# the Prism adapter at result level. Paycheck ACH payments stay in payroll; no HSA.
+# conditional_number promotes amount to allocation_amount only for raw method F.
+# Current rules preserve amount as method_amount, with method and limit; nothing is lost.
+# Voucher-type combinations remain raw; no unapproved splitting/enum helper.
+
+version: 1
+provider: prismhr
+entity: direct_deposit
+fields:
+- kind: field
+  source: deposit_id
+  target: deposit_id
+  source_scope: context
+- kind: field
+  source: transitNum
+  target: routing_number
+- kind: field
+  source: accountNum
+  target: account_number
+- kind: field
+  source: accountType
+  target: account_type
+  transform:
+    name: label
+    arguments:
+      labels:
+        C: checking or pay card
+        S: savings
+        IP: instant pay
+- kind: field
+  source: method
+  target: provider_fields.prismhr.ach_method
+  transform:
+    name: label
+    arguments:
+      labels:
+        F: fixed
+        P: percentage
+        FS: fixed, skip if full amount unavailable
+        PN: percentage of net after fixed
+        B: remaining balance
+- kind: field
+  source: amount
+  target: provider_fields.prismhr.method_amount
+  transform:
+    name: number
+- kind: field
+  source:
+  - amount
+  - method
+  target: allocation_amount
+  transform:
+    name: conditional_number
+    arguments:
+      equals: F
+- kind: field
+  source: limit
+  target: provider_fields.prismhr.percentage_method_limit
+  transform:
+    name: number
+- kind: field
+  source: status
+  target: provider_fields.prismhr.account_status
+  transform:
+    name: label
+    arguments:
+      labels:
+        P: pre-notification
+        D: deposit active
+        I: deposit inactive
+- kind: field
+  source: bankName
+  target: bank_name
+- kind: field
+  source: voucherTypeOverride
+  target: provider_fields.prismhr.voucher_type_override
+- kind: field
+  source: employee_id
+  target: employee_id
+  source_scope: context
+  transform:
+    name: identifier

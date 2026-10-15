@@ -1,0 +1,1409 @@
+# PrismHR employee mapping: one validated PrismHREmployee per execution.
+# Shared fields appear first; provider-specific objects/lists follow.
+# The engine supplies provider. The adapter supplies context.client_id.
+# Wrapper errorCode/errorMessage/infoMessage/updateMessage/extension stay in
+# source_metadata via the engine's metadata argument, not employee field rules.
+# response.employee is the wrapper's record collection, not a second employee field.
+# Nested unknown fields are preserved by the engine, not enumerated here.
+#
+# This is the complete rule file used by PrismHR normalize_employees().
+# The engine supports the identifier, date, label, number and postal_code helpers
+# used here; the adapter supplies validated employees and wrapper metadata.
+# Labels use only documented meanings or explicitly accepted user assumptions:
+# gender M/F/X/D meanings and U=unknown are user assumptions/extensions; B is unmapped.
+# An empty labels table for employeeStatus/employeeType means NO verified dictionary:
+# preserve the original code + a mapping issue and leave the descriptive field null.
+# Blank label input stays blank unless explicitly mapped (rehire blank=no preference).
+# Unknown label input is preserved in original_values, never guessed.
+# No currency, percentage-scale, frequency or amount-basis conversion is performed.
+# Numeric/date conversions keep original values according to the proposal contract.
+
+version: 1
+provider: prismhr
+entity: employee
+fields:
+- kind: field
+  source: id
+  target: employee_id
+  transform:
+    name: identifier
+- kind: field
+  source: lastName
+  target: last_name
+- kind: field
+  source: firstName
+  target: first_name
+- kind: field
+  source: middleInitial
+  target: middle_name
+- kind: field
+  source: preferredName
+  target: preferred_name
+- kind: field
+  source: person.ethnicCode
+  target: prismhr_ethnic_code
+- kind: field
+  source: person.birthDate
+  target: birth_date
+  transform:
+    name: date
+- kind: field
+  source: person.employerIds
+  target: prismhr_employer_ids
+- kind: field
+  source: person.maritalStatus
+  target: marital_status
+  transform:
+    name: label
+    arguments:
+      labels:
+        S: single
+        M: married
+        D: divorced
+        W: widowed
+        C: civil union
+        O: other
+- kind: field
+  source: person.smoker
+  target: prismhr_smoker_code
+- kind: field
+  source: person.peoStartDate
+  target: peo_start_date
+  transform:
+    name: date
+- kind: field
+  source: person.deceased
+  target: is_deceased
+- kind: field
+  source: person.gender
+  target: gender
+  transform:
+    name: label
+    arguments:
+      labels:
+        M: male
+        F: female
+        X: non-binary
+        D: declined
+        U: unknown
+- kind: field
+  source: person.nickname
+  target: nickname
+- kind: field
+  source: person.deceasedDate
+  target: deceased_date
+  transform:
+    name: date
+- kind: field
+  source: person.hispanic
+  target: is_hispanic
+- kind: field
+  source: person.userId
+  target: prismhr_portal_user_id
+- kind: field
+  source: contactInformation.addressLine1
+  target: address_line_1
+- kind: field
+  source: contactInformation.addressLine2
+  target: address_line_2
+- kind: field
+  source: contactInformation.city
+  target: city
+- kind: field
+  source: contactInformation.state
+  target: state_code
+- kind: field
+  source:
+  - contactInformation.zipcode
+  - contactInformation.zipSuffix
+  target: postal_code
+  transform:
+    name: postal_code
+- kind: field
+  source: contactInformation.homePhone
+  target: home_phone
+- kind: field
+  source: contactInformation.mobilePhone
+  target: mobile_phone
+- kind: field
+  source: contactInformation.emailAddress
+  target: primary_email
+- kind: field
+  source: client.employeeStatus
+  target: employment_status
+  transform:
+    name: label
+    arguments:
+      labels: {}
+- kind: field
+  source: client.statusClass
+  target: prismhr_employment_status_class
+  transform:
+    name: label
+    arguments:
+      labels:
+        A: active
+        L: on leave
+        T: terminated
+- kind: field
+  source: client.employeeType
+  target: employment_type
+  transform:
+    name: label
+    arguments:
+      labels: {}
+- kind: field
+  source: client.typeClass
+  target: prismhr_employment_type_class
+- kind: field
+  source: client.jobStartDate
+  target: job_start_date
+  transform:
+    name: date
+- kind: field
+  source: client.firstHireDate
+  target: original_hire_date
+  transform:
+    name: date
+- kind: field
+  source: client.lastHireDate
+  target: latest_hire_date
+  transform:
+    name: date
+- kind: field
+  source: client.seniorityDate
+  target: seniority_date
+  transform:
+    name: date
+- kind: field
+  source: client.lastJobChangeDate
+  target: prismhr_last_job_change_date
+  transform:
+    name: date
+- kind: field
+  source: client.clientEmployeeId
+  target: employee_number
+- kind: field
+  source: client.rehireOk
+  target: eligible_for_rehire
+  transform:
+    name: label
+    arguments:
+      labels:
+        Y: eligible
+        N: ineligible
+        ? ''
+        : no preference
+- kind: field
+  source: client.workPhone
+  target: work_phone
+- kind: field
+  source: client.genderDesignation
+  target: prismhr_gender_designation
+- kind: field
+  source: client.preferredPronoun
+  target: preferred_pronouns
+- kind: field
+  source: client.homeLocation
+  target: work_location_code
+- kind: field
+  source: client.workEmail
+  target: work_email
+- kind: field
+  source: compensation.defaultHours
+  target: prismhr_default_timesheet_hours
+  transform:
+    name: number
+- kind: field
+  source: compensation.standardHours
+  target: standard_hours_per_pay_period
+  transform:
+    name: number
+- kind: field
+  source: compensation.hourlyPay
+  target: hourly_rate
+  transform:
+    name: number
+- kind: field
+  source: compensation.salary
+  target: per_pay_salary
+  transform:
+    name: number
+- kind: field
+  source: compensation.hourlyPayRate
+  target: other_pay_rate
+  transform:
+    name: number
+- kind: field
+  source: compensation.hourlyPayPeriod
+  target: other_pay_rate_basis
+  transform:
+    name: label
+    arguments:
+      labels:
+        H: hourly
+        W: weekly
+        B: bi-weekly
+        S: semi-monthly
+        M: monthly
+        Y: yearly
+- kind: field
+  source: compensation.annualPay
+  target: prismhr_annual_pay
+  transform:
+    name: number
+- kind: field
+  source: compensation.perfReviewNextDate
+  target: next_review_date
+  transform:
+    name: date
+- kind: field
+  source: client_id
+  source_scope: context
+  target: prismhr_client_id
+  transform:
+    name: identifier
+- kind: object
+  source: person
+  target: provider_fields.prismhr.person
+  fields:
+  - kind: field
+    source: driverLicenseId
+    target: driver_license_id
+  - kind: field
+    source: cobraSSN
+    target: cobra_ssn
+  - kind: field
+    source: cobraOnly
+    target: cobra_only
+  - kind: field
+    source: geoCode
+    target: geoCode
+  - kind: field
+    source: marriedDate
+    target: married_date
+    transform:
+      name: date
+  - kind: field
+    source: handicapped
+    target: handicapped
+  - kind: field
+    source: blind
+    target: blind
+  - kind: field
+    source: veteran
+    target: veteran
+  - kind: field
+    source: vietnamVet
+    target: vietnam_vet
+  - kind: field
+    source: disabledVet
+    target: disabled_vet
+  - kind: field
+    source: hrpCitizenshipCountry
+    target: hrpCitizenshipCountry
+  - kind: field
+    source: taxZipCode
+    target: tax_zip_code
+  - kind: field
+    source: highlyCompensated
+    target: highly_compensated
+  - kind: field
+    source: keyEmployee
+    target: key_employee
+  - kind: field
+    source: overrideGeoCode
+    target: override_geo_code
+  - kind: field
+    source: overrideGeoEndDate
+    target: override_geo_end_date
+    transform:
+      name: date
+  - kind: field
+    source: driverState
+    target: driver_state
+  - kind: field
+    source: driverLicenseExpireDate
+    target: driver_license_expire_date
+    transform:
+      name: date
+  - kind: field
+    source: driverLicenseClass
+    target: driver_license_class
+  - kind: field
+    source: ohioFormC112
+    target: ohio_form_c112
+  - kind: field
+    source: unincorporatedResidence
+    target: unincorporated_residence
+  - kind: field
+    source: w2AddressLine1
+    target: w2_address_line1
+  - kind: field
+    source: w2AddressLine2
+    target: w2_address_line2
+  - kind: field
+    source: w2City
+    target: w2_city
+  - kind: field
+    source: w2State
+    target: w2_state
+  - kind: field
+    source: w2PostalCode
+    target: w2_postal_code
+  - kind: field
+    source: w2ElecForm
+    target: w2_elec_form
+  - kind: field
+    source: w2ElecFormDate
+    target: w2_elec_form_date
+    transform:
+      name: date
+  - kind: field
+    source: legacyEmployeeId
+    target: legacy_employee_id
+  - kind: field
+    source: agricultureWorker
+    target: agriculture_worker
+  - kind: field
+    source: otherProtectedVet
+    target: other_protected_vet
+  - kind: field
+    source: activeDutyBadgeVet
+    target: active_duty_badge_vet
+  - kind: field
+    source: recentlySeparatedVet
+    target: recently_separated_vet
+  - kind: field
+    source: serviceMedalVet
+    target: service_medal_vet
+  - kind: field
+    source: preferredLanguage
+    target: preferred_language
+  - kind: list
+    source: emergencyContact
+    target: emergency_contact
+    fields:
+    - kind: field
+      source: contactName
+      target: contact_name
+    - kind: field
+      source: contactInfo
+      target: contact_info
+    - kind: field
+      source: contactRelationship
+      target: contact_relationship
+    - kind: field
+      source: contactType
+      target: contact_type
+  - kind: list
+    source: autoPolicies
+    target: auto_policies
+    fields:
+    - kind: field
+      source: autoInsurancePolicyId
+      target: auto_insurance_policy_id
+    - kind: field
+      source: autoInsuranceCarrierName
+      target: auto_insurance_carrier_name
+    - kind: field
+      source: autoInsuranceHolderName
+      target: auto_insurance_holder_name
+    - kind: field
+      source: autoInsurancePolicyStartDate
+      target: auto_insurance_policy_start_date
+      transform:
+        name: date
+    - kind: field
+      source: autoInsurancePolicyExpDate
+      target: auto_insurance_policy_exp_date
+      transform:
+        name: date
+  - kind: list
+    source: vehicleDetails
+    target: vehicle_details
+    fields:
+    - kind: field
+      source: vehicleMake
+      target: vehicle_make
+    - kind: field
+      source: vehicleModel
+      target: vehicle_model
+    - kind: field
+      source: vehicleYear
+      target: vehicle_year
+    - kind: field
+      source: vehicleAddDate
+      target: vehicle_add_date
+      transform:
+        name: date
+    - kind: field
+      source: vehicleRemoveDate
+      target: vehicle_remove_date
+      transform:
+        name: date
+    - kind: field
+      source: vehicleRegNo
+      target: vehicle_reg_no
+  - kind: field
+    source: personChecksum
+    target: person_checksum
+- kind: object
+  source: contactInformation
+  target: provider_fields.prismhr.contact_information
+  fields:
+  - kind: field
+    source: county
+    target: county
+  - kind: field
+    source: schoolDistrict
+    target: school_district
+- kind: object
+  source: client
+  target: provider_fields.prismhr.client
+  fields:
+  - kind: field
+    source: statusDate
+    target: status_date
+    transform:
+      name: date
+  - kind: field
+    source: typeDate
+    target: type_date
+    transform:
+      name: date
+  - kind: list
+    source: transferInfo
+    target: transfer_info
+    fields:
+    - kind: field
+      source: transferStatus
+      target: transfer_status
+    - kind: field
+      source: transferEmployeeId
+      target: transfer_employee_id
+    - kind: field
+      source: transferClientId
+      target: transfer_client_id
+    - kind: field
+      source: transferDate
+      target: transfer_date
+      transform:
+        name: date
+  - kind: list
+    source: property
+    target: property
+    fields:
+    - kind: field
+      source: propertyCode
+      target: property_code
+    - kind: field
+      source: propertyIssueDate
+      target: property_issue_date
+      transform:
+        name: date
+    - kind: field
+      source: propertySerialNumber
+      target: property_serial_number
+    - kind: field
+      source: propertyValue
+      target: property_value
+    - kind: field
+      source: propertyReturnDate
+      target: property_return_date
+      transform:
+        name: date
+    - kind: field
+      source: propertyComment
+      target: property_comment
+  - kind: list
+    source: hawaiiMedWaivers
+    target: hawaii_med_waivers
+    fields:
+    - kind: field
+      source: medWaiverYear
+      target: med_waiver_year
+    - kind: field
+      source: medWaiverReason
+      target: med_waiver_reason
+  - kind: field
+    source: jobCode
+    target: jobCode
+  - kind: field
+    source: flsaExempt
+    target: flsa_exempt
+  - kind: list
+    source: cafeteriaPlan
+    target: cafeteria_plan
+    fields:
+    - kind: field
+      source: planAmt
+      target: plan_amt
+    - kind: field
+      source: planEffectiveDate
+      target: plan_effective_date
+      transform:
+        name: date
+  - kind: field
+    source: officer
+    target: officer
+  - kind: field
+    source: workCompOfficer
+    target: work_comp_officer
+  - kind: field
+    source: scorpOwner
+    target: scorp_owner
+  - kind: field
+    source: businessOwner
+    target: business_owner
+  - kind: field
+    source: termReasonCode
+    target: term_reason_code
+  - kind: field
+    source: termExplanation
+    target: term_explanation
+  - kind: field
+    source: lastStatusChangeDate
+    target: last_status_change_date
+    transform:
+      name: date
+  - kind: field
+    source: newHireReportDate
+    target: new_hire_report_date
+    transform:
+      name: date
+  - kind: field
+    source: employee1099
+    target: employee1099
+  - kind: field
+    source: clockNum
+    target: clock_num
+  - kind: field
+    source: primaryEmailSource
+    target: primary_email_source
+  - kind: field
+    source: benefitEmail
+    target: benefit_email
+  - kind: field
+    source: returnDate
+    target: return_date
+    transform:
+      name: date
+  - kind: field
+    source: workPhoneExt
+    target: work_phone_ext
+  - kind: field
+    source: probationDate
+    target: probation_date
+    transform:
+      name: date
+  - kind: field
+    source: courtOrderMedical
+    target: court_order_medical
+  - kind: field
+    source: childSpouseSupport
+    target: child_spouse_support
+  - kind: field
+    source: childSpouseArrears
+    target: child_spouse_arrears
+  - kind: field
+    source: addressLine1
+    target: address_line1
+  - kind: field
+    source: addressLine2
+    target: address_line2
+  - kind: field
+    source: city
+    target: city
+  - kind: field
+    source: state
+    target: state
+  - kind: field
+    source: zip
+    target: zip
+  - kind: field
+    source: zipSuffix
+    target: zip_suffix
+  - kind: field
+    source: handbookMailDate
+    target: handbook_mail_date
+    transform:
+      name: date
+  - kind: field
+    source: handbookRecvDate
+    target: handbook_recv_date
+    transform:
+      name: date
+  - kind: field
+    source: unionCode
+    target: unionCode
+  - kind: field
+    source: unionDate
+    target: unionDate
+    transform:
+      name: date
+  - kind: field
+    source: subCostCenter
+    target: sub_cost_center
+  - kind: field
+    source: electronicOnboard
+    target: electronic_onboard
+  - kind: field
+    source: electronicOnboardDate
+    target: electronic_onboard_date
+    transform:
+      name: date
+  - kind: field
+    source: reportsTo
+    target: reports_to
+  - kind: field
+    source: onboardInProgress
+    target: onboard_in_progress
+  - kind: field
+    source: backgroundTest
+    target: background_test
+  - kind: field
+    source: backgroundTestDate
+    target: background_test_date
+    transform:
+      name: date
+  - kind: field
+    source: workersCompExempt
+    target: workers_comp_exempt
+  - kind: field
+    source: clientChecksum
+    target: client_checksum
+  - kind: field
+    source: homeDivision
+    target: homeDivision
+  - kind: field
+    source: homeDepartment
+    target: homeDepartment
+  - kind: field
+    source: workShift
+    target: work_shift
+  - kind: field
+    source: projCostCenter
+    target: proj_cost_center
+  - kind: field
+    source: workGroupCode
+    target: work_group_code
+  - kind: field
+    source: benefitGroup
+    target: benefit_group
+  - kind: field
+    source: retirementBenefitGroup
+    target: retirement_benefit_group
+  - kind: field
+    source: electronic1095C
+    target: electronic1095_c
+  - kind: field
+    source: manager
+    target: manager
+  - kind: field
+    source: selfIdDisabilityForm
+    target: selfIdDisabilityForm
+  - kind: field
+    source: applicantId
+    target: applicant_id
+- kind: object
+  source: compensation
+  target: provider_fields.prismhr.compensation
+  fields:
+  - kind: field
+    source: ssn
+    target: ssn
+  - kind: field
+    source: payGroup
+    target: payGroup
+  - kind: field
+    source: payPeriod
+    target: payPeriod
+  - kind: list
+    source: payPeriodInfo
+    target: pay_period_info
+    fields:
+    - kind: field
+      source: periodCode
+      target: period_code
+    - kind: field
+      source: periodBase
+      target: period_base
+  - kind: field
+    source: payMethod
+    target: pay_method
+  - kind: field
+    source: allocationTemplateId
+    target: allocation_template_id
+  - kind: list
+    source: payAllocation
+    target: pay_allocation
+    fields:
+    - kind: field
+      source: locationCode
+      target: location_code
+    - kind: field
+      source: percent
+      target: percent
+    - kind: field
+      source: job
+      target: job
+    - kind: field
+      source: deptCode
+      target: dept_code
+    - kind: field
+      source: project
+      target: project
+    - kind: field
+      source: division
+      target: division
+  - kind: list
+    source: stateTax
+    target: state_tax
+    fields:
+    - kind: field
+      source: stateCode
+      target: state_code
+    - kind: field
+      source: nonResCertFiled
+      target: non_res_cert_filed
+    - kind: field
+      source: filingStatus
+      target: filing_status
+    - kind: field
+      source: primaryAllowance
+      target: primary_allowance
+    - kind: field
+      source: secondaryAllowance
+      target: secondary_allowance
+    - kind: field
+      source: exemptAmount
+      target: exempt_amount
+    - kind: field
+      source: supplExemptAmount
+      target: suppl_exempt_amount
+    - kind: field
+      source: overrideType
+      target: override_type
+    - kind: field
+      source: overrideAmount
+      target: override_amount
+    - kind: field
+      source: reduceAddlWithholding
+      target: reduce_addl_withholding
+    - kind: field
+      source: fixedWithholding
+      target: fixed_withholding
+    - kind: field
+      source: alternateCalc
+      target: alternate_calc
+    - kind: field
+      source: stateW4Filed
+      target: state_w4_filed
+    - kind: field
+      source: stateW4Year
+      target: state_w4_year
+    - kind: field
+      source: multipleJobs
+      target: multiple_jobs
+    - kind: field
+      source: dependents
+      target: dependents
+    - kind: field
+      source: otherIncome
+      target: other_income
+    - kind: field
+      source: deductions
+      target: deductions
+    - kind: field
+      source: nonResCertYear
+      target: non_res_cert_year
+  - kind: field
+    source: workShift
+    target: work_shift
+  - kind: field
+    source: paidThruDate
+    target: paid_thru_date
+    transform:
+      name: date
+  - kind: field
+    source: eicFileStatus
+    target: eic_file_status
+  - kind: field
+    source: fedFilingStatus
+    target: fed_filing_status
+  - kind: field
+    source: fedWithholdAllowance
+    target: fed_withhold_allowance
+  - kind: field
+    source: fedOverrideType
+    target: fed_override_type
+  - kind: field
+    source: fedOverrideAmt
+    target: fed_override_amt
+  - kind: field
+    source: fedTaxCalc
+    target: fed_tax_calc
+  - kind: field
+    source: fedMultipleJobs
+    target: fed_multiple_jobs
+  - kind: field
+    source: fedDependents
+    target: fed_dependents
+  - kind: field
+    source: fedOtherIncome
+    target: fed_other_income
+  - kind: field
+    source: fedDeductions
+    target: fed_deductions
+  - kind: field
+    source: deliverCheckHome
+    target: deliver_check_home
+  - kind: field
+    source: autoAcceptTimeSheet
+    target: auto_accept_time_sheet
+  - kind: field
+    source: longPayTable
+    target: long_pay_table
+  - kind: field
+    source: longBasisDate
+    target: long_basis_date
+    transform:
+      name: date
+  - kind: field
+    source: effectiveDate
+    target: effective_date
+    transform:
+      name: date
+  - kind: list
+    source: localTax
+    target: local_tax
+    fields:
+    - kind: field
+      source: authId
+      target: auth_id
+    - kind: field
+      source: filingStatus
+      target: filing_status
+    - kind: field
+      source: primaryAllowance
+      target: primary_allowance
+    - kind: field
+      source: nonResCert
+      target: non_res_cert
+    - kind: field
+      source: addlWithheld
+      target: addl_withheld
+  - kind: field
+    source: lastChangePct
+    target: last_change_pct
+  - kind: field
+    source: lastChangeAmt
+    target: last_change_amt
+  - kind: field
+    source: lastPayDate
+    target: last_pay_date
+    transform:
+      name: date
+  - kind: field
+    source: quartile
+    target: quartile
+  - kind: field
+    source: compaRatio
+    target: compa_ratio
+  - kind: field
+    source: benefitsBasePay
+    target: benefits_base_pay
+  - kind: field
+    source: perDiemPay
+    target: per_diem_pay
+  - kind: field
+    source: taxCreditEmp
+    target: tax_credit_emp
+  - kind: field
+    source: autoPayCode
+    target: auto_pay_code
+  - kind: field
+    source: altPayRate
+    target: alt_pay_rate
+  - kind: field
+    source: pensionStatus
+    target: pension_status
+  - kind: field
+    source: profitSharing
+    target: profit_sharing
+  - kind: list
+    source: eeImage
+    target: ee_image
+    fields:
+    - kind: field
+      source: masterId
+      target: master_id
+    - kind: field
+      source: verifyDateTime
+      target: verify_date_time
+      transform:
+        name: date
+    - kind: field
+      source: verifyUserId
+      target: verify_user_id
+  - kind: field
+    source: wagePlanCA
+    target: wage_plan_ca
+  - kind: field
+    source: perfReviewLastDate
+    target: perf_review_last_date
+    transform:
+      name: date
+  - kind: list
+    source: i9imageAudit
+    target: i9image_audit
+    fields:
+    - kind: field
+      source: auditDate
+      target: audit_date
+      transform:
+        name: date
+    - kind: field
+      source: auditUser
+      target: audit_user
+    - kind: field
+      source: auditId
+      target: audit_id
+    - kind: field
+      source: auditStep
+      target: audit_step
+  - kind: field
+    source: perfReviewLastRating
+    target: perf_review_last_rating
+  - kind: field
+    source: compReviewNextDate
+    target: comp_review_next_date
+    transform:
+      name: date
+  - kind: field
+    source: perfReviewLastTitle
+    target: perf_review_last_title
+  - kind: field
+    source: fedW5Year
+    target: fed_w5_year
+  - kind: field
+    source: fedW5Filed
+    target: fed_w5_filed
+  - kind: field
+    source: fedW4Filed
+    target: fed_w4_filed
+  - kind: field
+    source: fedW4Year
+    target: fed_w4_year
+  - kind: list
+    source: lockIns
+    target: lock_ins
+    fields:
+    - kind: field
+      source: state
+      target: state
+    - kind: field
+      source: stateDate
+      target: state_date
+      transform:
+        name: date
+    - kind: field
+      source: authUser
+      target: auth_user
+  - kind: field
+    source: formI9Filed
+    target: formI9Filed
+  - kind: field
+    source: formI9RenewDate
+    target: form_i9_renew_date
+    transform:
+      name: date
+  - kind: field
+    source: notes
+    target: notes
+  - kind: field
+    source: ficaExempt
+    target: fica_exempt
+  - kind: field
+    source: benefitsPerHour
+    target: benefits_per_hour
+  - kind: field
+    source: perfAgreement
+    target: perf_agreement
+  - kind: field
+    source: payRate2
+    target: pay_rate2
+    transform:
+      name: number
+  - kind: field
+    source: payRate3
+    target: pay_rate3
+    transform:
+      name: number
+  - kind: field
+    source: payRate4
+    target: pay_rate4
+    transform:
+      name: number
+  - kind: field
+    source: payChangeLastDate
+    target: pay_change_last_date
+    transform:
+      name: date
+  - kind: field
+    source: overrideWorkGeocode
+    target: override_work_geocode
+  - kind: field
+    source: familyMemberMI
+    target: family_member_mi
+  - kind: field
+    source: probationCodeMO
+    target: probation_code_mo
+  - kind: field
+    source: electronicPayStub
+    target: electronic_pay_stub
+  - kind: field
+    source: healthInsVT
+    target: health_ins_vt
+  - kind: field
+    source: lastWorkedDate
+    target: last_worked_date
+    transform:
+      name: date
+  - kind: field
+    source: irsLockInDate
+    target: irs_lock_in_date
+    transform:
+      name: date
+  - kind: field
+    source: nonResAlien
+    target: non_res_alien
+  - kind: field
+    source: alienRegExpDate
+    target: alien_reg_exp_date
+    transform:
+      name: date
+  - kind: field
+    source: benefitSalary
+    target: benefit_salary
+  - kind: field
+    source: citizenshipStatus
+    target: citizenshipStatus
+  - kind: field
+    source: firstPayPeriodHours
+    target: first_pay_period_hours
+  - kind: field
+    source: compensationChecksum
+    target: compensation_checksum
+  - kind: field
+    source: providerNotifiedOn
+    target: provider_notified_on
+  - kind: field
+    source: alternateId
+    target: alternate_id
+  - kind: field
+    source: w8Filed
+    target: w8_filed
+  - kind: field
+    source: payPeriodsPerWeek
+    target: pay_periods_per_week
+- kind: object
+  source: directDeposit
+  target: provider_fields.prismhr.direct_deposit
+  fields:
+  - kind: field
+    source: achStatus
+    target: ach_status
+  - kind: field
+    source: voucherType
+    target: voucher_type
+  - kind: field
+    source: suppressAccountPrint
+    target: suppress_account_print
+  - kind: list
+    source: achVoucher
+    target: ach_voucher
+    fields:
+    - kind: field
+      source: transitNum
+      target: transit_num
+    - kind: field
+      source: accountNum
+      target: account_num
+    - kind: field
+      source: accountType
+      target: account_type
+    - kind: field
+      source: method
+      target: method
+    - kind: field
+      source: amount
+      target: amount
+    - kind: field
+      source: limit
+      target: limit
+    - kind: field
+      source: status
+      target: status
+    - kind: field
+      source: bankName
+      target: bank_name
+    - kind: field
+      source: voucherTypeOverride
+      target: voucher_type_override
+  - kind: field
+    source: directDepositChecksum
+    target: direct_deposit_checksum
+- kind: object
+  source: hsa
+  target: provider_fields.prismhr.hsa
+  fields:
+  - kind: list
+    source: hsaDepositSettings
+    target: hsa_deposit_settings
+    fields:
+    - kind: field
+      source: transitNum
+      target: transit_num
+    - kind: field
+      source: accountNum
+      target: account_num
+    - kind: field
+      source: accountType
+      target: account_type
+    - kind: field
+      source: method
+      target: method
+    - kind: field
+      source: amount
+      target: amount
+    - kind: field
+      source: status
+      target: status
+    - kind: field
+      source: bankName
+      target: bank_name
+    - kind: field
+      source: voucherTypeOverride
+      target: voucher_type_override
+  - kind: field
+    source: achChecksum
+    target: ach_checksum
+- kind: object
+  source: employeeEvents
+  target: provider_fields.prismhr.employee_events
+  fields:
+  - kind: list
+    source: employeeEvent
+    target: employee_event
+    fields:
+    - kind: field
+      source: eventCode
+      target: event_code
+    - kind: field
+      source: effectiveDate
+      target: effective_date
+      transform:
+        name: date
+    - kind: field
+      source: description
+      target: description
+    - kind: field
+      source: actionDate
+      target: action_date
+      transform:
+        name: date
+    - kind: field
+      source: comment
+      target: comment
+- kind: object
+  source: health
+  target: provider_fields.prismhr.health
+  fields:
+  - kind: field
+    source: allergy
+    target: allergy
+  - kind: field
+    source: condition
+    target: condition
+  - kind: field
+    source: program
+    target: program
+  - kind: field
+    source: height
+    target: height
+  - kind: field
+    source: weight
+    target: weight
+  - kind: field
+    source: bloodType
+    target: blood_type
+  - kind: field
+    source: bloodRh
+    target: blood_rh
+  - kind: field
+    source: bloodDonor
+    target: blood_donor
+  - kind: field
+    source: donateDateLast
+    target: donate_date_last
+    transform:
+      name: date
+  - kind: field
+    source: donateDateNext
+    target: donate_date_next
+    transform:
+      name: date
+  - kind: field
+    source: drugTestResult
+    target: drug_test_result
+  - kind: field
+    source: drugTestDateLast
+    target: drug_test_date_last
+    transform:
+      name: date
+  - kind: field
+    source: drugTestDateNext
+    target: drug_test_date_next
+    transform:
+      name: date
+  - kind: field
+    source: audioTestResult
+    target: audio_test_result
+  - kind: field
+    source: audioTestDateLast
+    target: audio_test_date_last
+    transform:
+      name: date
+  - kind: field
+    source: audioTestDateNext
+    target: audio_test_date_next
+    transform:
+      name: date
+  - kind: field
+    source: physExamResult
+    target: phys_exam_result
+  - kind: field
+    source: physExamDateLast
+    target: phys_exam_date_last
+    transform:
+      name: date
+  - kind: field
+    source: physExamDateNext
+    target: phys_exam_date_next
+    transform:
+      name: date
+- kind: object
+  source: skillsAndEducation
+  target: provider_fields.prismhr.skills_and_education
+  fields:
+  - kind: field
+    source: skillChecksum
+    target: skill_checksum
+  - kind: list
+    source: skill
+    target: skill
+    fields:
+    - kind: field
+      source: skillCode
+      target: skill_code
+    - kind: field
+      source: competencyLevel
+      target: competency_level
+    - kind: field
+      source: certifyDate
+      target: certify_date
+      transform:
+        name: date
+    - kind: field
+      source: skillComment
+      target: skill_comment
+    - kind: field
+      source: renewDate
+      target: renew_date
+      transform:
+        name: date
+  - kind: list
+    source: school
+    target: school
+    fields:
+    - kind: field
+      source: schoolName
+      target: school_name
+    - kind: field
+      source: schoolYear
+      target: school_year
+    - kind: field
+      source: graduated
+      target: graduated
+    - kind: field
+      source: gradYear
+      target: grad_year
+    - kind: field
+      source: degreeEarned
+      target: degree_earned
+    - kind: field
+      source: schoolComment
+      target: school_comment
+  - kind: field
+    source: osha10Certified
+    target: osha10_certified
+- kind: field
+  source: absenceJournalId
+  target: provider_fields.prismhr.absence_journal_id
+- kind: field
+  source: benefitEnrollmentCompleted
+  target: provider_fields.prismhr.benefit_enrollment_completed
+- kind: list
+  source: scheduledDeduction
+  target: provider_fields.prismhr.scheduled_deduction
+  fields:
+  - kind: field
+    source: deductionCode
+    target: deduction_code
+  - kind: field
+    source: checkStubDescription
+    target: check_stub_description
+  - kind: field
+    source: status
+    target: status
+  - kind: field
+    source: amount
+    target: amount
+  - kind: field
+    source: startDate
+    target: start_date
+    transform:
+      name: date
+  - kind: field
+    source: stopDate
+    target: stop_date
+    transform:
+      name: date
+  - kind: field
+    source: cutbackPayeeCode
+    target: cutback_payee_code
+- kind: list
+  source: newHireQuestions
+  target: provider_fields.prismhr.new_hire_questions
+  fields:
+  - kind: field
+    source: code
+    target: code
+  - kind: field
+    source: description
+    target: description
+  - kind: field
+    source: answer
+    target: answer
+- kind: object
+  source: enrollmentInProgress
+  target: provider_fields.prismhr.enrollment_in_progress
+  fields:
+  - kind: field
+    source: enrollmentInProgress
+    target: enrollment_in_progress
+  - kind: field
+    source: enrollmentType
+    target: enrollment_type

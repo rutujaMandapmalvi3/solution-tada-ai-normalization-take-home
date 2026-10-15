@@ -1,0 +1,607 @@
+# Shared UKG employee rules for list/detail records and optional supplements.
+# Source IDs retain numeric types; the identifier helper emits canonical strings.
+# EIN ID and EIN name remain separate. Unknown codes and source links are preserved.
+version: 1
+provider: ukg-ready
+entity: employee
+fields:
+- kind: field
+  source: id
+  target: employee_id
+  transform:
+    name: identifier
+- kind: field
+  source: username
+  target: ukg_username
+- kind: field
+  source: first_name
+  target: first_name
+- kind: field
+  source: last_name
+  target: last_name
+- kind: field
+  source: middle_name
+  target: middle_name
+- kind: field
+  source: external_id
+  target: ukg_external_id
+- kind: field
+  source: employee_id
+  target: ukg_employee_id
+- kind: field
+  source: address.country
+  target: ukg_country
+- kind: field
+  source: address.address_line_1
+  target: address_line_1
+- kind: field
+  source: address.city
+  target: city
+- kind: field
+  source: address.state
+  target: ukg_state_value
+- kind: field
+  source: address.state_code
+  target: state_code
+- kind: field
+  source: address.zip
+  target: postal_code
+- kind: field
+  source: primary_account_id
+  target: ukg_primary_account_id
+  transform:
+    name: identifier
+- kind: field
+  source: ein.id
+  target: ukg_ein_id
+  transform:
+    name: identifier
+- kind: field
+  source: phones.cell_phone
+  target: mobile_phone
+- kind: field
+  source: phones.home_phone
+  target: home_phone
+- kind: field
+  source: phones.work_phone
+  target: work_phone
+- kind: field
+  source: nickname
+  target: nickname
+- kind: field
+  source: primary_email
+  target: primary_email
+- kind: field
+  source: salutation
+  target: name_prefix
+- kind: field
+  source: suffix
+  target: name_suffix
+- kind: field
+  source: dates.hired
+  target: original_hire_date
+  transform:
+    name: date
+- kind: field
+  source: dates.deceased
+  target: deceased_date
+  transform:
+    name: date
+- kind: field
+  source: dates.re_hired
+  target: latest_hire_date
+  transform:
+    name: date
+- kind: field
+  source: dates.birthday
+  target: birth_date
+  transform:
+    name: date
+- kind: field
+  source: dates.review
+  target: next_review_date
+  transform:
+    name: date
+- kind: field
+  source: dates.seniority
+  target: seniority_date
+  transform:
+    name: date
+- kind: field
+  source: dates.terminated
+  target: termination_date
+  transform:
+    name: date
+- kind: field
+  source: dates.peo_hired
+  target: peo_start_date
+  transform:
+    name: date
+- kind: field
+  source: pay_info.job_last_changed
+  target: job_effective_date
+  transform:
+    name: date
+- kind: field
+  source: pay_info.standard_work_day
+  target: ukg_standard_work_day_milliseconds
+- kind: field
+  source: pay_info.employee_type.id
+  target: ukg_employee_type_id
+  transform:
+    name: identifier
+- kind: field
+  source: photo_href
+  target: provider_fields.ukg-ready.photo_href
+- kind: field
+  source: isPhotoUploaded
+  target: provider_fields.ukg-ready.is_photo_uploaded
+- kind: field
+  source: status
+  target: provider_fields.ukg-ready.status
+- kind: field
+  source: bsn
+  target: provider_fields.ukg-ready.bsn
+- kind: object
+  source: address
+  target: provider_fields.ukg-ready.address
+  fields:
+  - kind: field
+    source: address_line_2
+    target: address_line_2
+  - kind: field
+    source: address_line_3
+    target: address_line_3
+  - kind: field
+    source: number
+    target: number
+  - kind: field
+    source: number_addition
+    target: number_addition
+- kind: field
+  source: use_separate_mailing_address
+  target: provider_fields.ukg-ready.use_separate_mailing_address
+- kind: object
+  source: mailing_address
+  target: provider_fields.ukg-ready.mailing_address
+  fields:
+  - kind: field
+    source: country
+    target: country
+  - kind: field
+    source: address_line_1
+    target: address_line_1
+  - kind: field
+    source: address_line_2
+    target: address_line_2
+  - kind: field
+    source: address_line_3
+    target: address_line_3
+  - kind: field
+    source: city
+    target: city
+  - kind: field
+    source: state
+    target: state
+  - kind: field
+    source: state_code
+    target: state_code
+  - kind: field
+    source: zip
+    target: zip
+  - kind: field
+    source: number
+    target: number
+  - kind: field
+    source: number_addition
+    target: number_addition
+- kind: field
+  source: force_change_password
+  target: provider_fields.ukg-ready.force_change_password
+- kind: field
+  source: locked
+  target: provider_fields.ukg-ready.locked
+- kind: object
+  source: first_screen
+  target: provider_fields.ukg-ready.first_screen
+  fields:
+  - kind: field
+    source: id
+    target: id
+- kind: object
+  source: phones
+  target: provider_fields.ukg-ready.phones
+  fields:
+  - kind: field
+    source: cell_phone_country_id
+    target: cell_phone_country_id
+  - kind: field
+    source: cell_phone_country_code
+    target: cell_phone_country_code
+  - kind: field
+    source: home_phone_country_id
+    target: home_phone_country_id
+  - kind: field
+    source: home_phone_country_code
+    target: home_phone_country_code
+  - kind: field
+    source: work_phone_country_id
+    target: work_phone_country_id
+  - kind: field
+    source: work_phone_country_code
+    target: work_phone_country_code
+  - kind: field
+    source: preferred_phone
+    target: preferred_phone
+- kind: object
+  source: locale
+  target: provider_fields.ukg-ready.locale
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+- kind: list
+  source: managers
+  target: provider_fields.ukg-ready.managers
+  fields:
+  - kind: field
+    source: index
+    target: index
+  - kind: object
+    source: empl_ref
+    target: empl_ref
+    fields:
+    - kind: field
+      source: account_id
+      target: account_id
+      transform:
+        name: identifier
+- kind: field
+  source: national_insurance
+  target: provider_fields.ukg-ready.national_insurance
+- kind: field
+  source: secondary_email
+  target: provider_fields.ukg-ready.secondary_email
+- kind: field
+  source: social_insurance
+  target: provider_fields.ukg-ready.social_insurance
+- kind: field
+  source: social_security
+  target: provider_fields.ukg-ready.social_security
+- kind: field
+  source: timezone
+  target: provider_fields.ukg-ready.timezone
+- kind: object
+  source: cost_centers_info
+  target: provider_fields.ukg-ready.cost_centers_info
+  fields:
+  - kind: list
+    source: defaults
+    target: defaults
+    fields:
+    - kind: field
+      source: index
+      target: index
+    - kind: object
+      source: value
+      target: value
+      fields:
+      - kind: field
+        source: id
+        target: id
+        transform:
+          name: identifier
+  - kind: list
+    source: limits
+    target: limits
+    fields:
+    - kind: field
+      source: index
+      target: index
+    - kind: list
+      source: values
+      target: values
+      fields:
+      - kind: field
+        source: id
+        target: id
+        transform:
+          name: identifier
+      - kind: field
+        source: effective_from
+        target: effective_from
+        transform:
+          name: date
+      - kind: field
+        source: type
+        target: type
+- kind: field
+  source: add_to_new_hire_export
+  target: provider_fields.ukg-ready.add_to_new_hire_export
+- kind: object
+  source: dates
+  target: provider_fields.ukg-ready.dates
+  fields:
+  - kind: field
+    source: started
+    target: started
+    transform:
+      name: date
+  - kind: field
+    source: frozen_benefit
+    target: frozen_benefit
+    transform:
+      name: date
+  - kind: field
+    source: benefits
+    target: benefits
+    transform:
+      name: date
+  - kind: field
+    source: retired
+    target: retired
+    transform:
+      name: date
+  - kind: list
+    source: custom_dates
+    target: custom_dates
+    fields:
+    - kind: field
+      source: index
+      target: index
+    - kind: field
+      source: date
+      target: date
+      transform:
+        name: date
+- kind: list
+  source: account_extra_fields
+  target: provider_fields.ukg-ready.account_extra_fields
+  fields:
+  - kind: field
+    source: index
+    target: index
+  - kind: list
+    source: values
+    target: values
+    fields:
+    - kind: field
+      source: value
+      target: value
+    - kind: field
+      source: effective_from
+      target: effective_from
+      transform:
+        name: date
+- kind: list
+  source: time_entry_extra_fields
+  target: provider_fields.ukg-ready.time_entry_extra_fields
+  fields:
+  - kind: field
+    source: index
+    target: index
+  - kind: field
+    source: value
+    target: value
+- kind: object
+  source: hardware_settings
+  target: provider_fields.ukg-ready.hardware_settings
+  fields:
+  - kind: object
+    source: in_touch
+    target: in_touch
+    fields:
+    - kind: field
+      source: security_level
+      target: security_level
+    - kind: field
+      source: pin
+      target: pin
+- kind: field
+  source: managed_cost_centers_enabled
+  target: provider_fields.ukg-ready.managed_cost_centers_enabled
+- kind: object
+  source: managed_cost_centers_settings
+  target: provider_fields.ukg-ready.managed_cost_centers_settings
+  fields:
+  - kind: field
+    source: allow_save_others_cost_centers
+    target: allow_save_others_cost_centers
+- kind: list
+  source: national_id_numbers
+  target: provider_fields.ukg-ready.national_id_numbers
+  fields:
+  - kind: field
+    source: type
+    target: type
+  - kind: field
+    source: value
+    target: value
+  - kind: field
+    source: primary
+    target: primary
+- kind: object
+  source: pay_info
+  target: provider_fields.ukg-ready.pay_info
+  fields:
+  - kind: object
+    source: default_job
+    target: default_job
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+  - kind: object
+    source: job_change_reason_code
+    target: job_change_reason_code
+    fields:
+    - kind: field
+      source: display_name
+      target: display_name
+  - kind: object
+    source: pay_type
+    target: pay_type
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+  - kind: object
+    source: shift_premium
+    target: shift_premium
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+  - kind: field
+    source: medical_eligibility
+    target: medical_eligibility
+  - kind: field
+    source: dental_eligibility
+    target: dental_eligibility
+  - kind: field
+    source: dependent_benefits_eligibility
+    target: dependent_benefits_eligibility
+  - kind: field
+    source: benefit_auto_enrollment_eligibility
+    target: benefit_auto_enrollment_eligibility
+  - kind: field
+    source: eeo_classification
+    target: eeo_classification
+  - kind: field
+    source: eeo4_classification
+    target: eeo4_classification
+  - kind: field
+    source: eeo4_function
+    target: eeo4_function
+  - kind: object
+    source: workers_comp_code
+    target: workers_comp_code
+    fields:
+    - kind: field
+      source: external_id
+      target: external_id
+  - kind: object
+    source: union
+    target: union
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+  - kind: field
+    source: payroll_classification
+    target: payroll_classification
+  - kind: field
+    source: bank_account_number
+    target: bank_account_number
+  - kind: object
+    source: pay_grade
+    target: pay_grade
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: object
+      source: parent
+      target: parent
+      fields:
+      - kind: field
+        source: id
+        target: id
+        transform:
+          name: identifier
+      - kind: field
+        source: code
+        target: code
+      - kind: field
+        source: name
+        target: name
+  - kind: list
+    source: gl_codes
+    target: gl_codes
+    fields:
+    - kind: field
+      source: index
+      target: index
+    - kind: field
+      source: value
+      target: value
+  - kind: list
+    source: ttoc
+    target: ttoc
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: display_name
+      target: display_name
+    - kind: field
+      source: effective_from
+      target: effective_from
+      transform:
+        name: date
+- kind: object
+  source: compensation_history
+  target: provider_fields.ukg-ready.compensation_history
+  fields:
+  - kind: list
+    source: compensations
+    target: compensations
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: object
+      source: employee
+      target: employee
+      fields:
+      - kind: field
+        source: account_id
+        target: account_id
+        transform:
+          name: identifier
+    - kind: field
+      source: effective_from
+      target: effective_from
+      transform:
+        name: date
+    - kind: field
+      source: amount
+      target: amount
+    - kind: field
+      source: hourly_pay
+      target: hourly_pay
+    - kind: field
+      source: currency
+      target: currency
+    - kind: field
+      source: amount_period
+      target: amount_period
+    - kind: field
+      source: time
+      target: time
+    - kind: field
+      source: time_period
+      target: time_period
+    - kind: field
+      source: num_pp_in_year
+      target: num_pp_in_year
+- kind: field
+  source: ein_name
+  target: ukg_ein_name

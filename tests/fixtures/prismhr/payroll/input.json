@@ -1,0 +1,52 @@
+{
+  "errorCode": "0",
+  "errorMessage": "",
+  "batchList": [
+    {
+      "batchId": "001",
+      "payDate": "2026-10-15",
+      "payGroup": [
+        {
+          "payGroupId": "01",
+          "payPeriodStartDate": "2026-10-01",
+          "payPeriodEndDate": "2026-10-14"
+        }
+      ]
+    }
+  ],
+  "payrollVouchers": [
+    {
+      "voucherId": "010",
+      "employeeId": "007",
+      "batchId": "001",
+      "checkNumber": "0001",
+      "checkNum": "0001",
+      "netPay": 0.0,
+      "checkAmt": 0.0,
+      "earning": [
+        {
+          "hoursWorked": 0.0,
+          "payAmount": 25.0
+        }
+      ],
+      "deduction": [
+        {
+          "deductCode": "SYNTHETIC",
+          "deductAmount": 0.0
+        }
+      ],
+      "employeeTax": [
+        {
+          "empTaxAmount": 0.0
+        }
+      ],
+      "benefit": [
+        {
+          "planId": "SYNTHETIC",
+          "empContrib": 0.0
+        }
+      ],
+      "fixture_note": false
+    }
+  ]
+}

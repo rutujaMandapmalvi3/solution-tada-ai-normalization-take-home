@@ -12,7 +12,7 @@ is retained. Reference IDs are optional unless they identify this record.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -290,7 +290,7 @@ class UKGReadyEmployeeTimeEntryExtraFieldsItem(BaseModel):
     value: Optional[str] = None
 
 
-class UKGReadyEmployeeLinks(BaseModel):
+class UKGReadyEmployeeLinks(UKGReadyEmployeeListResponseEmployeesItemLinks):
     """Cached schema path: 106/_links."""
     model_config = ConfigDict(extra="allow")
 
@@ -484,7 +484,10 @@ class UKGReadyCompensationHistoryResponseCompensationsItemLinks(BaseModel):
 
 
 class UKGReadyEmployeeInput(UKGReadyEmployee):
-    """Project employee record with optional supplemental response sections."""
+    """Shared list/detail record with optional supplemental response sections."""
+    # List IDs are numbers; detail IDs are nullable integers.
+    id: Optional[Union[int, float]]
+    ein_name: Optional[str] = None
     pay_info: Optional[UKGReadyEmployeePayInfo] = None
     compensation_history: Optional[UKGReadyCompensationHistoryResponse] = None
 
@@ -495,11 +498,5 @@ class UKGReadyEmployeeInput(UKGReadyEmployee):
         return [cls.model_validate(response)]
 
 
-class UKGReadyCombinedEmployeeListItem(UKGReadyEmployeeListResponseEmployeesItem):
-    """Retain the list endpoint's ID type while validating supplements."""
-    pay_info: Optional[UKGReadyEmployeePayInfo] = None
-    compensation_history: Optional[UKGReadyCompensationHistoryResponse] = None
-
-
 class UKGReadyCombinedEmployeeListResponse(UKGReadyEmployeeListResponse):
-    employees: List[UKGReadyCombinedEmployeeListItem]
+    employees: List[UKGReadyEmployeeInput]

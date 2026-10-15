@@ -1,0 +1,643 @@
+# isolved company rules: one validated IsolvedLegalModel per map() call.
+# The connected adapter supplies internal context.source_record_type="legal_company".
+# This is a fixed source-record role, NOT a new user input-type/CLI option.
+# id maps to source_record_id; no global company ID or cross-provider join is inferred.
+# Shared names/tax/NAICS fields use only the proposal's verified semantic matches.
+# Other known fields retain separate provider scope and explicit snake_case names.
+# Record links/unconsumed fields keep source nesting under provider_fields.isolved.unmapped.
+# Unknown fields retain source nesting under source_extras.isolved.
+# Source wrappers are preserved by the adapter, outside this record YAML.
+# Existing helpers only; no new helper, engine or source-model implementation.
+# Parent client data is NOT this legal company's own name/identity/settings.
+# Recursive client.legalCompanies back-references project only nested record IDs;
+# other supplied values remain in the engine fallback at original source positions.
+# No recursive schema expansion, fetching, deduplication or parent joins occurs.
+
+version: 1
+provider: isolved
+entity: company
+fields:
+- kind: field
+  source: id
+  target: source_record_id
+  transform:
+    name: identifier
+- kind: field
+  source: source_record_type
+  target: source_record_type
+  source_scope: context
+- kind: field
+  source: allowRemoteWorkers
+  target: provider_fields.isolved.allow_remote_workers
+- kind: object
+  source: client
+  target: provider_fields.isolved.client
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: list
+    source: alternatePayRates
+    target: alternate_pay_rates
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: payRateName
+      target: pay_rate_name
+  - kind: list
+    source: changeReasons
+    target: change_reasons
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: object
+      source: changeReasonType
+      target: change_reason_type
+      fields:
+      - kind: field
+        source: id
+        target: id
+        transform:
+          name: identifier
+      - kind: field
+        source: description
+        target: description
+    - kind: field
+      source: code
+      target: code
+    - kind: field
+      source: description
+      target: description
+  - kind: field
+    source: clientCode
+    target: client_code
+  - kind: field
+    source: clientName
+    target: client_name
+  - kind: list
+    source: contacts
+    target: contacts
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: alternatePhoneNumber
+      target: alternate_phone_number
+    - kind: field
+      source: emailAddress
+      target: email_address
+    - kind: field
+      source: faxNumber
+      target: fax_number
+    - kind: field
+      source: firstName
+      target: first_name
+    - kind: field
+      source: inactiveDate
+      target: inactive_date
+      transform:
+        name: date
+    - kind: field
+      source: lastName
+      target: last_name
+    - kind: field
+      source: mobilePhoneNumber
+      target: mobile_phone_number
+    - kind: field
+      source: phoneNumber
+      target: phone_number
+    - kind: field
+      source: profilePicture
+      target: profile_picture
+    - kind: field
+      source: title
+      target: title
+    - kind: field
+      source: type
+      target: type
+  - kind: list
+    source: employmentCategories
+    target: employment_categories
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: acaEmploymentStatus
+      target: aca_employment_status
+    - kind: field
+      source: code
+      target: code
+    - kind: field
+      source: description
+      target: description
+    - kind: field
+      source: isInactive
+      target: is_inactive
+  - kind: list
+    source: employmentStatuses
+    target: employment_statuses
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: code
+      target: code
+    - kind: object
+      source: payrollStatus
+      target: payroll_status
+      fields:
+      - kind: field
+        source: id
+        target: id
+        transform:
+          name: identifier
+      - kind: field
+        source: statusDescription
+        target: status_description
+    - kind: field
+      source: statusDescription
+      target: status_description
+  - kind: list
+    source: jobs
+    target: jobs
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: eeoCategory
+      target: eeo_category
+    - kind: field
+      source: isFLSAExempt
+      target: is_flsa_exempt
+    - kind: field
+      source: isInactive
+      target: is_inactive
+    - kind: field
+      source: isManagerJob
+      target: is_manager_job
+    - kind: field
+      source: isSeasonal
+      target: is_seasonal
+    - kind: field
+      source: isSupervisorJob
+      target: is_supervisor_job
+    - kind: field
+      source: isUnion
+      target: is_union
+    - kind: field
+      source: jobCode
+      target: job_code
+    - kind: field
+      source: jobGroup
+      target: job_group
+    - kind: field
+      source: jobTitle
+      target: job_title
+  - kind: list
+    source: labors
+    target: labors
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: allowInTimeEntry
+      target: allow_in_time_entry
+    - kind: field
+      source: laborTitle
+      target: labor_title
+    - kind: list
+      source: lookups
+      target: lookups
+      fields:
+      - kind: field
+        source: address1
+        target: address1
+      - kind: field
+        source: address2
+        target: address2
+      - kind: field
+        source: beginDate
+        target: begin_date
+        transform:
+          name: date
+      - kind: field
+        source: city
+        target: city
+      - kind: field
+        source: code
+        target: code
+      - kind: field
+        source: description
+        target: description
+      - kind: field
+        source: endDate
+        target: end_date
+        transform:
+          name: date
+      - kind: field
+        source: isCertified
+        target: is_certified
+      - kind: field
+        source: isInactive
+        target: is_inactive
+      - kind: field
+        source: projectLocation
+        target: project_location
+      - kind: field
+        source: projectNumber
+        target: project_number
+      - kind: field
+        source: state
+        target: state
+      - kind: field
+        source: zipCode
+        target: zip_code
+    - kind: field
+      source: organizationFieldName
+      target: organization_field_name
+    - kind: field
+      source: sequenceNumber
+      target: sequence_number
+  - kind: list
+    source: legalCompanies
+    target: legal_companies
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+  - kind: list
+    source: miscEmployeeFields
+    target: misc_employee_fields
+    fields:
+    - kind: field
+      source: category
+      target: category
+    - kind: field
+      source: dataType
+      target: data_type
+    - kind: field
+      source: fieldCode
+      target: field_code
+    - kind: field
+      source: fieldTitle
+      target: field_title
+    - kind: list
+      source: lookups
+      target: lookups
+      fields:
+      - kind: field
+        source: description
+        target: description
+      - kind: field
+        source: id
+        target: id
+        transform:
+          name: identifier
+  - kind: list
+    source: organizations
+    target: organizations
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: displayOrder
+      target: display_order
+    - kind: field
+      source: includeInJob
+      target: include_in_job
+    - kind: field
+      source: isLaborField
+      target: is_labor_field
+    - kind: field
+      source: isRequired
+      target: is_required
+    - kind: field
+      source: isTeam
+      target: is_team
+    - kind: list
+      source: lookups
+      target: lookups
+      fields:
+      - kind: field
+        source: code
+        target: code
+      - kind: field
+        source: description
+        target: description
+      - kind: field
+        source: isInactive
+        target: is_inactive
+    - kind: field
+      source: organizationGroupId
+      target: organization_group_id
+      transform:
+        name: identifier
+    - kind: field
+      source: title
+      target: title
+  - kind: object
+    source: securityServiceGroup
+    target: security_service_group
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: name
+      target: name
+- kind: list
+  source: compensationPlans
+  target: provider_fields.isolved.compensation_plans
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: code
+    target: code
+  - kind: field
+    source: description
+    target: description
+- kind: field
+  source: dbaName
+  target: trade_name
+- kind: field
+  source: federalEIN
+  target: federal_tax_id
+- kind: field
+  source: forceDirectDepositPrenote
+  target: provider_fields.isolved.force_direct_deposit_prenote
+- kind: field
+  source: iSolvedTimeEnabled
+  target: provider_fields.isolved.i_solved_time_enabled
+- kind: object
+  source: legalAddress
+  target: provider_fields.isolved.legal_address
+  fields:
+  - kind: field
+    source: addressDescription
+    target: address_description
+  - kind: field
+    source: city
+    target: city
+  - kind: field
+    source: phoneNumber
+    target: phone_number
+  - kind: field
+    source: state
+    target: state
+  - kind: field
+    source: streetAddress1
+    target: street_address1
+  - kind: field
+    source: streetAddress2
+    target: street_address2
+  - kind: field
+    source: zipCode
+    target: zip_code
+- kind: field
+  source: legalCode
+  target: provider_fields.isolved.legal_code
+- kind: field
+  source: legalName
+  target: legal_name
+- kind: field
+  source: logoData
+  target: provider_fields.isolved.logo_data
+- kind: field
+  source: naicsCode
+  target: naics_code
+- kind: list
+  source: payGroups
+  target: provider_fields.isolved.pay_groups
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: enableiSolvedPayroll
+    target: enablei_solved_payroll
+  - kind: field
+    source: enableiSolvedTime
+    target: enablei_solved_time
+  - kind: field
+    source: inputMethod
+    target: input_method
+  - kind: field
+    source: isInactive
+    target: is_inactive
+  - kind: object
+    source: legal
+    target: legal
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+  - kind: field
+    source: normalHours
+    target: normal_hours
+    transform:
+      name: number
+  - kind: field
+    source: payFrequency
+    target: pay_frequency
+  - kind: field
+    source: payGroupName
+    target: pay_group_name
+  - kind: field
+    source: payrollType
+    target: payroll_type
+  - kind: object
+    source: printCenter
+    target: print_center
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: allowTaxFilingPrint
+      target: allow_tax_filing_print
+    - kind: field
+      source: allowYearEndPrint
+      target: allow_year_end_print
+    - kind: field
+      source: isChanged
+      target: is_changed
+    - kind: field
+      source: isDeleted
+      target: is_deleted
+    - kind: field
+      source: isLocalPrintCenter
+      target: is_local_print_center
+    - kind: field
+      source: isNew
+      target: is_new
+    - kind: field
+      source: printCenterDescription
+      target: print_center_description
+- kind: list
+  source: services
+  target: provider_fields.isolved.services
+  fields:
+  - kind: field
+    source: code
+    target: code
+  - kind: field
+    source: startDate
+    target: start_date
+    transform:
+      name: date
+  - kind: field
+    source: endDate
+    target: end_date
+    transform:
+      name: date
+- kind: field
+  source: status
+  target: provider_fields.isolved.status
+- kind: list
+  source: workersComps
+  target: provider_fields.isolved.workers_comps
+  fields:
+  - kind: field
+    source: isInactive
+    target: is_inactive
+  - kind: field
+    source: state
+    target: state
+  - kind: field
+    source: workersCompCode
+    target: workers_comp_code
+  - kind: field
+    source: workersCompDescription
+    target: workers_comp_description
+  - kind: field
+    source: workersCompId
+    target: workers_comp_id
+    transform:
+      name: identifier
+- kind: list
+  source: workLocations
+  target: provider_fields.isolved.work_locations
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: address1
+    target: address1
+  - kind: field
+    source: address2
+    target: address2
+  - kind: field
+    source: addressDescription
+    target: address_description
+  - kind: field
+    source: city
+    target: city
+  - kind: field
+    source: existingAddressId
+    target: existing_address_id
+    transform:
+      name: identifier
+  - kind: field
+    source: geoCode
+    target: geo_code
+  - kind: field
+    source: includeWorkSiteTaxFiling
+    target: include_work_site_tax_filing
+  - kind: field
+    source: isInactive
+    target: is_inactive
+  - kind: field
+    source: isRemoteWorkersOnly
+    target: is_remote_workers_only
+  - kind: object
+    source: minimumWageRule
+    target: minimum_wage_rule
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: description
+      target: description
+  - kind: field
+    source: overrideTaxCode
+    target: override_tax_code
+  - kind: field
+    source: reportingUnitNumber
+    target: reporting_unit_number
+  - kind: field
+    source: schoolDistrictCode
+    target: school_district_code
+  - kind: field
+    source: state
+    target: state
+  - kind: object
+    source: taxDistrict
+    target: tax_district
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: description
+      target: description
+  - kind: field
+    source: timeZone
+    target: time_zone
+  - kind: field
+    source: workLocationCode
+    target: work_location_code
+  - kind: field
+    source: workLocationDescription
+    target: work_location_description
+  - kind: field
+    source: zipCode
+    target: zip_code

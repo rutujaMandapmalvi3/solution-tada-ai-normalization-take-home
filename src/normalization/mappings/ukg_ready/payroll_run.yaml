@@ -1,0 +1,95 @@
+# One validated payroll record per map call; preserve links through engine fallback.
+# Shared fields require verified meanings; provider fields retain separate nested scopes.
+version: 1
+provider: ukg-ready
+entity: payroll
+fields:
+- kind: field
+  source: id
+  target: payroll_run_id
+  transform:
+    name: identifier
+- kind: field
+  source: name
+  target: provider_fields.ukg-ready.name
+- kind: field
+  source: start_date
+  target: provider_fields.ukg-ready.start_date
+  transform:
+    name: date
+- kind: field
+  source: end_date
+  target: provider_fields.ukg-ready.end_date
+  transform:
+    name: date
+- kind: field
+  source: pay_date
+  target: provider_fields.ukg-ready.pay_date
+  transform:
+    name: date
+- kind: object
+  source: type
+  target: provider_fields.ukg-ready.type
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: display_name
+    target: display_name
+- kind: field
+  source: status
+  target: provider_fields.ukg-ready.status
+- kind: object
+  source: ein
+  target: provider_fields.ukg-ready.ein
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: ein_name
+    target: ein_name
+  - kind: field
+    source: ein_tax_id
+    target: ein_tax_id
+    transform:
+      name: identifier
+  - kind: field
+    source: ein_country_id
+    target: ein_country_id
+    transform:
+      name: identifier
+- kind: field
+  source: billable
+  target: provider_fields.ukg-ready.billable
+- kind: field
+  source: direct_deposit_date
+  target: provider_fields.ukg-ready.direct_deposit_date
+  transform:
+    name: date
+- kind: field
+  source: sch_submit_date_time
+  target: provider_fields.ukg-ready.sch_submit_date_time
+- kind: field
+  source: invoice_generator_id
+  target: provider_fields.ukg-ready.invoice_generator_id
+  transform:
+    name: identifier
+- kind: field
+  source: adjustment_grab_YTD_from_payroll_id
+  target: provider_fields.ukg-ready.adjustment_grab_ytd_from_payroll_id
+  transform:
+    name: identifier
+- kind: field
+  source: dflt_pay_statement_type_id
+  target: provider_fields.ukg-ready.dflt_pay_statement_type_id
+  transform:
+    name: identifier
+- kind: field
+  source: dflt_pay_stub_note
+  target: provider_fields.ukg-ready.dflt_pay_stub_note

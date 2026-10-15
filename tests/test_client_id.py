@@ -7,12 +7,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from pydantic import ValidationError
-
 from normalization.__main__ import main
 from normalization.adapters import prismhr
 from normalization.canonical_models.canonical_model_employee import (
-    PrismHREmployee,
+    CanonicalEmployee,
 )
 
 
@@ -76,13 +74,15 @@ class ClientIdChecks(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("reference issue", errors.getvalue())
 
-    def test_canonical_employee_requires_source_client_id(self):
-        fields = dict(employee_id="E1", first_name="Test", last_name="Employee",
-                      middle_name="", preferred_name="")
-        with self.assertRaises(ValidationError):
-            PrismHREmployee.model_validate(fields)
-        employee = PrismHREmployee.model_validate({**fields, "source_client_id": "00132"})
-        self.assertEqual(employee.source_client_id, "00132")
+    def test_canonical_employee_preserves_prism_client_context_without_requiring_it_for_others(self):
+        employee = CanonicalEmployee(
+            provider="prismhr", employee_id="E1",
+            prismhr_client_id="00132",
+        )
+        self.assertEqual(employee.prismhr_client_id, "00132")
+        # CLI/Prism adapter still require client context; shared output does not.
+        other = CanonicalEmployee(provider="isolved", employee_id="E1")
+        self.assertEqual(other.provider_fields, {})
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""PrismHR payroll-run source validation; mapping is pending."""
+"""PrismHR payroll-run source validation and mapping integration."""
 import copy
 import unittest
 
@@ -21,8 +21,8 @@ def response():
 class PayrollValidationChecks(unittest.TestCase):
     def assert_valid(self, payload):
         before = copy.deepcopy(payload)
-        with self.assertRaisesRegex(NotImplementedError, "source validation passed"):
-            prismhr.normalize("payroll", payload, {})
+        result = prismhr.normalize("payroll", payload, {})
+        self.assertEqual(result["provider"], 'prismhr')
         self.assertEqual(payload, before)
 
     def test_validates_batches_without_mutating_source_values(self):
@@ -33,7 +33,8 @@ class PayrollValidationChecks(unittest.TestCase):
             payload = {"errorCode": "0", "errorMessage": "", **extra}
             before = copy.deepcopy(payload)
             with self.subTest(extra=extra):
-                self.assertEqual(prismhr.normalize("payroll", payload, {}), [])
+                self.assertFalse(any(prismhr.normalize("payroll", payload, {})[key]
+                                     for key in ("payroll_runs", "paycheck_headers", "paychecks")))
                 self.assertEqual(payload, before)
 
     def test_requires_wrapper_fields_and_valid_types(self):
@@ -94,8 +95,9 @@ class PayrollValidationChecks(unittest.TestCase):
     def test_combined_sections_accept_valid_batches_and_vouchers(self):
         payload = {**response(), "payrollVouchers": [voucher()]}
         before = copy.deepcopy(payload)
-        with self.assertRaisesRegex(NotImplementedError, "1 payroll batch record.*1 payroll voucher record"):
-            prismhr.normalize("payroll", payload, {})
+        result = prismhr.normalize("payroll", payload, {})
+        self.assertEqual(len(result["payroll_runs"]), 1)
+        self.assertEqual(len(result["paychecks"]), 1)
         self.assertEqual(payload, before)
 
     def test_wrapper_only_payroll_still_checks_required_fields(self):
@@ -122,8 +124,8 @@ def paycheck_response():
 class PaycheckValidationChecks(unittest.TestCase):
     def assert_valid(self, payload):
         before = copy.deepcopy(payload)
-        with self.assertRaisesRegex(NotImplementedError, "source validation passed"):
-            prismhr.normalize("payroll", payload, {})
+        result = prismhr.normalize("payroll", payload, {})
+        self.assertEqual(result["provider"], 'prismhr')
         self.assertEqual(payload, before)
 
     def test_accepts_contract_and_live_collection_names(self):
@@ -138,7 +140,8 @@ class PaycheckValidationChecks(unittest.TestCase):
             payload = {"errorCode": "0", "errorMessage": "", **extra}
             before = copy.deepcopy(payload)
             with self.subTest(extra=extra):
-                self.assertEqual(prismhr.normalize("payroll", payload, {}), [])
+                self.assertFalse(any(prismhr.normalize("payroll", payload, {})[key]
+                                     for key in ("payroll_runs", "paycheck_headers", "paychecks")))
                 self.assertEqual(payload, before)
 
     def test_requires_wrapper_fields_and_valid_shapes(self):

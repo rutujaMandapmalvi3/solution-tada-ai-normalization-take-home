@@ -1,4 +1,4 @@
-"""isolved legal-company validation; mapping is pending."""
+"""isolved legal-company validation; mapping is connected."""
 import copy
 import unittest
 from normalization.adapters import isolved
@@ -7,8 +7,8 @@ from normalization.adapters import isolved
 class IsolvedCompanyChecks(unittest.TestCase):
     def assert_valid(self, payload):
         before = copy.deepcopy(payload)
-        with self.assertRaisesRegex(NotImplementedError, "source validation passed"):
-            isolved.normalize("company", payload, {})
+        result = isolved.normalize("company", payload, {})
+        self.assertEqual(len(result["companies"]), 1)
         self.assertEqual(payload, before)
 
     def test_record_id_required_but_nullable_and_other_fields_optional(self):

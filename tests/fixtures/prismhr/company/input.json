@@ -1,0 +1,10 @@
+{
+  "errorCode": "0",
+  "errorMessage": "",
+  "clientMaster": {
+    "id": "001",
+    "legalName": "Example Company",
+    "clientName": "Example Trade",
+    "fixture_note": false
+  }
+}

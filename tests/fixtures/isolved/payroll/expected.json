@@ -1,0 +1,102 @@
+{
+  "provider": "isolved",
+  "payroll_runs": [
+    {
+      "provider": "isolved",
+      "provider_fields": {
+        "isolved": {
+          "run_number": 2
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 1,
+          "payDate": "2026-10-15"
+        },
+        "isolved": {
+          "source_location": {
+            "section": "payroll_runs",
+            "record_index": 0
+          }
+        }
+      },
+      "payroll_run_id": "1",
+      "payroll_run_pay_date": "2026-10-15"
+    }
+  ],
+  "paycheck_headers": [],
+  "paychecks": [
+    {
+      "provider": "isolved",
+      "provider_fields": {
+        "isolved": {
+          "benefits": [
+            {
+              "check_employer_contribution": 0.0
+            }
+          ],
+          "deductions": [
+            {
+              "id": "30",
+              "check_dollars": 0.0
+            }
+          ],
+          "earnings": [
+            {
+              "id": "20",
+              "check_hours": 0.0
+            }
+          ],
+          "payroll_run_number": 2,
+          "taxes": [
+            {
+              "id": "40",
+              "check_dollars": 0.0
+            }
+          ]
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 10,
+          "checkAmount": 0.0,
+          "checkNumber": 1,
+          "deductions.0.id": 30,
+          "earnings.0.id": 20,
+          "employeeId": 7,
+          "netPay": 0.0,
+          "taxes.0.id": 40
+        },
+        "isolved": {
+          "source_location": {
+            "section": "paychecks",
+            "record_index": 0
+          }
+        }
+      },
+      "source_extras": {
+        "isolved": {
+          "fixture_note": false
+        }
+      },
+      "paycheck_id": "10",
+      "employee_id": "7",
+      "check_number": "1",
+      "net_pay": 0.0,
+      "check_amount": 0.0
+    }
+  ],
+  "source_metadata": {
+    "isolved": {
+      "response": {},
+      "reference_pack": {
+        "provider": "isolved",
+        "reference_version": "6-private-reference-1",
+        "distribution_status": "user_approved_private_upload",
+        "warnings": [
+          "Candidate-distribution permission has not been verified."
+        ]
+      }
+    }
+  }
+}

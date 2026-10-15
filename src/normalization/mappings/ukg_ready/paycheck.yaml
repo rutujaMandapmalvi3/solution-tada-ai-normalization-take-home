@@ -1,0 +1,374 @@
+# One validated payroll record per map call; preserve links through engine fallback.
+# Shared fields require verified meanings; provider fields retain separate nested scopes.
+version: 1
+provider: ukg-ready
+entity: payroll
+fields:
+- kind: object
+  source: employee
+  target: provider_fields.ukg-ready.employee
+  fields:
+  - kind: field
+    source: account_id
+    target: account_id
+    transform:
+      name: identifier
+- kind: field
+  source: id
+  target: paycheck_id
+  transform:
+    name: identifier
+- kind: field
+  source: pay_date
+  target: provider_fields.ukg-ready.pay_date
+  transform:
+    name: date
+- kind: field
+  source: status
+  target: provider_fields.ukg-ready.status
+- kind: object
+  source: type
+  target: provider_fields.ukg-ready.type
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: display_name
+    target: display_name
+- kind: field
+  source: pay_period_start
+  target: provider_fields.ukg-ready.pay_period_start
+  transform:
+    name: date
+- kind: field
+  source: pay_period_end
+  target: provider_fields.ukg-ready.pay_period_end
+  transform:
+    name: date
+- kind: list
+  source: earnings
+  target: provider_fields.ukg-ready.earnings
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: type_name
+    target: type_name
+  - kind: object
+    source: batch
+    target: batch
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: display_name
+      target: display_name
+  - kind: field
+    source: date_range_from
+    target: date_range_from
+    transform:
+      name: date
+  - kind: field
+    source: date_range_to
+    target: date_range_to
+    transform:
+      name: date
+  - kind: field
+    source: hours
+    target: hours
+  - kind: field
+    source: base_rate
+    target: base_rate
+  - kind: field
+    source: quantity
+    target: quantity
+  - kind: field
+    source: ee_amount
+    target: ee_amount
+  - kind: object
+    source: workers_comp_code
+    target: workers_comp_code
+    fields:
+    - kind: field
+      source: external_id
+      target: external_id
+      transform:
+        name: identifier
+  - kind: object
+    source: shift
+    target: shift
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: name
+      target: name
+  - kind: list
+    source: cost_centers
+    target: cost_centers
+    fields:
+    - kind: field
+      source: index
+      target: index
+    - kind: object
+      source: value
+      target: value
+      fields:
+      - kind: field
+        source: id
+        target: id
+        transform:
+          name: identifier
+  - kind: object
+    source: earning
+    target: earning
+    fields:
+    - kind: field
+      source: name
+      target: name
+    - kind: field
+      source: external_id
+      target: external_id
+      transform:
+        name: identifier
+    - kind: field
+      source: code
+      target: code
+- kind: list
+  source: deductions
+  target: provider_fields.ukg-ready.deductions
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: type_name
+    target: type_name
+  - kind: object
+    source: batch
+    target: batch
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: display_name
+      target: display_name
+  - kind: field
+    source: date_range_from
+    target: date_range_from
+    transform:
+      name: date
+  - kind: field
+    source: date_range_to
+    target: date_range_to
+    transform:
+      name: date
+  - kind: field
+    source: quantity
+    target: quantity
+  - kind: field
+    source: base_rate
+    target: base_rate
+  - kind: field
+    source: ee_amount
+    target: ee_amount
+  - kind: field
+    source: er_amount
+    target: er_amount
+  - kind: object
+    source: vendor
+    target: vendor
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: name
+      target: name
+  - kind: list
+    source: cost_centers
+    target: cost_centers
+    fields:
+    - kind: field
+      source: index
+      target: index
+    - kind: object
+      source: value
+      target: value
+      fields:
+      - kind: field
+        source: id
+        target: id
+        transform:
+          name: identifier
+  - kind: object
+    source: workers_comp_code
+    target: workers_comp_code
+    fields:
+    - kind: field
+      source: external_id
+      target: external_id
+      transform:
+        name: identifier
+  - kind: object
+    source: deduction
+    target: deduction
+    fields:
+    - kind: field
+      source: name
+      target: name
+    - kind: field
+      source: external_id
+      target: external_id
+      transform:
+        name: identifier
+    - kind: field
+      source: code
+      target: code
+- kind: list
+  source: taxes
+  target: provider_fields.ukg-ready.taxes
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: type_name
+    target: type_name
+  - kind: object
+    source: batch
+    target: batch
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: display_name
+      target: display_name
+  - kind: field
+    source: ee_amount
+    target: ee_amount
+  - kind: field
+    source: er_amount
+    target: er_amount
+  - kind: field
+    source: ee_gross_wage
+    target: ee_gross_wage
+  - kind: field
+    source: ee_subject_wage
+    target: ee_subject_wage
+  - kind: field
+    source: ee_gross_subject_wage
+    target: ee_gross_subject_wage
+  - kind: field
+    source: er_gross_wage
+    target: er_gross_wage
+  - kind: field
+    source: er_subject_wage
+    target: er_subject_wage
+  - kind: field
+    source: er_gross_subject_wage
+    target: er_gross_subject_wage
+  - kind: object
+    source: company_tax
+    target: company_tax
+    fields:
+    - kind: field
+      source: code
+      target: code
+    - kind: field
+      source: name
+      target: name
+    - kind: field
+      source: abbrev
+      target: abbrev
+- kind: list
+  source: messages
+  target: provider_fields.ukg-ready.messages
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: type_name
+    target: type_name
+  - kind: object
+    source: message
+    target: message
+    fields:
+    - kind: field
+      source: text
+      target: text
+    - kind: field
+      source: severity
+      target: severity
+  - kind: object
+    source: batch
+    target: batch
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: display_name
+      target: display_name
+- kind: list
+  source: payments
+  target: provider_fields.ukg-ready.payments
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: hours
+    target: hours
+  - kind: field
+    source: quantity
+    target: quantity
+  - kind: field
+    source: ee_amount
+    target: ee_amount
+  - kind: field
+    source: type_name
+    target: type_name
+  - kind: object
+    source: batch
+    target: batch
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: display_name
+      target: display_name

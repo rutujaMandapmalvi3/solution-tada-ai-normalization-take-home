@@ -1,0 +1,90 @@
+# One validated payroll record per map call; preserve links through engine fallback.
+# Shared fields require verified meanings; provider fields retain separate nested scopes.
+version: 1
+provider: isolved
+entity: payroll
+fields:
+- kind: field
+  source: id
+  target: payroll_run_id
+  transform:
+    name: identifier
+- kind: field
+  source: impoundDate
+  target: provider_fields.isolved.impound_date
+  transform:
+    name: date
+- kind: field
+  source: inputMethod
+  target: provider_fields.isolved.input_method
+- kind: field
+  source: payDate
+  target: payroll_run_pay_date
+  transform:
+    name: date
+- kind: field
+  source: payOfTheMonth
+  target: provider_fields.isolved.pay_of_the_month
+- kind: field
+  source: payPeriod
+  target: provider_fields.isolved.pay_period
+- kind: field
+  source: payrollRunType
+  target: provider_fields.isolved.payroll_run_type
+- kind: field
+  source: periodBeginDate
+  target: payroll_run_period_start_date
+  transform:
+    name: date
+- kind: field
+  source: periodEndDate
+  target: payroll_run_period_end_date
+  transform:
+    name: date
+- kind: field
+  source: processApprovedBy
+  target: provider_fields.isolved.process_approved_by
+- kind: field
+  source: processedBy
+  target: provider_fields.isolved.processed_by
+- kind: field
+  source: regularCheckAutoPay
+  target: provider_fields.isolved.regular_check_auto_pay
+- kind: field
+  source: runDate
+  target: provider_fields.isolved.run_date
+  transform:
+    name: date
+- kind: field
+  source: runNumber
+  target: provider_fields.isolved.run_number
+- kind: field
+  source: runTime
+  target: provider_fields.isolved.run_time
+- kind: field
+  source: scheduledPayDate
+  target: provider_fields.isolved.scheduled_pay_date
+  transform:
+    name: date
+- kind: field
+  source: scheduledRunDate
+  target: provider_fields.isolved.scheduled_run_date
+  transform:
+    name: date
+- kind: field
+  source: status
+  target: provider_fields.isolved.status
+- kind: field
+  source: submittedBy
+  target: provider_fields.isolved.submitted_by
+- kind: field
+  source: submittedDate
+  target: provider_fields.isolved.submitted_date
+  transform:
+    name: date
+- kind: field
+  source: submittedTime
+  target: provider_fields.isolved.submitted_time
+- kind: field
+  source: suppressPayStubEmailAlert
+  target: provider_fields.isolved.suppress_pay_stub_email_alert

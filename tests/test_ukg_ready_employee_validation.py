@@ -9,8 +9,7 @@ from normalization.source_models.ukg_ready.ukg_ready_source_model_employee impor
 class UKGReadyEmployeeValidationChecks(unittest.TestCase):
     def assert_valid(self, entity, payload):
         before = copy.deepcopy(payload)
-        with self.assertRaisesRegex(NotImplementedError, "source validation passed"):
-            ukg_ready.normalize(entity, payload, {})
+        self.assertIsInstance(ukg_ready.normalize(entity, payload, {}), list)
         self.assertEqual(payload, before)
 
     def test_employee_supplements_and_required_ids(self):

@@ -1,0 +1,94 @@
+# isolved deduction: one validated IsolvedEmployeePayItemModel per engine.map() call.
+# This file maps records, not wrappers; the adapter validates/unwraps the response.
+# Connected through normalize_deductions; existing helpers and engine are reused.
+# Record links retain source nesting in provider_fields.isolved.unmapped.
+# Undeclared fields retain nesting in source_extras.isolved; wrappers/context
+# and parent settings belong to result metadata/provider fields, not fake records.
+# Source-specific fields stay separate; no inferred joins, scale or currency conversion.
+# Adapter filtering selects assignments before mapping. Preserve unexpected records
+# and UKG code_lookup/benefits at result-level provider_fields, even with no assignments.
+# Map only verified payItemType Deduction; preserve Earning/Memo Calc/unknown separately.
+# Source employeeId maps to employee_id. Request employee_id is preserved separately;
+# adapter resolves missing source ownership and checks conflicts (no overwrite here).
+# payItemCode has no property description: retain raw pay_item_code pending verification.
+# calcParams preserves paramType/paramValue together; no guessed Amount2/Rate meanings.
+
+version: 1
+provider: isolved
+entity: deduction
+fields:
+- kind: field
+  source: id
+  target: deduction_id
+  transform:
+    name: identifier
+- kind: field
+  source: auditId
+  target: provider_fields.isolved.deprecated_audit_id
+  transform:
+    name: identifier
+- kind: list
+  source: calcParams
+  target: provider_fields.isolved.calc_params
+  fields:
+  - kind: field
+    source: paramType
+    target: param_type
+  - kind: field
+    source: paramValue
+    target: param_value
+    transform:
+      name: number
+- kind: field
+  source: employeeId
+  target: employee_id
+  transform:
+    name: identifier
+- kind: field
+  source: employeeNumber
+  target: employee_number
+- kind: field
+  source: firstName
+  target: provider_fields.isolved.first_name
+- kind: field
+  source: lastName
+  target: provider_fields.isolved.last_name
+- kind: field
+  source: payItemCode
+  target: provider_fields.isolved.pay_item_code
+- kind: field
+  source: payItemId
+  target: provider_fields.isolved.deprecated_pay_item_id
+  transform:
+    name: identifier
+- kind: field
+  source: payItemName
+  target: deduction_name
+- kind: field
+  source: payItemType
+  target: provider_fields.isolved.pay_item_type
+- kind: field
+  source: referenceNumber
+  target: provider_fields.isolved.reference_number
+- kind: field
+  source: scheduleOverride
+  target: provider_fields.isolved.schedule_override
+- kind: field
+  source: startDate
+  target: start_date
+  transform:
+    name: date
+- kind: field
+  source: stopDate
+  target: end_date
+  transform:
+    name: date
+- kind: field
+  source: balance
+  target: provider_fields.isolved.balance
+- kind: field
+  source: employee_id
+  target: provider_fields.isolved.request_employee_id
+  source_scope: context
+  transform:
+    name: identifier

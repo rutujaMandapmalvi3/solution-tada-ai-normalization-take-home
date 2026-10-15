@@ -1,0 +1,43 @@
+# ukg-ready company rules: one validated UKGReadyEinsResponseItemsItem per map() call.
+# The connected adapter supplies internal context.source_record_type="ein".
+# This is a fixed source-record role, NOT a new user input-type/CLI option.
+# id maps to source_record_id; no global company ID or cross-provider join is inferred.
+# Shared names/tax/NAICS fields use only the proposal's verified semantic matches.
+# Other known fields retain separate provider scope and explicit snake_case names.
+# Record links/unconsumed fields keep source nesting under provider_fields.ukg-ready.unmapped.
+# Unknown fields retain source nesting under source_extras.ukg-ready.
+# Source wrappers are preserved by the adapter, outside this record YAML.
+# Existing helpers only; no new helper, engine or source-model implementation.
+# EIN name/tax values stay ukg_ein_name/ukg_ein_tax_id, not legal_name/federal_tax_id.
+# Country/currency values remain provider-specific; no tax-jurisdiction inference.
+# The adapter unwraps items; its IDs identify EIN records, not API companies.
+
+version: 1
+provider: ukg-ready
+entity: company
+fields:
+- kind: field
+  source: id
+  target: source_record_id
+  transform:
+    name: identifier
+- kind: field
+  source: source_record_type
+  target: source_record_type
+  source_scope: context
+- kind: field
+  source: ein_tax_id
+  target: ukg_ein_tax_id
+  transform:
+    name: identifier
+- kind: field
+  source: ein_name
+  target: ukg_ein_name
+- kind: field
+  source: ein_currency_code
+  target: provider_fields.ukg-ready.ein_currency_code
+- kind: field
+  source: ein_country_id
+  target: provider_fields.ukg-ready.ein_country_id
+  transform:
+    name: identifier

@@ -1,0 +1,140 @@
+# prismhr deduction: one validated PrismHREmployeeDeductionsDeduction per engine.map() call.
+# This file maps records, not wrappers; the adapter validates/unwraps the response.
+# Connected through normalize_deductions; existing helpers and engine are reused.
+# Record links retain source nesting in provider_fields.prismhr.unmapped.
+# Undeclared fields retain nesting in source_extras.prismhr; wrappers/context
+# and parent settings belong to result metadata/provider fields, not fake records.
+# Source-specific fields stay separate; no inferred joins, scale or currency conversion.
+# No source deduction_id exists: adapter must pass context.deduction_id=null explicitly.
+# Never substitute a bank number, deduction code or employee ID as a record ID.
+# Adapter filtering selects assignments before mapping. Preserve unexpected records
+# and UKG code_lookup/benefits at result-level provider_fields, even with no assignments.
+
+version: 1
+provider: prismhr
+entity: deduction
+fields:
+- kind: field
+  source: deduction_id
+  target: deduction_id
+  source_scope: context
+- kind: field
+  source: deductionCode
+  target: deduction_code
+- kind: field
+  source: deductionType
+  target: provider_fields.prismhr.deduction_type
+- kind: field
+  source: deductionMethod
+  target: provider_fields.prismhr.deduction_method
+- kind: field
+  source: description
+  target: description
+- kind: field
+  source: usePercent
+  target: provider_fields.prismhr.use_percent
+- kind: field
+  source: amount
+  target: provider_fields.prismhr.amount
+  transform:
+    name: number
+- kind: field
+  source: period
+  target: provider_fields.prismhr.period
+- kind: field
+  source: loanOrGarnishId
+  target: provider_fields.prismhr.loan_or_garnish_id
+  transform:
+    name: identifier
+- kind: field
+  source: benefitPlanId
+  target: provider_fields.prismhr.benefit_plan_id
+  transform:
+    name: identifier
+- kind: field
+  source: lastDedPerAdj
+  target: provider_fields.prismhr.last_deduction_period_adjustment
+  transform:
+    name: number
+- kind: field
+  source: limit
+  target: provider_fields.prismhr.payroll_period_limit
+  transform:
+    name: number
+- kind: field
+  source: maximum
+  target: provider_fields.prismhr.maximum_amount
+  transform:
+    name: number
+- kind: field
+  source: basis
+  target: provider_fields.prismhr.maximum_basis
+  transform:
+    name: label
+    arguments:
+      labels:
+        M: monthly
+        Q: quarterly
+        A: annually
+        L: lifetime
+- kind: field
+  source: trackArrears
+  target: provider_fields.prismhr.track_arrears
+- kind: field
+  source: startDate
+  target: start_date
+  transform:
+    name: date
+- kind: field
+  source: stopDate
+  target: end_date
+  transform:
+    name: date
+- kind: field
+  source: glOverrideAcct
+  target: provider_fields.prismhr.general_ledger_override_account
+- kind: field
+  source: mandatory
+  target: provider_fields.prismhr.mandatory
+- kind: field
+  source: matchMethod
+  target: provider_fields.prismhr.match_method
+  transform:
+    name: label
+    arguments:
+      labels:
+        F: flat
+        P: percent
+- kind: field
+  source: matchAmount
+  target: provider_fields.prismhr.match_amount
+  transform:
+    name: number
+- kind: field
+  source: matchDescription
+  target: provider_fields.prismhr.match_description
+- kind: field
+  source: cutbackPayeeCode
+  target: provider_fields.prismhr.third_party_payee_code
+  transform:
+    name: identifier
+- kind: field
+  source: rateTableId
+  target: provider_fields.prismhr.rate_table_id
+  transform:
+    name: identifier
+- kind: field
+  source: rateTier
+  target: provider_fields.prismhr.rate_tier
+- kind: field
+  source: detailsChecksum
+  target: provider_fields.prismhr.details_checksum
+- kind: field
+  source: achOption
+  target: provider_fields.prismhr.ach_option
+- kind: field
+  source: employee_id
+  target: employee_id
+  source_scope: context
+  transform:
+    name: identifier

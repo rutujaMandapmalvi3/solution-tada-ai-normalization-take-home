@@ -1,0 +1,82 @@
+{
+  "provider": "ukg-ready",
+  "employee_id": "007",
+  "deductions": [
+    {
+      "provider": "ukg-ready",
+      "deduction_id": "10",
+      "employee_id": "007",
+      "provider_fields": {
+        "ukg-ready": {
+          "deduction": {
+            "code": "SYNTHETIC",
+            "name": "Example deduction"
+          },
+          "effective_from": "2026-10-01"
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 10,
+          "effective_from": "2026-10-01",
+          "context.employee_id": "007"
+        },
+        "ukg-ready": {
+          "source_location": {
+            "deduction_index": 0
+          }
+        }
+      },
+      "source_extras": {
+        "ukg-ready": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "provider_fields": {
+    "ukg-ready": {
+      "code_lookup": {
+        "items": [
+          {
+            "code": "SYNTHETIC",
+            "id": 11
+          }
+        ]
+      },
+      "benefits": {
+        "benefits": [
+          {
+            "id": 12
+          }
+        ]
+      }
+    }
+  },
+  "source_metadata": {
+    "ukg-ready": {
+      "reference_pack": {
+        "provider": "ukg-ready",
+        "reference_version": "cached-v2-private-reference-1",
+        "distribution_status": "user_approved_private_upload",
+        "warnings": [
+          "Candidate-distribution permission has not been verified.",
+          "OpenAPI artifact is absent or unverified.",
+          "Approved OpenAPI filename is missing.",
+          "OpenAPI provenance/version/checksum metadata is incomplete."
+        ]
+      }
+    }
+  },
+  "source_extras": {
+    "ukg-ready": {
+      "assignments": {
+        "deductions": [
+          {
+            "fixture_note": false
+          }
+        ]
+      }
+    }
+  }
+}

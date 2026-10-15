@@ -1,4 +1,4 @@
-"""isolved employee source validation; canonical mapping is pending."""
+"""isolved employee source validation through the completed mapping adapter."""
 import copy
 import unittest
 
@@ -20,8 +20,8 @@ def salary():
 class IsolvedEmployeeValidationChecks(unittest.TestCase):
     def assert_valid(self, payload):
         before = copy.deepcopy(payload)
-        with self.assertRaisesRegex(NotImplementedError, "source validation passed"):
-            isolved.normalize("employee", payload, {})
+        result = isolved.normalize("employee", payload, {})
+        self.assertIsInstance(result, list)
         self.assertEqual(payload, before)
 
     def test_detail_and_paged_employees_preserve_source(self):

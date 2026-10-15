@@ -1,0 +1,40 @@
+[
+  {
+    "provider": "ukg-ready",
+    "employee_id": "7",
+    "last_name": "Example",
+    "first_name": "Alex",
+    "birth_date": "2000-01-02",
+    "ukg_ein_name": "Example EIN",
+    "provider_fields": {
+      "ukg-ready": {
+        "dates": {}
+      }
+    },
+    "source_metadata": {
+      "original_values": {
+        "id": 7.0,
+        "dates.birthday": "2000-01-02"
+      },
+      "ukg-ready": {
+        "response": {},
+        "reference_pack": {
+          "provider": "ukg-ready",
+          "reference_version": "cached-v2-private-reference-1",
+          "distribution_status": "user_approved_private_upload",
+          "warnings": [
+            "Candidate-distribution permission has not been verified.",
+            "OpenAPI artifact is absent or unverified.",
+            "Approved OpenAPI filename is missing.",
+            "OpenAPI provenance/version/checksum metadata is incomplete."
+          ]
+        }
+      }
+    },
+    "source_extras": {
+      "ukg-ready": {
+        "fixture_note": false
+      }
+    }
+  }
+]

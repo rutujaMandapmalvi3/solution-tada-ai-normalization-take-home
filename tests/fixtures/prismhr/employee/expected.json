@@ -1,0 +1,38 @@
+[
+  {
+    "provider": "prismhr",
+    "employee_id": "007",
+    "last_name": "Example",
+    "first_name": "Alex",
+    "birth_date": "2000-01-02",
+    "gender": "female",
+    "hourly_rate": 25.5,
+    "prismhr_client_id": "001",
+    "provider_fields": {
+      "prismhr": {
+        "person": {},
+        "compensation": {}
+      }
+    },
+    "source_metadata": {
+      "original_values": {
+        "id": "007",
+        "person.birthDate": "2000-01-02",
+        "person.gender": "F",
+        "compensation.hourlyPay": "25.50",
+        "context.client_id": "001"
+      },
+      "prismhr": {
+        "response": {
+          "errorCode": "0",
+          "errorMessage": ""
+        }
+      }
+    },
+    "source_extras": {
+      "prismhr": {
+        "fixture_note": false
+      }
+    }
+  }
+]

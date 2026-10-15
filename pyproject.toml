@@ -7,7 +7,7 @@ name = "normalization"
 version = "0.1.0"
 description = "Normalize PrismHR, isolved and UKG Ready data into one canonical model."
 requires-python = ">=3.11"
-dependencies = ["pydantic>=2.12"]
+dependencies = ["pydantic>=2.12", "PyYAML>=6.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
@@ -17,6 +17,9 @@ normalization = "normalization.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+normalization = ["mappings/*/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,91 @@
+[
+  {
+    "provider": "prismhr",
+    "entity": "employee",
+    "context": {
+      "client_id": "001"
+    }
+  },
+  {
+    "provider": "prismhr",
+    "entity": "direct_deposit",
+    "context": {
+      "employee_id": "007"
+    }
+  },
+  {
+    "provider": "prismhr",
+    "entity": "deduction",
+    "context": {
+      "employee_id": "007"
+    }
+  },
+  {
+    "provider": "prismhr",
+    "entity": "company",
+    "context": {}
+  },
+  {
+    "provider": "prismhr",
+    "entity": "payroll",
+    "context": {}
+  },
+  {
+    "provider": "isolved",
+    "entity": "employee",
+    "context": {}
+  },
+  {
+    "provider": "isolved",
+    "entity": "direct_deposit",
+    "context": {
+      "employee_id": "7"
+    }
+  },
+  {
+    "provider": "isolved",
+    "entity": "deduction",
+    "context": {
+      "employee_id": "7"
+    }
+  },
+  {
+    "provider": "isolved",
+    "entity": "company",
+    "context": {}
+  },
+  {
+    "provider": "isolved",
+    "entity": "payroll",
+    "context": {}
+  },
+  {
+    "provider": "ukg-ready",
+    "entity": "employee",
+    "context": {}
+  },
+  {
+    "provider": "ukg-ready",
+    "entity": "direct_deposit",
+    "context": {
+      "employee_id": "007"
+    }
+  },
+  {
+    "provider": "ukg-ready",
+    "entity": "deduction",
+    "context": {
+      "employee_id": "007"
+    }
+  },
+  {
+    "provider": "ukg-ready",
+    "entity": "company",
+    "context": {}
+  },
+  {
+    "provider": "ukg-ready",
+    "entity": "payroll",
+    "context": {}
+  }
+]

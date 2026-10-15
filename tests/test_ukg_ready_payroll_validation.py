@@ -1,4 +1,4 @@
-"""UKG Ready payroll validation; mapping is pending."""
+"""UKG Ready payroll validation and mapping integration."""
 import copy
 import unittest
 from normalization.adapters import ukg_ready
@@ -9,8 +9,8 @@ from normalization.source_models.ukg_ready.ukg_ready_source_model_payroll_run im
 class UKGReadyPayrollValidationChecks(unittest.TestCase):
     def assert_valid(self, entity, payload):
         before = copy.deepcopy(payload)
-        with self.assertRaisesRegex(NotImplementedError, "source validation passed"):
-            ukg_ready.normalize(entity, payload, {})
+        result = ukg_ready.normalize(entity, payload, {})
+        self.assertEqual(result["provider"], "ukg-ready")
         self.assertEqual(payload, before)
 
     def test_payroll_all_sections_and_native_wrappers(self):
@@ -21,7 +21,8 @@ class UKGReadyPayrollValidationChecks(unittest.TestCase):
         self.assert_valid("payroll", {"id": 1, "payments": []})
         for payload in [{}, {"payroll_runs": None}, {"payrolls": []},
                         {"pay_statements": []}, {"paychecks": []}]:
-            self.assertEqual(ukg_ready.normalize("payroll", payload, {}), [])
+            self.assertFalse(any(ukg_ready.normalize("payroll", payload, {})[key]
+                                     for key in ("payroll_runs", "paycheck_headers", "paychecks")))
         for payload in [{"payroll_runs": {}}, {"paycheck_list": {}}, {"paychecks": [{}]},
                         {"payrolls": [{}]}, {"pay_statements": [{"id": None}]},
                         {"payroll_runs": {"payrolls": [{"id": 1}]},

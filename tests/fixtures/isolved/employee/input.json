@@ -1,0 +1,17 @@
+{
+  "results": [
+    {
+      "id": 7,
+      "nameAddress": {
+        "id": 70,
+        "firstName": "Alex",
+        "lastName": "Example"
+      },
+      "birthDate": "2000-01-02",
+      "annualSalary": 50000.0,
+      "fixture_note": false
+    }
+  ],
+  "totalItems": 1,
+  "nextPageUrl": null
+}

@@ -1,0 +1,962 @@
+# prismhr company rules: one validated PrismHRClientMaster per map() call.
+# The connected adapter supplies internal context.source_record_type="client".
+# This is a fixed source-record role, NOT a new user input-type/CLI option.
+# id maps to source_record_id; no global company ID or cross-provider join is inferred.
+# Shared names/tax/NAICS fields use only the proposal's verified semantic matches.
+# Other known fields retain separate provider scope and explicit snake_case names.
+# Record links/unconsumed fields keep source nesting under provider_fields.prismhr.unmapped.
+# Unknown fields retain source nesting under source_extras.prismhr.
+# Source wrappers are preserved by the adapter, outside this record YAML.
+# Existing helpers only; no new helper, engine or source-model implementation.
+# The adapter unwraps clientMaster and preserves errorCode/errorMessage/extension.
+# statusClass uses its exact class dictionary; status remains raw, not class-translated.
+# Mixed string/integer dates and unclear numeric strings remain unchanged.
+
+version: 1
+provider: prismhr
+entity: company
+fields:
+- kind: field
+  source: id
+  target: source_record_id
+  transform:
+    name: identifier
+- kind: field
+  source: source_record_type
+  target: source_record_type
+  source_scope: context
+- kind: field
+  source: clientName
+  target: trade_name
+- kind: field
+  source: costCenter
+  target: provider_fields.prismhr.cost_center
+- kind: field
+  source: subCostCenter
+  target: provider_fields.prismhr.sub_cost_center
+- kind: field
+  source: serviceType
+  target: provider_fields.prismhr.service_type
+  transform:
+    name: label
+    arguments:
+      labels:
+        ASO: administrative services only
+        PEO: professional employer services
+        PAY: payroll processing only
+        ASA: admin services/alt. billing
+        COR: corporate payroll
+        HRN: hr services, no payroll
+- kind: field
+  source: categoryCode
+  target: provider_fields.prismhr.category_code
+- kind: field
+  source: stateCode
+  target: provider_fields.prismhr.state_code
+- kind: field
+  source: zipCode
+  target: provider_fields.prismhr.zip_code
+- kind: field
+  source: legalName
+  target: legal_name
+- kind: field
+  source: arClientNumber
+  target: provider_fields.prismhr.ar_client_number
+- kind: field
+  source: divisionRequired
+  target: provider_fields.prismhr.division_required
+- kind: field
+  source: departmentRequired
+  target: provider_fields.prismhr.department_required
+- kind: field
+  source: shiftRequired
+  target: provider_fields.prismhr.shift_required
+- kind: field
+  source: empNumbersUsed
+  target: provider_fields.prismhr.emp_numbers_used
+- kind: field
+  source: autoEmpNumber
+  target: provider_fields.prismhr.auto_emp_number
+- kind: field
+  source: worksitePayrollApproval
+  target: provider_fields.prismhr.worksite_payroll_approval
+- kind: field
+  source: projectRequired
+  target: provider_fields.prismhr.project_required
+- kind: field
+  source: workGroupRequired
+  target: provider_fields.prismhr.work_group_required
+- kind: field
+  source: payrollDate
+  target: provider_fields.prismhr.payroll_date
+  transform:
+    name: date
+- kind: field
+  source: statusDate
+  target: provider_fields.prismhr.status_date
+  transform:
+    name: date
+- kind: field
+  source: status
+  target: provider_fields.prismhr.status
+- kind: field
+  source: deliverChecks
+  target: provider_fields.prismhr.deliver_checks
+- kind: field
+  source: employerId
+  target: provider_fields.prismhr.employer_id
+  transform:
+    name: identifier
+- kind: field
+  source: minCheckAmt
+  target: provider_fields.prismhr.min_check_amt
+- kind: field
+  source: maxCheckAmt
+  target: provider_fields.prismhr.max_check_amt
+- kind: field
+  source: deliveryMethod
+  target: provider_fields.prismhr.delivery_method
+- kind: field
+  source: mainPhoneExt
+  target: provider_fields.prismhr.main_phone_ext
+- kind: field
+  source: addressLine1
+  target: provider_fields.prismhr.address_line1
+- kind: field
+  source: addressLine2
+  target: provider_fields.prismhr.address_line2
+- kind: field
+  source: city
+  target: provider_fields.prismhr.city
+- kind: field
+  source: zipSuffix
+  target: provider_fields.prismhr.zip_suffix
+- kind: field
+  source: mainPhone
+  target: provider_fields.prismhr.main_phone
+- kind: field
+  source: fax
+  target: provider_fields.prismhr.fax
+- kind: field
+  source: websiteUrl
+  target: provider_fields.prismhr.website_url
+- kind: field
+  source: emailAddress
+  target: provider_fields.prismhr.email_address
+- kind: field
+  source: businessDescription
+  target: provider_fields.prismhr.business_description
+- kind: field
+  source: sicCode
+  target: provider_fields.prismhr.sic_code
+- kind: field
+  source: federalIdNumber
+  target: federal_tax_id
+- kind: field
+  source: billFormat
+  target: provider_fields.prismhr.bill_format
+- kind: field
+  source: groupCode
+  target: provider_fields.prismhr.group_code
+- kind: field
+  source: tpaDownloadOptions
+  target: provider_fields.prismhr.tpa_download_options
+- kind: field
+  source: hoursType1
+  target: provider_fields.prismhr.hours_type1
+- kind: field
+  source: hoursType2
+  target: provider_fields.prismhr.hours_type2
+- kind: field
+  source: hoursType3
+  target: provider_fields.prismhr.hours_type3
+- kind: field
+  source: hoursType4
+  target: provider_fields.prismhr.hours_type4
+- kind: field
+  source: hoursType5
+  target: provider_fields.prismhr.hours_type5
+- kind: field
+  source: hoursType6
+  target: provider_fields.prismhr.hours_type6
+- kind: field
+  source: hoursType9
+  target: provider_fields.prismhr.hours_type9
+- kind: field
+  source: flatType1
+  target: provider_fields.prismhr.flat_type1
+- kind: field
+  source: flatType2
+  target: provider_fields.prismhr.flat_type2
+- kind: field
+  source: extraHeading1
+  target: provider_fields.prismhr.extra_heading1
+- kind: field
+  source: extraHeading2
+  target: provider_fields.prismhr.extra_heading2
+- kind: field
+  source: corporationType
+  target: provider_fields.prismhr.corporation_type
+- kind: field
+  source: controlGroupCompany
+  target: provider_fields.prismhr.control_group_company
+- kind: field
+  source: cafeteriaPlan
+  target: provider_fields.prismhr.cafeteria_plan
+- kind: field
+  source: hsaPlanId
+  target: provider_fields.prismhr.hsa_plan_id
+  transform:
+    name: identifier
+- kind: field
+  source: glClientNo
+  target: provider_fields.prismhr.gl_client_no
+- kind: field
+  source: billTemplate
+  target: provider_fields.prismhr.bill_template
+- kind: field
+  source: wcPolicy
+  target: provider_fields.prismhr.wc_policy
+- kind: field
+  source: wcPolicyEffDate
+  target: provider_fields.prismhr.wc_policy_eff_date
+  transform:
+    name: date
+- kind: field
+  source: wcLocationBased
+  target: provider_fields.prismhr.wc_location_based
+- kind: field
+  source: flsaRuleset
+  target: provider_fields.prismhr.flsa_ruleset
+- kind: field
+  source: flsaWeekEnds
+  target: provider_fields.prismhr.flsa_week_ends
+- kind: field
+  source: satPayOnDay
+  target: provider_fields.prismhr.sat_pay_on_day
+- kind: field
+  source: sunPayOnDay
+  target: provider_fields.prismhr.sun_pay_on_day
+- kind: field
+  source: satPayBefAft
+  target: provider_fields.prismhr.sat_pay_bef_aft
+- kind: field
+  source: sunPayBefAft
+  target: provider_fields.prismhr.sun_pay_bef_aft
+- kind: field
+  source: contractDate
+  target: provider_fields.prismhr.contract_date
+  transform:
+    name: date
+- kind: field
+  source: benefitParentClient
+  target: provider_fields.prismhr.benefit_parent_client
+- kind: list
+  source: payCode
+  target: provider_fields.prismhr.pay_code
+  fields:
+  - kind: field
+    source: payCodeId
+    target: pay_code_id
+    transform:
+      name: identifier
+  - kind: field
+    source: printOnPayStub
+    target: print_on_pay_stub
+- kind: list
+  source: deductionCode
+  target: provider_fields.prismhr.deduction_code
+  fields:
+  - kind: field
+    source: deductionCodeId
+    target: deduction_code_id
+    transform:
+      name: identifier
+  - kind: field
+    source: printOnPayStub
+    target: print_on_pay_stub
+  - kind: field
+    source: worksiteUserSelectable
+    target: worksite_user_selectable
+- kind: list
+  source: arrear
+  target: provider_fields.prismhr.arrear
+  fields:
+  - kind: field
+    source: loanDeductionCodeId
+    target: loan_deduction_code_id
+    transform:
+      name: identifier
+- kind: list
+  source: employeeType
+  target: provider_fields.prismhr.employee_type
+  fields:
+  - kind: field
+    source: typeCodeId
+    target: type_code_id
+    transform:
+      name: identifier
+- kind: list
+  source: employeeStatus
+  target: provider_fields.prismhr.employee_status
+  fields:
+  - kind: field
+    source: statusCodeId
+    target: status_code_id
+    transform:
+      name: identifier
+- kind: list
+  source: reason
+  target: provider_fields.prismhr.reason
+  fields:
+  - kind: field
+    source: reasonCodeId
+    target: reason_code_id
+    transform:
+      name: identifier
+- kind: list
+  source: miscGL
+  target: provider_fields.prismhr.misc_gl
+  fields:
+  - kind: field
+    source: glCode
+    target: gl_code
+  - kind: field
+    source: miscGLCode
+    target: misc_gl_code
+- kind: list
+  source: observedHoliday
+  target: provider_fields.prismhr.observed_holiday
+  fields:
+  - kind: field
+    source: name
+    target: name
+  - kind: field
+    source: description
+    target: description
+  - kind: field
+    source: holidayDate
+    target: holiday_date
+- kind: field
+  source: abbrvName
+  target: provider_fields.prismhr.abbrv_name
+- kind: field
+  source: annualHours
+  target: provider_fields.prismhr.annual_hours
+- kind: field
+  source: sortField1
+  target: provider_fields.prismhr.sort_field1
+- kind: field
+  source: sortField2
+  target: provider_fields.prismhr.sort_field2
+- kind: field
+  source: sortField3
+  target: provider_fields.prismhr.sort_field3
+- kind: field
+  source: billBySort
+  target: provider_fields.prismhr.bill_by_sort
+- kind: field
+  source: billInvBreakField
+  target: provider_fields.prismhr.bill_inv_break_field
+- kind: field
+  source: consultant
+  target: provider_fields.prismhr.consultant
+- kind: field
+  source: salesperson
+  target: provider_fields.prismhr.salesperson
+- kind: field
+  source: payrollRep
+  target: provider_fields.prismhr.payroll_rep
+- kind: field
+  source: checkIssueAcct
+  target: provider_fields.prismhr.check_issue_acct
+- kind: field
+  source: checkPrintStyle
+  target: provider_fields.prismhr.check_print_style
+- kind: field
+  source: invoiceCopies
+  target: provider_fields.prismhr.invoice_copies
+- kind: field
+  source: remitCopies
+  target: provider_fields.prismhr.remit_copies
+- kind: field
+  source: receiptCheckAcct
+  target: provider_fields.prismhr.receipt_check_acct
+- kind: field
+  source: adjAchDays
+  target: provider_fields.prismhr.adj_ach_days
+- kind: field
+  source: serviceTermReason
+  target: provider_fields.prismhr.service_term_reason
+- kind: field
+  source: garnCheckIssueAcct
+  target: provider_fields.prismhr.garn_check_issue_acct
+- kind: field
+  source: directDepositAccount
+  target: provider_fields.prismhr.direct_deposit_account
+- kind: field
+  source: manualAccount
+  target: provider_fields.prismhr.manual_account
+- kind: field
+  source: onDemandChecksAccount
+  target: provider_fields.prismhr.on_demand_checks_account
+- kind: field
+  source: payCardAccount
+  target: provider_fields.prismhr.pay_card_account
+- kind: field
+  source: nesOffset
+  target: provider_fields.prismhr.nes_offset
+- kind: field
+  source: rateOrMarkup
+  target: provider_fields.prismhr.rate_or_markup
+- kind: field
+  source: billAddressLine1
+  target: provider_fields.prismhr.bill_address_line1
+- kind: field
+  source: billAddressLine2
+  target: provider_fields.prismhr.bill_address_line2
+- kind: field
+  source: billZipCode
+  target: provider_fields.prismhr.bill_zip_code
+- kind: field
+  source: billCity
+  target: provider_fields.prismhr.bill_city
+- kind: field
+  source: billStateCode
+  target: provider_fields.prismhr.bill_state_code
+- kind: field
+  source: billZipSuffix
+  target: provider_fields.prismhr.bill_zip_suffix
+- kind: field
+  source: billAddrClientId
+  target: provider_fields.prismhr.bill_addr_client_id
+  transform:
+    name: identifier
+- kind: field
+  source: newHireAlert
+  target: provider_fields.prismhr.new_hire_alert
+- kind: field
+  source: clientAccountingCode
+  target: provider_fields.prismhr.client_accounting_code
+- kind: field
+  source: garnEftIssueAcct
+  target: provider_fields.prismhr.garn_eft_issue_acct
+- kind: field
+  source: definitionId
+  target: provider_fields.prismhr.definition_id
+  transform:
+    name: identifier
+- kind: field
+  source: cutbackCheckAcct
+  target: provider_fields.prismhr.cutback_check_acct
+- kind: field
+  source: broker
+  target: provider_fields.prismhr.broker
+- kind: field
+  source: onboardStatus
+  target: provider_fields.prismhr.onboard_status
+- kind: field
+  source: nyMctOvrRate
+  target: provider_fields.prismhr.ny_mct_ovr_rate
+- kind: field
+  source: naicsCode
+  target: naics_code
+- kind: field
+  source: benefitRep
+  target: provider_fields.prismhr.benefit_rep
+- kind: field
+  source: riskManager
+  target: provider_fields.prismhr.risk_manager
+- kind: field
+  source: depositType
+  target: provider_fields.prismhr.deposit_type
+- kind: field
+  source: depositAmt
+  target: provider_fields.prismhr.deposit_amt
+- kind: field
+  source: handbookId
+  target: provider_fields.prismhr.handbook_id
+  transform:
+    name: identifier
+- kind: field
+  source: aftPostPreMailThreshold
+  target: provider_fields.prismhr.aft_post_pre_mail_threshold
+- kind: field
+  source: achHoldThreshold
+  target: provider_fields.prismhr.ach_hold_threshold
+- kind: field
+  source: taxCalcOptions
+  target: provider_fields.prismhr.tax_calc_options
+- kind: field
+  source: taxLimitBasis
+  target: provider_fields.prismhr.tax_limit_basis
+- kind: field
+  source: glTemplateCode
+  target: provider_fields.prismhr.gl_template_code
+- kind: field
+  source: nySdiEmployerRate
+  target: provider_fields.prismhr.ny_sdi_employer_rate
+- kind: field
+  source: wcPolicySubId
+  target: provider_fields.prismhr.wc_policy_sub_id
+  transform:
+    name: identifier
+- kind: field
+  source: deduct401kOnSupp
+  target: provider_fields.prismhr.deduct401k_on_supp
+- kind: field
+  source: coordinator
+  target: provider_fields.prismhr.coordinator
+- kind: field
+  source: recomputeOvertime
+  target: provider_fields.prismhr.recompute_overtime
+- kind: field
+  source: jobRates
+  target: provider_fields.prismhr.job_rates
+- kind: field
+  source: remoteTechSupport
+  target: provider_fields.prismhr.remote_tech_support
+- kind: field
+  source: processingSchedule
+  target: provider_fields.prismhr.processing_schedule
+- kind: field
+  source: perDiemRateSource
+  target: provider_fields.prismhr.per_diem_rate_source
+- kind: field
+  source: clientAccounting
+  target: provider_fields.prismhr.client_accounting
+- kind: field
+  source: adjTipShortfall
+  target: provider_fields.prismhr.adj_tip_shortfall
+- kind: field
+  source: suppressAutoBenAdj
+  target: provider_fields.prismhr.suppress_auto_ben_adj
+- kind: field
+  source: suppressEmpAch
+  target: provider_fields.prismhr.suppress_emp_ach
+- kind: field
+  source: singlePayGroup
+  target: provider_fields.prismhr.single_pay_group
+- kind: field
+  source: elecPayStub
+  target: provider_fields.prismhr.elec_pay_stub
+- kind: field
+  source: useWcRateTemplate
+  target: provider_fields.prismhr.use_wc_rate_template
+- kind: field
+  source: calcWcOn1099Emp
+  target: provider_fields.prismhr.calc_wc_on1099_emp
+- kind: field
+  source: wvUseFedMinRate
+  target: provider_fields.prismhr.wv_use_fed_min_rate
+- kind: field
+  source: elecW2Form
+  target: provider_fields.prismhr.elec_w2_form
+- kind: field
+  source: nySdiEmployerCalc
+  target: provider_fields.prismhr.ny_sdi_employer_calc
+- kind: field
+  source: pfmlMa1099
+  target: provider_fields.prismhr.pfml_ma1099
+- kind: field
+  source: railRoadEmployer
+  target: provider_fields.prismhr.rail_road_employer
+- kind: field
+  source: taxGeoCodeOverride
+  target: provider_fields.prismhr.tax_geo_code_override
+- kind: field
+  source: adjTipsToMin
+  target: provider_fields.prismhr.adj_tips_to_min
+- kind: field
+  source: doNotService
+  target: provider_fields.prismhr.do_not_service
+- kind: field
+  source: clientModDiscount
+  target: provider_fields.prismhr.client_mod_discount
+- kind: field
+  source: aftPostPreMailHold
+  target: provider_fields.prismhr.aft_post_pre_mail_hold
+- kind: field
+  source: clientHdhp
+  target: provider_fields.prismhr.client_hdhp
+- kind: field
+  source: financialInst
+  target: provider_fields.prismhr.financial_inst
+- kind: field
+  source: newHireOnBoard
+  target: provider_fields.prismhr.new_hire_on_board
+- kind: field
+  source: newHireBenEnroll
+  target: provider_fields.prismhr.new_hire_ben_enroll
+- kind: field
+  source: paperlessDelivery
+  target: provider_fields.prismhr.paperless_delivery
+- kind: field
+  source: clientAgrmtRecvDate
+  target: provider_fields.prismhr.client_agrmt_recv_date
+  transform:
+    name: date
+- kind: field
+  source: depositDate
+  target: provider_fields.prismhr.deposit_date
+  transform:
+    name: date
+- kind: field
+  source: invoiceNotes
+  target: provider_fields.prismhr.invoice_notes
+- kind: field
+  source: faxBackNotes
+  target: provider_fields.prismhr.fax_back_notes
+- kind: field
+  source: featureCode
+  target: provider_fields.prismhr.feature_code
+- kind: field
+  source: achStatus
+  target: provider_fields.prismhr.ach_status
+- kind: field
+  source: eligibleBenefitsDeterminant
+  target: provider_fields.prismhr.eligible_benefits_determinant
+- kind: field
+  source: wcResidentBased
+  target: provider_fields.prismhr.wc_resident_based
+- kind: field
+  source: relatedCode
+  target: provider_fields.prismhr.related_code
+- kind: field
+  source: instantPayAccount
+  target: provider_fields.prismhr.instant_pay_account
+- kind: field
+  source: remoteVerification
+  target: provider_fields.prismhr.remote_verification
+- kind: field
+  source: statusClass
+  target: provider_fields.prismhr.status_class
+  transform:
+    name: label
+    arguments:
+      labels:
+        A: active
+        P: pending
+        I: inactive
+        C: client cancelling, pre-termination
+        T: terminated
+- kind: field
+  source: selfServicePayroll
+  target: provider_fields.prismhr.self_service_payroll
+- kind: field
+  source: selfServiceRestrictions
+  target: provider_fields.prismhr.self_service_restrictions
+- kind: field
+  source: worksiteTimesheetEntry
+  target: provider_fields.prismhr.worksite_timesheet_entry
+- kind: field
+  source: allowFirstPeriodHours
+  target: provider_fields.prismhr.allow_first_period_hours
+- kind: field
+  source: enableInstantPay
+  target: provider_fields.prismhr.enable_instant_pay
+- kind: field
+  source: nextEmployeeNumber
+  target: provider_fields.prismhr.next_employee_number
+- kind: list
+  source: altEmployer
+  target: provider_fields.prismhr.alt_employer
+  fields:
+  - kind: field
+    source: altEmployerId
+    target: alt_employer_id
+    transform:
+      name: identifier
+  - kind: field
+    source: altCostCtr
+    target: alt_cost_ctr
+  - kind: field
+    source: altCheckingAcct
+    target: alt_checking_acct
+  - kind: field
+    source: altAchAcct
+    target: alt_ach_acct
+  - kind: field
+    source: altDisplayName
+    target: alt_display_name
+  - kind: field
+    source: suppressClientAccess
+    target: suppress_client_access
+- kind: list
+  source: retire
+  target: provider_fields.prismhr.retire
+  fields:
+  - kind: field
+    source: retirePlan
+    target: retire_plan
+  - kind: field
+    source: thirdPartyPlanId
+    target: third_party_plan_id
+    transform:
+      name: identifier
+- kind: list
+  source: billFixed
+  target: provider_fields.prismhr.bill_fixed
+  fields:
+  - kind: field
+    source: billFixedSpecRate
+    target: bill_fixed_spec_rate
+  - kind: field
+    source: billFixedSpecFrom
+    target: bill_fixed_spec_from
+  - kind: field
+    source: billFixedSpecTo
+    target: bill_fixed_spec_to
+- kind: list
+  source: holidayPay
+  target: provider_fields.prismhr.holiday_pay
+  fields:
+  - kind: field
+    source: holidayOnDay
+    target: holiday_on_day
+  - kind: field
+    source: holidayPayOnDay
+    target: holiday_pay_on_day
+  - kind: field
+    source: holidayPayBefAft
+    target: holiday_pay_bef_aft
+- kind: list
+  source: sdiDedn
+  target: provider_fields.prismhr.sdi_dedn
+  fields:
+  - kind: field
+    source: sdiTaxCode
+    target: sdi_tax_code
+  - kind: field
+    source: sdiDednCode
+    target: sdi_dedn_code
+- kind: list
+  source: clientTax
+  target: provider_fields.prismhr.client_tax
+  fields:
+  - kind: field
+    source: suiState
+    target: sui_state
+  - kind: field
+    source: suiStateEmpId
+    target: sui_state_emp_id
+    transform:
+      name: identifier
+  - kind: field
+    source: stateTaxId
+    target: state_tax_id
+    transform:
+      name: identifier
+  - kind: field
+    source: ctrStartDate
+    target: ctr_start_date
+    transform:
+      name: date
+  - kind: field
+    source: ctrEndDate
+    target: ctr_end_date
+    transform:
+      name: date
+  - kind: field
+    source: suiSecondaryId
+    target: sui_secondary_id
+    transform:
+      name: identifier
+  - kind: field
+    source: miscTaxId
+    target: misc_tax_id
+    transform:
+      name: identifier
+  - kind: field
+    source: miscTaxCode
+    target: misc_tax_code
+- kind: list
+  source: redir
+  target: provider_fields.prismhr.redir
+  fields:
+  - kind: field
+    source: redirTaxCode
+    target: redir_tax_code
+  - kind: field
+    source: redirToTaxCode
+    target: redir_to_tax_code
+- kind: list
+  source: regRebuild
+  target: provider_fields.prismhr.reg_rebuild
+  fields:
+  - kind: field
+    source: regRebuildDate
+    target: reg_rebuild_date
+  - kind: field
+    source: regRebuildUser
+    target: reg_rebuild_user
+  - kind: field
+    source: regRebuildReason
+    target: reg_rebuild_reason
+  - kind: field
+    source: regRebuildYear
+    target: reg_rebuild_year
+- kind: list
+  source: commission
+  target: provider_fields.prismhr.commission
+  fields:
+  - kind: field
+    source: commSalesperson
+    target: comm_salesperson
+  - kind: field
+    source: commDateFrom
+    target: comm_date_from
+    transform:
+      name: date
+  - kind: field
+    source: commDateTo
+    target: comm_date_to
+    transform:
+      name: date
+  - kind: field
+    source: commAmount
+    target: comm_amount
+  - kind: field
+    source: commFlatPct
+    target: comm_flat_pct
+  - kind: field
+    source: commBasedOn
+    target: comm_based_on
+  - kind: field
+    source: commBasedOnPlan
+    target: comm_based_on_plan
+  - kind: field
+    source: commType
+    target: comm_type
+  - kind: field
+    source: targetAmt
+    target: target_amt
+- kind: list
+  source: billEvent
+  target: provider_fields.prismhr.bill_event
+  fields:
+  - kind: field
+    source: billEvtCode
+    target: bill_evt_code
+  - kind: field
+    source: billEvtRate
+    target: bill_evt_rate
+  - kind: field
+    source: billEvtSpecialRate
+    target: bill_evt_special_rate
+  - kind: field
+    source: billEvtSpecialFrom
+    target: bill_evt_special_from
+  - kind: field
+    source: billEvtSpecialTo
+    target: bill_evt_special_to
+- kind: list
+  source: reportFee
+  target: provider_fields.prismhr.report_fee
+  fields:
+  - kind: field
+    source: rptCode
+    target: rpt_code
+  - kind: field
+    source: rptFee
+    target: rpt_fee
+- kind: field
+  source: i9Approver
+  target: provider_fields.prismhr.i9_approver
+- kind: field
+  source: printMailUser
+  target: provider_fields.prismhr.print_mail_user
+- kind: field
+  source: contractorsAllowed1099
+  target: provider_fields.prismhr.contractors_allowed1099
+- kind: field
+  source: billPendingLocation
+  target: provider_fields.prismhr.bill_pending_location
+- kind: field
+  source: benefitsGoodThroughDate
+  target: provider_fields.prismhr.benefits_good_through_date
+  transform:
+    name: date
+- kind: field
+  source: achMax
+  target: provider_fields.prismhr.ach_max
+- kind: field
+  source: checksum
+  target: provider_fields.prismhr.checksum
+- kind: field
+  source: clientStatusChecksum
+  target: provider_fields.prismhr.client_status_checksum
+- kind: list
+  source: mySupportTeamDashboard
+  target: provider_fields.prismhr.my_support_team_dashboard
+  fields:
+  - kind: field
+    source: dashFieldName
+    target: dash_field_name
+  - kind: field
+    source: dashFieldValue
+    target: dash_field_value
+- kind: object
+  source: enrollOnboardControls
+  target: provider_fields.prismhr.enroll_onboard_controls
+  fields:
+  - kind: field
+    source: elecBenefitsEnroll
+    target: elec_benefits_enroll
+  - kind: field
+    source: elecOnboarding
+    target: elec_onboarding
+  - kind: field
+    source: elecOnboardRehire
+    target: elec_onboard_rehire
+  - kind: field
+    source: i9businessAddress
+    target: i9business_address
+  - kind: field
+    source: allowUploadDocs
+    target: allow_upload_docs
+  - kind: field
+    source: systemAllowUploadDocs
+    target: system_allow_upload_docs
+  - kind: field
+    source: completeAllForms
+    target: complete_all_forms
+  - kind: field
+    source: systemCompleteAllForms
+    target: system_complete_all_forms
+  - kind: field
+    source: enableBEAfterFinalSubmit
+    target: enable_be_after_final_submit
+  - kind: field
+    source: systemEnableBEAfterFinalSubmit
+    target: system_enable_be_after_final_submit
+  - kind: field
+    source: onboardVersion
+    target: onboard_version
+  - kind: field
+    source: decisionSupport
+    target: decision_support
+- kind: field
+  source: everify
+  target: provider_fields.prismhr.everify
+- kind: field
+  source: reverseWireAccount
+  target: provider_fields.prismhr.reverse_wire_account
+- kind: field
+  source: payrollFinalizationNotification
+  target: provider_fields.prismhr.payroll_finalization_notification
+- kind: field
+  source: notificationEmailList
+  target: provider_fields.prismhr.notification_email_list
+- kind: field
+  source: positionRatesUsed
+  target: provider_fields.prismhr.position_rates_used
+- kind: field
+  source: eVerify
+  target: provider_fields.prismhr.e_verify
+- kind: field
+  source: externalPtoUsed
+  target: provider_fields.prismhr.external_pto_used
+- kind: field
+  source: taxesToSuppress
+  target: provider_fields.prismhr.taxes_to_suppress

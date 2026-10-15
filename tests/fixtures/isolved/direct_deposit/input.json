@@ -1,0 +1,12 @@
+[
+  {
+    "id": 10,
+    "accountNumber": "000000001",
+    "routingNumber": "000000000",
+    "accountType": "Checking",
+    "amount": 25.0,
+    "percent": null,
+    "sequenceNumber": 0,
+    "fixture_note": false
+  }
+]

@@ -1,0 +1,694 @@
+# One validated payroll record per map call; preserve links through engine fallback.
+# Shared fields require verified meanings; provider fields retain separate nested scopes.
+version: 1
+provider: prismhr
+entity: payroll
+fields:
+- kind: field
+  source:
+  - checkNumber
+  - checkNum
+  target: check_number
+  transform:
+    name: identifier_alias
+- kind: field
+  source: voucherId
+  target: paycheck_id
+  transform:
+    name: identifier
+- kind: field
+  source: status
+  target: provider_fields.prismhr.status
+- kind: field
+  source: type
+  target: provider_fields.prismhr.type
+- kind: field
+  source: voidDate
+  target: provider_fields.prismhr.void_date
+  transform:
+    name: date
+- kind: field
+  source: payDate
+  target: pay_date
+  transform:
+    name: date
+- kind: field
+  source: employeeId
+  target: employee_id
+  transform:
+    name: identifier
+- kind: field
+  source: payPeriod
+  target: provider_fields.prismhr.pay_period
+- kind: field
+  source: payPeriodStart
+  target: period_start_date
+  transform:
+    name: date
+- kind: field
+  source: payPeriodEnd
+  target: period_end_date
+  transform:
+    name: date
+- kind: field
+  source: payGroup
+  target: provider_fields.prismhr.pay_group
+- kind: field
+  source: dateProcessed
+  target: provider_fields.prismhr.date_processed
+  transform:
+    name: date
+- kind: field
+  source: totalEarnings
+  target: provider_fields.prismhr.total_earnings
+- kind: list
+  source: employeeTax
+  target: provider_fields.prismhr.employee_tax
+  fields:
+  - kind: field
+    source: empTaxDeductCode
+    target: emp_tax_deduct_code
+  - kind: field
+    source: empTaxDeductCodeDesc
+    target: emp_tax_deduct_code_desc
+  - kind: field
+    source: empTaxableAmount
+    target: emp_taxable_amount
+  - kind: field
+    source: empTaxAmount
+    target: emp_tax_amount
+  - kind: field
+    source: empOverLimitAmount
+    target: emp_over_limit_amount
+- kind: field
+  source: netPay
+  target: net_pay
+  transform:
+    name: number
+- kind: field
+  source: voidVoucherId
+  target: provider_fields.prismhr.void_voucher_id
+  transform:
+    name: identifier
+- kind: field
+  source: fitTaxableAmount
+  target: provider_fields.prismhr.fit_taxable_amount
+- kind: field
+  source: earnAmount
+  target: provider_fields.prismhr.earn_amount
+- kind: field
+  source: otherEarnAmount
+  target: provider_fields.prismhr.other_earn_amount
+- kind: field
+  source: wcHomeClass
+  target: provider_fields.prismhr.wc_home_class
+- kind: field
+  source: wcState
+  target: provider_fields.prismhr.wc_state
+- kind: list
+  source: workerComp
+  target: provider_fields.prismhr.worker_comp
+  fields:
+  - kind: field
+    source: wcClass
+    target: wc_class
+  - kind: field
+    source: wcTaxablePay
+    target: wc_taxable_pay
+  - kind: field
+    source: wcPremAmount
+    target: wc_prem_amount
+  - kind: field
+    source: wcBillAmount
+    target: wc_bill_amount
+  - kind: field
+    source: wcPremBill
+    target: wc_prem_bill
+- kind: list
+  source: earning
+  target: provider_fields.prismhr.earning
+  fields:
+  - kind: field
+    source: payCode
+    target: pay_code
+  - kind: field
+    source: payClass
+    target: pay_class
+  - kind: field
+    source: payClassDescription
+    target: pay_class_description
+  - kind: field
+    source: chargeDate
+    target: charge_date
+    transform:
+      name: date
+  - kind: field
+    source: hoursUnits
+    target: hours_units
+  - kind: field
+    source: hoursWorked
+    target: hours_worked
+  - kind: field
+    source: unitRate
+    target: unit_rate
+  - kind: field
+    source: payAmount
+    target: pay_amount
+  - kind: field
+    source: division
+    target: division
+  - kind: field
+    source: jobCode
+    target: job_code
+  - kind: field
+    source: shift
+    target: shift
+  - kind: field
+    source: department
+    target: department
+  - kind: field
+    source: location
+    target: location
+  - kind: field
+    source: glCode
+    target: gl_code
+  - kind: field
+    source: workComp
+    target: work_comp
+  - kind: field
+    source: projWork
+    target: proj_work
+  - kind: field
+    source: projPhase
+    target: proj_phase
+- kind: list
+  source: otherEarningsDetail
+  target: provider_fields.prismhr.other_earnings_detail
+  fields:
+  - kind: field
+    source: otherEarnCode
+    target: other_earn_code
+  - kind: field
+    source: otherEarnsDesc
+    target: other_earns_desc
+  - kind: field
+    source: otherEarnAmount
+    target: other_earn_amount
+- kind: list
+  source: fsaMatch
+  target: provider_fields.prismhr.fsa_match
+  fields:
+  - kind: field
+    source: code
+    target: code
+  - kind: field
+    source: description
+    target: description
+  - kind: field
+    source: matchAmt
+    target: match_amt
+  - kind: field
+    source: acctType
+    target: acct_type
+- kind: list
+  source: companyTax
+  target: provider_fields.prismhr.company_tax
+  fields:
+  - kind: field
+    source: comTaxEntity
+    target: com_tax_entity
+  - kind: field
+    source: comTaxDeductCode
+    target: com_tax_deduct_code
+  - kind: field
+    source: comTaxDeductCodeDesc
+    target: com_tax_deduct_code_desc
+  - kind: field
+    source: comExemptAmount
+    target: com_exempt_amount
+  - kind: field
+    source: comShelteredAmount
+    target: com_sheltered_amount
+  - kind: field
+    source: comTaxableAmount
+    target: com_taxable_amount
+  - kind: field
+    source: comTaxType
+    target: com_tax_type
+  - kind: field
+    source: comTaxAmount
+    target: com_tax_amount
+  - kind: field
+    source: comOvrLimit
+    target: com_ovr_limit
+  - kind: field
+    source: comTaxRate
+    target: com_tax_rate
+  - kind: field
+    source: comClientSutaRpt
+    target: com_client_suta_rpt
+- kind: field
+  source: batchId
+  target: payroll_run_id
+  transform:
+    name: identifier
+- kind: list
+  source: deduction
+  target: provider_fields.prismhr.deduction
+  fields:
+  - kind: field
+    source: deductCode
+    target: deduct_code
+  - kind: field
+    source: deductDescription
+    target: deduct_description
+  - kind: field
+    source: deductAmount
+    target: deduct_amount
+  - kind: field
+    source: deductType
+    target: deduct_type
+  - kind: field
+    source: deductUnionId
+    target: deduct_union_id
+    transform:
+      name: identifier
+  - kind: field
+    source: planId
+    target: plan_id
+    transform:
+      name: identifier
+- kind: list
+  source: otherDeduction
+  target: provider_fields.prismhr.other_deduction
+  fields:
+  - kind: field
+    source: otherDeductCode
+    target: other_deduct_code
+  - kind: field
+    source: otherDeductDescription
+    target: other_deduct_description
+  - kind: field
+    source: otherDeductAmount
+    target: other_deduct_amount
+  - kind: field
+    source: otherDeductOneTimeSwitch
+    target: other_deduct_one_time_switch
+- kind: list
+  source: benefit
+  target: provider_fields.prismhr.benefit
+  fields:
+  - kind: field
+    source: planId
+    target: plan_id
+    transform:
+      name: identifier
+  - kind: field
+    source: premiumAmt
+    target: premium_amt
+  - kind: field
+    source: empContrib
+    target: emp_contrib
+  - kind: field
+    source: empDeduct
+    target: emp_deduct
+  - kind: field
+    source: coveragePeriod
+    target: coverage_period
+  - kind: field
+    source: adjRef
+    target: adj_ref
+  - kind: field
+    source: premiumCost
+    target: premium_cost
+- kind: field
+  source: bankAccount
+  target: provider_fields.prismhr.bank_account
+- kind: field
+  source: checkAmt
+  target: check_amount
+  transform:
+    name: number
+- kind: field
+  source: payStubType
+  target: provider_fields.prismhr.pay_stub_type
+- kind: field
+  source: checkAccountACH
+  target: provider_fields.prismhr.check_account_ach
+- kind: list
+  source: directDeposit
+  target: provider_fields.prismhr.direct_deposit
+  fields:
+  - kind: field
+    source: transitNum
+    target: transit_num
+  - kind: field
+    source: accountNum
+    target: account_num
+  - kind: field
+    source: status
+    target: status
+  - kind: field
+    source: amount
+    target: amount
+- kind: list
+  source: employerContributions
+  target: provider_fields.prismhr.employer_contributions
+  fields:
+  - kind: field
+    source: code
+    target: code
+  - kind: field
+    source: description
+    target: description
+  - kind: field
+    source: amount
+    target: amount
+- kind: object
+  source: retirement
+  target: provider_fields.prismhr.retirement
+  fields:
+  - kind: field
+    source: planId
+    target: plan_id
+    transform:
+      name: identifier
+  - kind: field
+    source: planYearPeriod
+    target: plan_year_period
+  - kind: field
+    source: baseEarnings
+    target: base_earnings
+  - kind: field
+    source: electiveContributionsPreTax
+    target: elective_contributions_pre_tax
+  - kind: field
+    source: catchUpContributionsPreTax
+    target: catch_up_contributions_pre_tax
+  - kind: field
+    source: rothContributionsPostTax
+    target: roth_contributions_post_tax
+  - kind: field
+    source: rothCatchUpContributionsPostTax
+    target: roth_catch_up_contributions_post_tax
+  - kind: field
+    source: employeeContributionsPostTax
+    target: employee_contributions_post_tax
+  - kind: field
+    source: employerMatchingContributions
+    target: employer_matching_contributions
+  - kind: field
+    source: employerNonElectiveContributions
+    target: employer_non_elective_contributions
+  - kind: field
+    source: employerSafeHarborMatchType1
+    target: employer_safe_harbor_match_type1
+  - kind: field
+    source: employerSafeHarborMatchType2
+    target: employer_safe_harbor_match_type2
+  - kind: field
+    source: peoMatchingContribution
+    target: peo_matching_contribution
+  - kind: field
+    source: employeeRetirementLoanPayments
+    target: employee_retirement_loan_payments
+- kind: object
+  source: glAcctDistribution
+  target: provider_fields.prismhr.gl_acct_distribution
+  fields:
+  - kind: field
+    source: glTotalDebit
+    target: gl_total_debit
+  - kind: field
+    source: glTotalCredit
+    target: gl_total_credit
+  - kind: list
+    source: glDebitData
+    target: gl_debit_data
+    fields:
+    - kind: field
+      source: glDebitAcct
+      target: gl_debit_acct
+    - kind: field
+      source: glDebitAmount
+      target: gl_debit_amount
+    - kind: list
+      source: debitSegmentDetail
+      target: debit_segment_detail
+      fields:
+      - kind: field
+        source: debitSegmentName
+        target: debit_segment_name
+      - kind: field
+        source: debitSegmentValue
+        target: debit_segment_value
+  - kind: list
+    source: glCreditData
+    target: gl_credit_data
+    fields:
+    - kind: field
+      source: glCreditAcct
+      target: gl_credit_acct
+    - kind: field
+      source: glCreditAmount
+      target: gl_credit_amount
+    - kind: list
+      source: creditSegmentDetail
+      target: credit_segment_detail
+      fields:
+      - kind: field
+        source: creditSegmentName
+        target: credit_segment_name
+      - kind: field
+        source: creditSegmentValue
+        target: credit_segment_value
+- kind: object
+  source: asoClientGLAcctDistribution
+  target: provider_fields.prismhr.aso_client_gl_acct_distribution
+  fields:
+  - kind: list
+    source: asoCredits
+    target: aso_credits
+    fields:
+    - kind: field
+      source: glCreditAcct
+      target: gl_credit_acct
+    - kind: field
+      source: glCreditAcctDesc
+      target: gl_credit_acct_desc
+    - kind: field
+      source: glTotalCredit
+      target: gl_total_credit
+  - kind: list
+    source: asoDebits
+    target: aso_debits
+    fields:
+    - kind: field
+      source: glDebitAcct
+      target: gl_debit_acct
+    - kind: field
+      source: glDebitAcctDesc
+      target: gl_debit_acct_desc
+    - kind: field
+      source: glTotalDebit
+      target: gl_total_debit
+- kind: list
+  source: taxFilingStatus
+  target: provider_fields.prismhr.tax_filing_status
+  fields:
+  - kind: field
+    source: taxAuthId
+    target: tax_auth_id
+    transform:
+      name: identifier
+  - kind: field
+    source: taxAuthName
+    target: tax_auth_name
+  - kind: field
+    source: filingStatus
+    target: filing_status
+  - kind: field
+    source: allowances
+    target: allowances
+  - kind: field
+    source: overrideType
+    target: override_type
+  - kind: field
+    source: overrideAmount
+    target: override_amount
+- kind: object
+  source: wcInformation
+  target: provider_fields.prismhr.wc_information
+  fields:
+  - kind: field
+    source: wcPolicy
+    target: wc_policy
+  - kind: field
+    source: wcNotEligible
+    target: wc_not_eligible
+  - kind: field
+    source: wcSheltered
+    target: wc_sheltered
+  - kind: field
+    source: wcOverBillRate
+    target: wc_over_bill_rate
+  - kind: field
+    source: wcBillIncludeCredit
+    target: wc_bill_include_credit
+  - kind: field
+    source: wcBillAmtIncludeCredit
+    target: wc_bill_amt_include_credit
+  - kind: field
+    source: wcWeekEndDate
+    target: wc_week_end_date
+  - kind: field
+    source: wcPolicyYearEnd
+    target: wc_policy_year_end
+  - kind: field
+    source: wcPremiumPay
+    target: wc_premium_pay
+  - kind: field
+    source: wcTria
+    target: wc_tria
+  - kind: field
+    source: wcRateTemplate
+    target: wc_rate_template
+  - kind: field
+    source: wcOverBillAmt
+    target: wc_over_bill_amt
+  - kind: field
+    source: wcGrossRate
+    target: wc_gross_rate
+  - kind: field
+    source: wcStraightPay
+    target: wc_straight_pay
+  - kind: field
+    source: wcPremAmt
+    target: wc_prem_amt
+  - kind: field
+    source: wcClass
+    target: wc_class
+  - kind: field
+    source: wcBasePay
+    target: wc_base_pay
+  - kind: field
+    source: wcBillAmt
+    target: wc_bill_amt
+  - kind: field
+    source: wcTaxablePay
+    target: wc_taxable_pay
+  - kind: field
+    source: wcPremiumBill
+    target: wc_premium_bill
+  - kind: field
+    source: wcAccruedAmt
+    target: wc_accrued_amt
+  - kind: field
+    source: wcState
+    target: wc_state
+  - kind: field
+    source: wcHoursWorked
+    target: wc_hours_worked
+  - kind: field
+    source: wcEarnNonComp
+    target: wc_earn_non_comp
+  - kind: field
+    source: wcPayLocationReg
+    target: wc_pay_location_reg
+  - kind: field
+    source: wcPayLocationOT
+    target: wc_pay_location_ot
+  - kind: field
+    source: wcPayLocationBreakCode
+    target: wc_pay_location_break_code
+  - kind: field
+    source: wcRecalcDifference
+    target: wc_recalc_difference
+  - kind: field
+    source: wcLocationState
+    target: wc_location_state
+  - kind: field
+    source: wcLocationPolicy
+    target: wc_location_policy
+  - kind: field
+    source: wcLocationYearEndDate
+    target: wc_location_year_end_date
+  - kind: field
+    source: wcLocationTemplate
+    target: wc_location_template
+  - kind: field
+    source: wcPayLocationExp
+    target: wc_pay_location_exp
+- kind: list
+  source: fromArrears
+  target: provider_fields.prismhr.from_arrears
+  fields:
+  - kind: field
+    source: dedCode
+    target: ded_code
+  - kind: field
+    source: dedDescription
+    target: ded_description
+  - kind: field
+    source: arrearsAmt
+    target: arrears_amt
+  - kind: field
+    source: arrearsDate
+    target: arrears_date
+  - kind: field
+    source: arrearsRefNo
+    target: arrears_ref_no
+  - kind: field
+    source: coveragePeriod
+    target: coverage_period
+  - kind: field
+    source: planId
+    target: plan_id
+    transform:
+      name: identifier
+  - kind: field
+    source: unionId
+    target: union_id
+    transform:
+      name: identifier
+  - kind: field
+    source: loanNo
+    target: loan_no
+- kind: list
+  source: toArrears
+  target: provider_fields.prismhr.to_arrears
+  fields:
+  - kind: field
+    source: dedCode
+    target: ded_code
+  - kind: field
+    source: dedDescription
+    target: ded_description
+  - kind: field
+    source: arrearsAmt
+    target: arrears_amt
+  - kind: field
+    source: coveragePeriod
+    target: coverage_period
+  - kind: field
+    source: planId
+    target: plan_id
+    transform:
+      name: identifier
+  - kind: field
+    source: unionId
+    target: union_id
+    transform:
+      name: identifier
+  - kind: field
+    source: loanNo
+    target: loan_no
+- kind: field
+  source: importBatchNo
+  target: provider_fields.prismhr.import_batch_no
+- kind: field
+  source: isManualCheck
+  target: provider_fields.prismhr.is_manual_check
+- kind: field
+  source: hsaPeoMatch
+  target: provider_fields.prismhr.hsa_peo_match

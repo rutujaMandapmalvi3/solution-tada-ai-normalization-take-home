@@ -1,0 +1,61 @@
+{
+  "provider": "ukg-ready",
+  "employee_id": "007",
+  "direct_deposits": [
+    {
+      "provider": "ukg-ready",
+      "deposit_id": "10",
+      "employee_id": "007",
+      "account_number": "000000001",
+      "routing_number": "000000000",
+      "account_type": "checking",
+      "allocation_amount": 25.0,
+      "provider_fields": {
+        "ukg-ready": {
+          "active": false,
+          "amount": 25.0,
+          "calc_method": {
+            "type": "FLAT_AMOUNT"
+          }
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 10,
+          "amount": 25.0,
+          "calc_method.type": "FLAT_AMOUNT",
+          "account_type": "CHECKING",
+          "context.employee_id": "007"
+        },
+        "ukg-ready": {
+          "source_location": {
+            "account_index": 0
+          }
+        }
+      },
+      "source_extras": {
+        "ukg-ready": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "source_metadata": {
+    "ukg-ready": {
+      "response": {
+        "_links": {}
+      },
+      "reference_pack": {
+        "provider": "ukg-ready",
+        "reference_version": "cached-v2-private-reference-1",
+        "distribution_status": "user_approved_private_upload",
+        "warnings": [
+          "Candidate-distribution permission has not been verified.",
+          "OpenAPI artifact is absent or unverified.",
+          "Approved OpenAPI filename is missing.",
+          "OpenAPI provenance/version/checksum metadata is incomplete."
+        ]
+      }
+    }
+  }
+}

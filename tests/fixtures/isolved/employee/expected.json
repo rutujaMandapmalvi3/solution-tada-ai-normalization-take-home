@@ -1,0 +1,43 @@
+[
+  {
+    "provider": "isolved",
+    "employee_id": "7",
+    "last_name": "Example",
+    "first_name": "Alex",
+    "birth_date": "2000-01-02",
+    "annual_salary": 50000.0,
+    "provider_fields": {
+      "isolved": {
+        "name_address": {
+          "id": "70"
+        }
+      }
+    },
+    "source_metadata": {
+      "original_values": {
+        "id": 7,
+        "birthDate": "2000-01-02",
+        "nameAddress.id": 70
+      },
+      "isolved": {
+        "response": {
+          "totalItems": 1,
+          "nextPageUrl": null
+        },
+        "reference_pack": {
+          "provider": "isolved",
+          "reference_version": "6-private-reference-1",
+          "distribution_status": "user_approved_private_upload",
+          "warnings": [
+            "Candidate-distribution permission has not been verified."
+          ]
+        }
+      }
+    },
+    "source_extras": {
+      "isolved": {
+        "fixture_note": false
+      }
+    }
+  }
+]

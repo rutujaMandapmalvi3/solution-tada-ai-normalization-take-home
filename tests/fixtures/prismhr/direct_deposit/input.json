@@ -1,0 +1,20 @@
+{
+  "errorCode": "0",
+  "errorMessage": "",
+  "employee": [
+    {
+      "id": "007",
+      "directDeposit": {
+        "achVoucher": [
+          {
+            "accountNum": "000000001",
+            "transitNum": "000000000",
+            "accountType": "S",
+            "method": "F",
+            "amount": 25.0
+          }
+        ]
+      }
+    }
+  ]
+}

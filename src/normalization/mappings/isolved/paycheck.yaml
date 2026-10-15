@@ -1,0 +1,677 @@
+# One validated payroll record per map call; preserve links through engine fallback.
+# Shared fields require verified meanings; provider fields retain separate nested scopes.
+version: 1
+provider: isolved
+entity: payroll
+fields:
+- kind: field
+  source: id
+  target: paycheck_id
+  transform:
+    name: identifier
+- kind: list
+  source: accruals
+  target: provider_fields.isolved.accruals
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: accrualName
+    target: accrual_name
+  - kind: field
+    source: amountAccrued
+    target: amount_accrued
+  - kind: field
+    source: amountTaken
+    target: amount_taken
+  - kind: field
+    source: availableBalance
+    target: available_balance
+  - kind: field
+    source: endingBalance
+    target: ending_balance
+- kind: list
+  source: benefits
+  target: provider_fields.isolved.benefits
+  fields:
+  - kind: field
+    source: benefitDescription
+    target: benefit_description
+  - kind: field
+    source: benefitTitle
+    target: benefit_title
+  - kind: field
+    source: checkEligibleWages
+    target: check_eligible_wages
+  - kind: field
+    source: checkEmployeeCatchUp
+    target: check_employee_catch_up
+  - kind: field
+    source: checkEmployeeDeduction
+    target: check_employee_deduction
+  - kind: field
+    source: checkEmployerContribution
+    target: check_employer_contribution
+  - kind: field
+    source: checkMatchEligibleWages
+    target: check_match_eligible_wages
+  - kind: field
+    source: currentEligibleWages
+    target: current_eligible_wages
+  - kind: field
+    source: currentEmployeeCatchUp
+    target: current_employee_catch_up
+  - kind: field
+    source: currentEmployeeDeduction
+    target: current_employee_deduction
+  - kind: field
+    source: currentEmployerContribution
+    target: current_employer_contribution
+  - kind: field
+    source: currentMatchEligibleWages
+    target: current_match_eligible_wages
+  - kind: field
+    source: ftdEligibleWages
+    target: ftd_eligible_wages
+  - kind: field
+    source: ftdEmployeeCatchUp
+    target: ftd_employee_catch_up
+  - kind: field
+    source: ftdEmployeeDeduction
+    target: ftd_employee_deduction
+  - kind: field
+    source: ftdEmployerContribution
+    target: ftd_employer_contribution
+  - kind: field
+    source: ftdMatchEligibleWages
+    target: ftd_match_eligible_wages
+  - kind: field
+    source: mtdEligibleWages
+    target: mtd_eligible_wages
+  - kind: field
+    source: mtdEmployeeCatchUp
+    target: mtd_employee_catch_up
+  - kind: field
+    source: mtdEmployeeDeduction
+    target: mtd_employee_deduction
+  - kind: field
+    source: mtdEmployerContribution
+    target: mtd_employer_contribution
+  - kind: field
+    source: mtdMatchEligibleWages
+    target: mtd_match_eligible_wages
+  - kind: field
+    source: ptdEligibleWages
+    target: ptd_eligible_wages
+  - kind: field
+    source: ptdEmployeeCatchUp
+    target: ptd_employee_catch_up
+  - kind: field
+    source: ptdEmployeeDeduction
+    target: ptd_employee_deduction
+  - kind: field
+    source: ptdEmployerContribution
+    target: ptd_employer_contribution
+  - kind: field
+    source: ptdMatchEligibleWages
+    target: ptd_match_eligible_wages
+  - kind: field
+    source: qtdEligibleWages
+    target: qtd_eligible_wages
+  - kind: field
+    source: qtdEmployeeCatchUp
+    target: qtd_employee_catch_up
+  - kind: field
+    source: qtdEmployeeDeduction
+    target: qtd_employee_deduction
+  - kind: field
+    source: qtdEmployerContribution
+    target: qtd_employer_contribution
+  - kind: field
+    source: qtdMatchEligibleWages
+    target: qtd_match_eligible_wages
+  - kind: field
+    source: ytdEligibleWages
+    target: ytd_eligible_wages
+  - kind: field
+    source: ytdEmployeeCatchUp
+    target: ytd_employee_catch_up
+  - kind: field
+    source: ytdEmployeeDeduction
+    target: ytd_employee_deduction
+  - kind: field
+    source: ytdEmployerContribution
+    target: ytd_employer_contribution
+  - kind: field
+    source: ytdMatchEligibleWages
+    target: ytd_match_eligible_wages
+- kind: field
+  source: checkAmount
+  target: check_amount
+  transform:
+    name: number
+- kind: field
+  source: checkDate
+  target: pay_date
+  transform:
+    name: date
+- kind: field
+  source: checkNumber
+  target: check_number
+  transform:
+    name: identifier
+- kind: field
+  source: checkSequence
+  target: provider_fields.isolved.check_sequence
+- kind: field
+  source: checkTypeDescription
+  target: provider_fields.isolved.check_type_description
+- kind: list
+  source: deductions
+  target: provider_fields.isolved.deductions
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: checkDollars
+    target: check_dollars
+  - kind: field
+    source: currentDollars
+    target: current_dollars
+  - kind: field
+    source: ftdDollars
+    target: ftd_dollars
+  - kind: field
+    source: itemCode
+    target: item_code
+  - kind: field
+    source: itemDescription
+    target: item_description
+  - kind: field
+    source: mtdDollars
+    target: mtd_dollars
+  - kind: field
+    source: ptdDollars
+    target: ptd_dollars
+  - kind: field
+    source: qtdDollars
+    target: qtd_dollars
+  - kind: field
+    source: sequence
+    target: sequence
+  - kind: field
+    source: ytdDollars
+    target: ytd_dollars
+- kind: field
+  source: directDepositAmount
+  target: provider_fields.isolved.direct_deposit_amount
+- kind: list
+  source: directDeposits
+  target: provider_fields.isolved.direct_deposits
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: account
+    target: account
+  - kind: field
+    source: depositAmount
+    target: deposit_amount
+  - kind: field
+    source: itemDescription
+    target: item_description
+- kind: list
+  source: earnings
+  target: provider_fields.isolved.earnings
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: checkDollars
+    target: check_dollars
+  - kind: field
+    source: checkHours
+    target: check_hours
+  - kind: field
+    source: checkUnits
+    target: check_units
+  - kind: field
+    source: currentDollars
+    target: current_dollars
+  - kind: field
+    source: currentHours
+    target: current_hours
+  - kind: field
+    source: currentUnits
+    target: current_units
+  - kind: field
+    source: ftdDollars
+    target: ftd_dollars
+  - kind: field
+    source: ftdHours
+    target: ftd_hours
+  - kind: field
+    source: ftdUnits
+    target: ftd_units
+  - kind: field
+    source: isMemoEarning
+    target: is_memo_earning
+  - kind: field
+    source: itemCode
+    target: item_code
+  - kind: field
+    source: itemDescription
+    target: item_description
+  - kind: list
+    source: labors
+    target: labors
+    fields:
+    - kind: field
+      source: dollars
+      target: dollars
+    - kind: field
+      source: hours
+      target: hours
+    - kind: field
+      source: laborCode
+      target: labor_code
+    - kind: list
+      source: labors
+      target: labors
+      fields:
+      - kind: field
+        source: laborId
+        target: labor_id
+        transform:
+          name: identifier
+      - kind: field
+        source: laborTitle
+        target: labor_title
+      - kind: field
+        source: laborValue
+        target: labor_value
+      - kind: field
+        source: organizationId
+        target: organization_id
+        transform:
+          name: identifier
+    - kind: field
+      source: rate
+      target: rate
+  - kind: field
+    source: mtdDollars
+    target: mtd_dollars
+  - kind: field
+    source: mtdHours
+    target: mtd_hours
+  - kind: field
+    source: mtdUnits
+    target: mtd_units
+  - kind: field
+    source: ptdDollars
+    target: ptd_dollars
+  - kind: field
+    source: ptdHours
+    target: ptd_hours
+  - kind: field
+    source: ptdUnits
+    target: ptd_units
+  - kind: field
+    source: qtdDollars
+    target: qtd_dollars
+  - kind: field
+    source: qtdHours
+    target: qtd_hours
+  - kind: field
+    source: qtdUnits
+    target: qtd_units
+  - kind: field
+    source: sequence
+    target: sequence
+  - kind: field
+    source: ytdDollars
+    target: ytd_dollars
+  - kind: field
+    source: ytdHours
+    target: ytd_hours
+  - kind: field
+    source: ytdUnits
+    target: ytd_units
+- kind: field
+  source: employeeAddress1
+  target: provider_fields.isolved.employee_address1
+- kind: field
+  source: employeeAddress2
+  target: provider_fields.isolved.employee_address2
+- kind: field
+  source: employeeCity
+  target: provider_fields.isolved.employee_city
+- kind: field
+  source: employeeFederalAddlAmountOrPercent
+  target: provider_fields.isolved.employee_federal_addl_amount_or_percent
+- kind: field
+  source: employeeFederalExemptions
+  target: provider_fields.isolved.employee_federal_exemptions
+- kind: field
+  source: employeeFederalFilingStatus
+  target: provider_fields.isolved.employee_federal_filing_status
+- kind: field
+  source: employeeId
+  target: employee_id
+  transform:
+    name: identifier
+- kind: field
+  source: employeeName
+  target: provider_fields.isolved.employee_name
+- kind: field
+  source: employeeNumber
+  target: provider_fields.isolved.employee_number
+- kind: list
+  source: employeeOrganizations
+  target: provider_fields.isolved.employee_organizations
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: displayOrder
+    target: display_order
+  - kind: field
+    source: organizationId
+    target: organization_id
+    transform:
+      name: identifier
+  - kind: field
+    source: title
+    target: title
+  - kind: field
+    source: value
+    target: value
+  - kind: field
+    source: valueDescription
+    target: value_description
+- kind: field
+  source: employeeSSN
+  target: provider_fields.isolved.employee_ssn
+- kind: field
+  source: employeeState
+  target: provider_fields.isolved.employee_state
+- kind: field
+  source: employeeStateAddlAmountOrPercent
+  target: provider_fields.isolved.employee_state_addl_amount_or_percent
+- kind: field
+  source: employeeStateExemptions
+  target: provider_fields.isolved.employee_state_exemptions
+- kind: field
+  source: employeeStateFilingStatus
+  target: provider_fields.isolved.employee_state_filing_status
+- kind: field
+  source: employeeZipCode
+  target: provider_fields.isolved.employee_zip_code
+- kind: list
+  source: garnishments
+  target: provider_fields.isolved.garnishments
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: checkDollars
+    target: check_dollars
+  - kind: field
+    source: currentDollars
+    target: current_dollars
+  - kind: field
+    source: ftdDollars
+    target: ftd_dollars
+  - kind: field
+    source: itemCode
+    target: item_code
+  - kind: field
+    source: itemDescription
+    target: item_description
+  - kind: field
+    source: mtdDollars
+    target: mtd_dollars
+  - kind: field
+    source: ptdDollars
+    target: ptd_dollars
+  - kind: field
+    source: qtdDollars
+    target: qtd_dollars
+  - kind: field
+    source: sequence
+    target: sequence
+  - kind: field
+    source: ytdDollars
+    target: ytd_dollars
+- kind: field
+  source: grossPay
+  target: gross_pay
+  transform:
+    name: number
+- kind: field
+  source: grossWages
+  target: provider_fields.isolved.gross_wages
+- kind: field
+  source: isRemoteWorker
+  target: provider_fields.isolved.is_remote_worker
+- kind: field
+  source: legalCompanyName
+  target: provider_fields.isolved.legal_company_name
+- kind: field
+  source: netPay
+  target: net_pay
+  transform:
+    name: number
+- kind: field
+  source: payrollRunNumber
+  target: provider_fields.isolved.payroll_run_number
+- kind: field
+  source: payrollRunType
+  target: provider_fields.isolved.payroll_run_type
+- kind: field
+  source: periodBeginDate
+  target: period_start_date
+  transform:
+    name: date
+- kind: field
+  source: periodEndDate
+  target: period_end_date
+  transform:
+    name: date
+- kind: field
+  source: reissueCheckDate
+  target: provider_fields.isolved.reissue_check_date
+  transform:
+    name: date
+- kind: field
+  source: reissueCheckNumber
+  target: provider_fields.isolved.reissue_check_number
+- kind: list
+  source: taxCategories
+  target: provider_fields.isolved.tax_categories
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: additionalAmount
+    target: additional_amount
+  - kind: field
+    source: additionalIncome
+    target: additional_income
+  - kind: field
+    source: additionalPercent
+    target: additional_percent
+  - kind: object
+    source: alternateCalculation
+    target: alternate_calculation
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: description
+      target: description
+    - kind: field
+      source: state
+      target: state
+    - kind: field
+      source: taxCategoryCode
+      target: tax_category_code
+  - kind: field
+    source: city
+    target: city
+  - kind: field
+    source: deductionExemption
+    target: deduction_exemption
+  - kind: field
+    source: dependentExemption
+    target: dependent_exemption
+  - kind: field
+    source: description
+    target: description
+  - kind: field
+    source: exemptionAmount
+    target: exemption_amount
+  - kind: object
+    source: filingStatus
+    target: filing_status
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: description
+      target: description
+    - kind: field
+      source: state
+      target: state
+    - kind: field
+      source: taxCategory
+      target: tax_category
+  - kind: field
+    source: isBlocked
+    target: is_blocked
+  - kind: field
+    source: isNonResident
+    target: is_non_resident
+  - kind: field
+    source: multipleJobs
+    target: multiple_jobs
+  - kind: field
+    source: primaryExemptions
+    target: primary_exemptions
+  - kind: field
+    source: secondaryExemptions
+    target: secondary_exemptions
+  - kind: object
+    source: state
+    target: state
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: stateName
+      target: state_name
+- kind: list
+  source: taxes
+  target: provider_fields.isolved.taxes
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: checkDollars
+    target: check_dollars
+  - kind: field
+    source: checkTaxableWages
+    target: check_taxable_wages
+  - kind: field
+    source: currentDollars
+    target: current_dollars
+  - kind: field
+    source: currentTaxableWages
+    target: current_taxable_wages
+  - kind: field
+    source: ftdDollars
+    target: ftd_dollars
+  - kind: field
+    source: ftdTaxableWages
+    target: ftd_taxable_wages
+  - kind: field
+    source: isEmployeeTax
+    target: is_employee_tax
+  - kind: field
+    source: itemCode
+    target: item_code
+  - kind: field
+    source: itemDescription
+    target: item_description
+  - kind: field
+    source: mtdDollars
+    target: mtd_dollars
+  - kind: field
+    source: mtdTaxableWages
+    target: mtd_taxable_wages
+  - kind: field
+    source: ptdDollars
+    target: ptd_dollars
+  - kind: field
+    source: ptdTaxableWages
+    target: ptd_taxable_wages
+  - kind: field
+    source: qtdDollars
+    target: qtd_dollars
+  - kind: field
+    source: qtdTaxableWages
+    target: qtd_taxable_wages
+  - kind: field
+    source: sequence
+    target: sequence
+  - kind: field
+    source: ytdDollars
+    target: ytd_dollars
+  - kind: field
+    source: ytdTaxableWages
+    target: ytd_taxable_wages
+- kind: field
+  source: vertexResidentGeoCode
+  target: provider_fields.isolved.vertex_resident_geo_code
+- kind: field
+  source: vertexSchoolDistrictCode
+  target: provider_fields.isolved.vertex_school_district_code
+- kind: field
+  source: vertexWorkGeoCode
+  target: provider_fields.isolved.vertex_work_geo_code
+- kind: field
+  source: voucherNumber
+  target: provider_fields.isolved.voucher_number

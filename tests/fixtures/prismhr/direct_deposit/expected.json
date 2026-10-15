@@ -1,0 +1,55 @@
+{
+  "provider": "prismhr",
+  "employee_id": "007",
+  "direct_deposits": [
+    {
+      "provider": "prismhr",
+      "deposit_id": null,
+      "employee_id": "007",
+      "account_number": "000000001",
+      "routing_number": "000000000",
+      "account_type": "savings",
+      "allocation_amount": 25.0,
+      "provider_fields": {
+        "prismhr": {
+          "ach_method": "fixed",
+          "method_amount": 25.0
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "accountType": "S",
+          "method": "F",
+          "amount": 25.0,
+          "context.employee_id": "007"
+        },
+        "prismhr": {
+          "source_location": {
+            "employee_index": 0,
+            "ach_voucher_index": 0
+          }
+        }
+      }
+    }
+  ],
+  "provider_fields": {
+    "prismhr": {
+      "unmapped": {
+        "employee": [
+          {
+            "id": "007"
+          }
+        ]
+      }
+    }
+  },
+  "source_metadata": {
+    "prismhr": {
+      "response": {
+        "errorCode": "0",
+        "errorMessage": ""
+      }
+    }
+  },
+  "source_extras": {}
+}

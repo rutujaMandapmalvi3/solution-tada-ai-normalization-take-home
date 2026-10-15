@@ -1,4 +1,4 @@
-"""PrismHR client-master source validation; canonical company scope is pending."""
+"""PrismHR client-master source validation; company mapping is connected."""
 import copy
 import unittest
 
@@ -12,8 +12,8 @@ def response():
 class CompanyValidationChecks(unittest.TestCase):
     def assert_valid(self, payload):
         before = copy.deepcopy(payload)
-        with self.assertRaisesRegex(NotImplementedError, "source validation passed"):
-            prismhr.normalize("company", payload, {})
+        result = prismhr.normalize("company", payload, {})
+        self.assertIsInstance(result["companies"], list)
         self.assertEqual(payload, before)
 
     def test_valid_client_master_preserves_input(self):
@@ -23,7 +23,7 @@ class CompanyValidationChecks(unittest.TestCase):
         for extra in [{}, {"clientMaster": None}]:
             with self.subTest(extra=extra):
                 self.assertEqual(prismhr.normalize(
-                    "company", {"errorCode": "0", "errorMessage": "", **extra}, {}), [])
+                    "company", {"errorCode": "0", "errorMessage": "", **extra}, {})["companies"], [])
 
     def test_requires_wrapper_fields_and_valid_shapes(self):
         for field in ["errorCode", "errorMessage"]:

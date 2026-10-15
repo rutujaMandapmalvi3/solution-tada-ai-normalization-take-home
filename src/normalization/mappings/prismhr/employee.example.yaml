@@ -1,0 +1,31 @@
+# Small design example, not the complete employee mapping.
+# Applied to ONE validated PrismHREmployee, not the response envelope.
+# The engine supplies provider from this header; it is not a source field.
+version: 1
+provider: prismhr
+entity: employee
+
+fields:
+  # Convert the source record ID to the canonical string representation.
+  - kind: field
+    source: id
+    target: employee_id
+    transform:
+      name: identifier
+
+  # Rename a field without changing its value.
+  - kind: field
+    source: firstName
+    target: first_name
+
+  # Read inside a nested object and convert its date value.
+  - kind: field
+    source: person.birthDate
+    target: birth_date
+    transform:
+      name: date
+
+  # Copy a scalar list without flattening it into a single value.
+  - kind: field
+    source: person.employerIds
+    target: prismhr_employer_ids

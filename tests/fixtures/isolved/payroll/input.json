@@ -1,0 +1,43 @@
+{
+  "payroll_runs": [
+    {
+      "id": 1,
+      "runNumber": 2,
+      "payDate": "2026-10-15"
+    }
+  ],
+  "paychecks": [
+    {
+      "id": 10,
+      "employeeId": 7,
+      "payrollRunNumber": 2,
+      "checkNumber": 1,
+      "netPay": 0.0,
+      "checkAmount": 0.0,
+      "earnings": [
+        {
+          "id": 20,
+          "checkHours": 0.0
+        }
+      ],
+      "deductions": [
+        {
+          "id": 30,
+          "checkDollars": 0.0
+        }
+      ],
+      "taxes": [
+        {
+          "id": 40,
+          "checkDollars": 0.0
+        }
+      ],
+      "benefits": [
+        {
+          "checkEmployerContribution": 0.0
+        }
+      ],
+      "fixture_note": false
+    }
+  ]
+}

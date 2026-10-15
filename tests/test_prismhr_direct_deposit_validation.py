@@ -1,4 +1,4 @@
-"""PrismHR direct-deposit source validation; canonical mapping is pending."""
+"""PrismHR direct-deposit source validation through the mapped adapter."""
 import copy
 import unittest
 
@@ -26,8 +26,8 @@ def setup():
 class DirectDepositChecks(unittest.TestCase):
     def assert_valid_source(self, payload):
         original = copy.deepcopy(payload)
-        with self.assertRaisesRegex(NotImplementedError, "source validation passed"):
-            prismhr.normalize("direct_deposit", payload, {})
+        result = prismhr.normalize("direct_deposit", payload, {}, employee_id="synthetic")
+        self.assertIsInstance(result["direct_deposits"], list)
         self.assertEqual(payload, original)
 
     def test_accepts_populated_accounts_without_mutating_input(self):
@@ -50,26 +50,26 @@ class DirectDepositChecks(unittest.TestCase):
             payload = response()
             del payload[key]
             with self.subTest(key=key), self.assertRaises(ValueError):
-                prismhr.normalize_direct_deposits(payload, {})
+                prismhr.normalize_direct_deposits(payload, {}, employee_id="synthetic")
         for payload in [None, [],
                         {**response(), "employee": "invalid"}]:
             with self.subTest(payload=payload), self.assertRaises(ValueError):
-                prismhr.normalize_direct_deposits(payload, {})
+                prismhr.normalize_direct_deposits(payload, {}, employee_id="synthetic")
 
     def test_rejects_provider_errors(self):
         for code in ["1", "NOT_FOUND"]:
             with self.subTest(code=code), self.assertRaisesRegex(ValueError, "request failed"):
-                prismhr.normalize_direct_deposits({"errorCode": code, "errorMessage": "test"}, {})
+                prismhr.normalize_direct_deposits({"errorCode": code, "errorMessage": "test"}, {}, employee_id="synthetic")
 
     def test_validates_every_employee_and_account(self):
         payload = response(setup())
         payload["employee"].append({})
         with self.assertRaises(ValueError):
-            prismhr.normalize_direct_deposits(payload, {})
+            prismhr.normalize_direct_deposits(payload, {}, employee_id="synthetic")
         payload = response(setup())
         payload["employee"][0]["directDeposit"]["achVoucher"].append({"amount": []})
         with self.assertRaises(ValueError):
-            prismhr.normalize_direct_deposits(payload, {})
+            prismhr.normalize_direct_deposits(payload, {}, employee_id="synthetic")
 
     def test_accepts_missing_optional_deposit_and_nullable_wrapper_fields(self):
         payload = response()
@@ -81,13 +81,13 @@ class DirectDepositChecks(unittest.TestCase):
         for field, value in [("infoMessage", "wrong"), ("updateMessage", []),
                              ("errorMessage", None), ("extension", "wrong")]:
             with self.subTest(field=field), self.assertRaises(ValueError):
-                prismhr.normalize_direct_deposits({**response(), field: value}, {})
+                prismhr.normalize_direct_deposits({**response(), field: value}, {}, employee_id="synthetic")
 
     def test_missing_deposit_does_not_hide_another_employee_with_setup(self):
         payload = response()
         payload["employee"].append(response(setup())["employee"][0])
-        with self.assertRaisesRegex(NotImplementedError, "1 employee record"):
-            prismhr.normalize_direct_deposits(payload, {})
+        result = prismhr.normalize_direct_deposits(payload, {}, employee_id="synthetic")
+        self.assertEqual(len(result["direct_deposits"]), 1)
 
     def test_does_not_treat_informational_wrapper_fields_as_failure(self):
         self.assert_valid_source({**response(), "infoMessage": ["test"],

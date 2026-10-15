@@ -1,0 +1,50 @@
+# One validated payroll record per map call; preserve links through engine fallback.
+# Shared fields require verified meanings; provider fields retain separate nested scopes.
+version: 1
+provider: ukg-ready
+entity: payroll
+fields:
+- kind: object
+  source: employee
+  target: provider_fields.ukg-ready.employee
+  fields:
+  - kind: field
+    source: account_id
+    target: account_id
+    transform:
+      name: identifier
+- kind: field
+  source: id
+  target: paycheck_id
+  transform:
+    name: identifier
+- kind: field
+  source: pay_date
+  target: provider_fields.ukg-ready.pay_date
+  transform:
+    name: date
+- kind: field
+  source: status
+  target: provider_fields.ukg-ready.status
+- kind: object
+  source: type
+  target: provider_fields.ukg-ready.type
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: display_name
+    target: display_name
+- kind: field
+  source: pay_period_start
+  target: provider_fields.ukg-ready.pay_period_start
+  transform:
+    name: date
+- kind: field
+  source: pay_period_end
+  target: provider_fields.ukg-ready.pay_period_end
+  transform:
+    name: date

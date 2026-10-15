@@ -1,0 +1,30 @@
+{
+  "assignments": {
+    "deductions": [
+      {
+        "id": 10,
+        "deduction": {
+          "code": "SYNTHETIC",
+          "name": "Example deduction"
+        },
+        "effective_from": "2026-10-01",
+        "fixture_note": false
+      }
+    ]
+  },
+  "code_lookup": {
+    "items": [
+      {
+        "id": 11,
+        "code": "SYNTHETIC"
+      }
+    ]
+  },
+  "benefits": {
+    "benefits": [
+      {
+        "id": 12
+      }
+    ]
+  }
+}

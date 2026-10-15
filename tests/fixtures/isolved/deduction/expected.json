@@ -1,0 +1,77 @@
+{
+  "provider": "isolved",
+  "employee_id": "7",
+  "deductions": [
+    {
+      "provider": "isolved",
+      "deduction_id": "10",
+      "employee_id": "7",
+      "deduction_name": "Example deduction",
+      "provider_fields": {
+        "isolved": {
+          "calc_params": [
+            {
+              "param_type": "Amount",
+              "param_value": 0.0
+            }
+          ],
+          "pay_item_type": "Deduction",
+          "request_employee_id": "7"
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 10,
+          "calcParams.0.paramValue": 0.0,
+          "employeeId": 7,
+          "context.employee_id": "7"
+        },
+        "isolved": {
+          "source_location": {
+            "record_index": 0
+          }
+        }
+      },
+      "source_extras": {
+        "isolved": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "provider_fields": {
+    "isolved": {
+      "non_deduction_items": [
+        {
+          "id": 11,
+          "payItemType": "Earning"
+        }
+      ]
+    }
+  },
+  "source_metadata": {
+    "isolved": {
+      "non_deduction_source_indexes": [
+        1
+      ],
+      "reference_pack": {
+        "provider": "isolved",
+        "reference_version": "6-private-reference-1",
+        "distribution_status": "user_approved_private_upload",
+        "warnings": [
+          "Candidate-distribution permission has not been verified."
+        ]
+      }
+    }
+  },
+  "source_extras": {
+    "isolved": {
+      "records": [
+        {
+          "fixture_note": false
+        },
+        {}
+      ]
+    }
+  }
+}

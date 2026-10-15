@@ -1,4 +1,4 @@
-"""UKG Ready deduction validation; mapping is pending."""
+"""UKG Ready deduction validation; mapping is connected."""
 import copy
 import unittest
 from normalization.adapters import ukg_ready
@@ -9,8 +9,8 @@ from normalization.source_models.ukg_ready.ukg_ready_source_model_deduction impo
 class UKGReadyDeductionValidationChecks(unittest.TestCase):
     def assert_valid(self, entity, payload):
         before = copy.deepcopy(payload)
-        with self.assertRaisesRegex(NotImplementedError, "source validation passed"):
-            ukg_ready.normalize(entity, payload, {})
+        result = ukg_ready.normalize(entity, payload, {}, employee_id="007")
+        self.assertIsInstance(result["deductions"], list)
         self.assertEqual(payload, before)
 
     def test_deduction_all_sections_and_native_wrappers(self):
@@ -21,13 +21,13 @@ class UKGReadyDeductionValidationChecks(unittest.TestCase):
                                        "benefits": [{"id": 3}]})
         for payload in [{}, {"assignments": None}, {"deductions": []},
                         {"items": []}, {"benefits": []}]:
-            self.assertEqual(ukg_ready.normalize("deduction", payload, {}), [])
+            self.assertEqual(ukg_ready.normalize("deduction", payload, {}, employee_id="007")["deductions"], [])
         for payload in [{"assignments": {}}, {"code_lookup": {}},
                         {"benefits": {"benefits": [{"id": 1, "benefit_plan": {}}]}},
                         {"deductions": [{"id": 1, "sequence": []}]},
                         {"assignments": {"deductions": [{"id": 1}]}, "code_lookup": {"items": [{}]}}]:
             with self.subTest(payload=payload), self.assertRaises(ValueError):
-                ukg_ready.normalize("deduction", payload, {})
+                ukg_ready.normalize("deduction", payload, {}, employee_id="007")
 
     def test_deduction_sections_and_native_responses(self):
         payload = {"assignments": {"deductions": [{"id": 1}]},

@@ -1,4 +1,4 @@
-"""isolved payroll and paycheck validation; mapping is pending."""
+"""isolved payroll and paycheck validation and mapping integration."""
 import copy
 import unittest
 from normalization.adapters import isolved
@@ -7,8 +7,8 @@ from normalization.adapters import isolved
 class IsolvedPayrollChecks(unittest.TestCase):
     def assert_valid(self, payload):
         before = copy.deepcopy(payload)
-        with self.assertRaisesRegex(NotImplementedError, "source validation passed"):
-            isolved.normalize("payroll", payload, {})
+        result = isolved.normalize("payroll", payload, {})
+        self.assertEqual(result["provider"], 'isolved')
         self.assertEqual(payload, before)
 
     def test_native_run_arrays_and_paged_checks(self):
@@ -33,7 +33,8 @@ class IsolvedPayrollChecks(unittest.TestCase):
                         {"payroll_runs": None, "paychecks": None},
                         {"payroll_runs": [], "paychecks": []}]:
             with self.subTest(payload=payload):
-                self.assertEqual(isolved.normalize("payroll", payload, {}), [])
+                self.assertFalse(any(isolved.normalize("payroll", payload, {})[key]
+                                     for key in ("payroll_runs", "paycheck_headers", "paychecks")))
 
     def test_run_ids_required_and_supplied_types_checked(self):
         for payload in [None, "wrong", [{}], {"payroll_runs": [{}]},

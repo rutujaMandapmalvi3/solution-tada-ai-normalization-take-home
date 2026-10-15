@@ -1,0 +1,14 @@
+{
+  "employees": [
+    {
+      "id": 7.0,
+      "first_name": "Alex",
+      "last_name": "Example",
+      "dates": {
+        "birthday": "2000-01-02"
+      },
+      "ein_name": "Example EIN",
+      "fixture_note": false
+    }
+  ]
+}

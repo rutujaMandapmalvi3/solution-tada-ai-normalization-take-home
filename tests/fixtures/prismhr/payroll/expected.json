@@ -1,0 +1,106 @@
+{
+  "provider": "prismhr",
+  "payroll_runs": [
+    {
+      "provider": "prismhr",
+      "provider_fields": {
+        "prismhr": {
+          "pay_group": [
+            {
+              "pay_group_id": "01",
+              "pay_period_start_date": "2026-10-01",
+              "pay_period_end_date": "2026-10-14"
+            }
+          ]
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "batchId": "001",
+          "payDate": "2026-10-15",
+          "payGroup.0.payGroupId": "01",
+          "payGroup.0.payPeriodStartDate": "2026-10-01",
+          "payGroup.0.payPeriodEndDate": "2026-10-14"
+        },
+        "prismhr": {
+          "source_location": {
+            "section": "batchList",
+            "record_index": 0
+          }
+        }
+      },
+      "payroll_run_id": "001",
+      "payroll_run_pay_date": "2026-10-15"
+    }
+  ],
+  "paycheck_headers": [],
+  "paychecks": [
+    {
+      "provider": "prismhr",
+      "provider_fields": {
+        "prismhr": {
+          "employee_tax": [
+            {
+              "emp_tax_amount": 0.0
+            }
+          ],
+          "earning": [
+            {
+              "hours_worked": 0.0,
+              "pay_amount": 25.0
+            }
+          ],
+          "deduction": [
+            {
+              "deduct_code": "SYNTHETIC",
+              "deduct_amount": 0.0
+            }
+          ],
+          "benefit": [
+            {
+              "plan_id": "SYNTHETIC",
+              "emp_contrib": 0.0
+            }
+          ]
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "checkNumber": "0001",
+          "checkNum": "0001",
+          "voucherId": "010",
+          "employeeId": "007",
+          "netPay": 0.0,
+          "batchId": "001",
+          "benefit.0.planId": "SYNTHETIC",
+          "checkAmt": 0.0
+        },
+        "prismhr": {
+          "source_location": {
+            "section": "payrollVouchers",
+            "record_index": 0
+          }
+        }
+      },
+      "source_extras": {
+        "prismhr": {
+          "fixture_note": false
+        }
+      },
+      "paycheck_id": "010",
+      "employee_id": "007",
+      "payroll_run_id": "001",
+      "check_number": "0001",
+      "net_pay": 0.0,
+      "check_amount": 0.0
+    }
+  ],
+  "source_metadata": {
+    "prismhr": {
+      "response": {
+        "errorCode": "0",
+        "errorMessage": ""
+      }
+    }
+  }
+}

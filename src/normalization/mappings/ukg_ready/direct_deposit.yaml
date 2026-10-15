@@ -1,0 +1,191 @@
+# ukg-ready direct_deposit: one validated UKGReadyDirectDepositResponseDepositsItem per engine.map() call.
+# This file maps records, not wrappers; the adapter validates/unwraps the response.
+# Reuses existing conversions and conditional_number; no new helper implementation.
+# Record links retain source nesting in provider_fields.ukg-ready.unmapped.
+# Undeclared fields retain nesting in source_extras.ukg-ready; wrappers/context
+# and parent settings belong to result metadata/provider fields, not fake records.
+# Source-specific fields stay separate; no inferred joins, scale or currency conversion.
+# Adapter supplies employee_id context; this response schema has no employee owner to cross-check.
+# Paycheck payments stay in payroll; no HSA setup is included here.
+# conditional_number promotes amount only for calc_method.type FLAT_AMOUNT.
+# Amount, percentage and sequence remain preserved in provider fields with context.
+# Preserve DIRECT_DEPOSIT / RESERVE_LIVE_CHECK types without invented behavior.
+
+version: 1
+provider: ukg-ready
+entity: direct_deposit
+fields:
+- kind: field
+  source: id
+  target: deposit_id
+  transform:
+    name: identifier
+- kind: field
+  source: name
+  target: provider_fields.ukg-ready.name
+- kind: field
+  source: description
+  target: provider_fields.ukg-ready.description
+- kind: field
+  source: sequence
+  target: provider_fields.ukg-ready.sequence
+- kind: field
+  source: type
+  target: provider_fields.ukg-ready.type
+- kind: field
+  source: active_from
+  target: provider_fields.ukg-ready.active_from
+  transform:
+    name: date
+- kind: field
+  source: active_to
+  target: provider_fields.ukg-ready.active_to
+  transform:
+    name: date
+- kind: field
+  source: active
+  target: provider_fields.ukg-ready.active
+- kind: field
+  source: amount
+  target: provider_fields.ukg-ready.amount
+  transform:
+    name: number
+- kind: field
+  source:
+  - amount
+  - calc_method.type
+  target: allocation_amount
+  transform:
+    name: conditional_number
+    arguments:
+      equals: FLAT_AMOUNT
+- kind: field
+  source: percentage
+  target: provider_fields.ukg-ready.percentage
+  transform:
+    name: number
+- kind: object
+  source: calc_method
+  target: provider_fields.ukg-ready.calc_method
+  fields:
+  - kind: field
+    source: display_name
+    target: display_name
+  - kind: field
+    source: type
+    target: type
+- kind: field
+  source: account_type
+  target: account_type
+  transform:
+    name: label
+    arguments:
+      labels:
+        CHECKING: checking
+        SAVINGS: savings
+- kind: field
+  source: account_number
+  target: account_number
+- kind: field
+  source: routing_number
+  target: routing_number
+- kind: field
+  source: routing_type
+  target: provider_fields.ukg-ready.routing_type
+- kind: field
+  source: pre_note_status
+  target: provider_fields.ukg-ready.pre_note_status
+- kind: field
+  source: cancel_pre_note
+  target: provider_fields.ukg-ready.cancel_pre_note
+- kind: field
+  source: pre_note_sent_date
+  target: provider_fields.ukg-ready.pre_note_sent_date
+  transform:
+    name: date
+- kind: field
+  source: pre_note_expiration_date
+  target: provider_fields.ukg-ready.pre_note_expiration_date
+  transform:
+    name: date
+- kind: field
+  source: arrearage_function
+  target: provider_fields.ukg-ready.arrearage_function
+- kind: object
+  source: payroll_frequency
+  target: provider_fields.ukg-ready.payroll_frequency
+  fields:
+  - kind: field
+    source: type
+    target: type
+  - kind: field
+    source: holiday_type
+    target: holiday_type
+  - kind: object
+    source: holiday_profile
+    target: holiday_profile
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: display_name
+      target: display_name
+  - kind: field
+    source: month
+    target: month
+  - kind: field
+    source: payroll_number
+    target: payroll_number
+  - kind: field
+    source: block_last
+    target: block_last
+  - kind: field
+    source: quarter_month
+    target: quarter_month
+- kind: field
+  source: last_payroll
+  target: provider_fields.ukg-ready.last_payroll
+  transform:
+    name: number
+- kind: field
+  source: month_to_date
+  target: provider_fields.ukg-ready.month_to_date
+  transform:
+    name: number
+- kind: field
+  source: quarter_to_date
+  target: provider_fields.ukg-ready.quarter_to_date
+  transform:
+    name: number
+- kind: field
+  source: year_to_date
+  target: provider_fields.ukg-ready.year_to_date
+  transform:
+    name: number
+- kind: field
+  source: used_in_pay_statement
+  target: provider_fields.ukg-ready.used_in_pay_statement
+- kind: field
+  source: currency
+  target: provider_fields.ukg-ready.currency
+- kind: field
+  source: _documents_count
+  target: provider_fields.ukg-ready.documents_count
+- kind: field
+  source: _notes_count
+  target: provider_fields.ukg-ready.notes_count
+- kind: field
+  source: visible
+  target: provider_fields.ukg-ready.visible
+- kind: field
+  source: is_paypal
+  target: provider_fields.ukg-ready.is_paypal
+- kind: field
+  source: employee_id
+  target: employee_id
+  source_scope: context
+  transform:
+    name: identifier

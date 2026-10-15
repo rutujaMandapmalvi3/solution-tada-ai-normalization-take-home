@@ -1,0 +1,50 @@
+# ukg-ready deduction: one validated UKGReadyDeductionResponseDeductionsItem per engine.map() call.
+# This file maps records, not wrappers; the adapter validates/unwraps the response.
+# Connected through normalize_deductions; existing helpers and engine are reused.
+# Record links retain source nesting in provider_fields.ukg-ready.unmapped.
+# Undeclared fields retain nesting in source_extras.ukg-ready; wrappers/context
+# and parent settings belong to result metadata/provider fields, not fake records.
+# Source-specific fields stay separate; no inferred joins, scale or currency conversion.
+# Adapter filtering selects assignments before mapping. Preserve unexpected records
+# and UKG code_lookup/benefits at result-level provider_fields, even with no assignments.
+# Deduction code/name and effective dates lack property descriptions: preserve
+# their source scope instead of asserting unverified shared semantic targets.
+
+version: 1
+provider: ukg-ready
+entity: deduction
+fields:
+- kind: field
+  source: id
+  target: deduction_id
+  transform:
+    name: identifier
+- kind: object
+  source: deduction
+  target: provider_fields.ukg-ready.deduction
+  fields:
+  - kind: field
+    source: code
+    target: code
+  - kind: field
+    source: name
+    target: name
+- kind: field
+  source: effective_from
+  target: provider_fields.ukg-ready.effective_from
+  transform:
+    name: date
+- kind: field
+  source: effective_to
+  target: provider_fields.ukg-ready.effective_to
+  transform:
+    name: date
+- kind: field
+  source: sequence
+  target: provider_fields.ukg-ready.sequence
+- kind: field
+  source: employee_id
+  target: employee_id
+  source_scope: context
+  transform:
+    name: identifier

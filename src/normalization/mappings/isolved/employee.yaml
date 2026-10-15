@@ -1,0 +1,1466 @@
+# isolved employee mapping: one validated IsolvedEmployeeInput per execution.
+# Uses the primary Swagger v6 only; no Corestream gender-code dictionary is reused.
+# Source fields retain their names; provider-owned output keys use snake_case.
+# Objects, arrays and salary_history retain their boundaries and item order.
+# salary_history belongs to this employee; this file does not join a standalone
+# salary-history response to an employee or infer ownership from array position.
+#
+# This rule file is used by isolved normalize_employees().
+# The engine supports both the pronouns helper and Boolean label inputs.
+# eligibleForRehire is a Boolean: label uses the explicit string keys
+# "true"/"false" below to produce eligible/ineligible, not guess Boolean meanings.
+# Pronouns: one supplied value or exact agreement -> one canonical value;
+# conflicting nonblank values -> null, preserve both originals and record an issue.
+#
+# label dictionaries contain readable canonical words, not inferred provider codes.
+# The label helper already matches readable values case-insensitively (Male, Married).
+# No employment-category meanings are verified: copy employmentCategoryCode
+# unchanged to provider_fields.isolved.employment_category_code. Do not populate
+# descriptive employment_type or guess full-time/part-time.
+# Reporting override, ethnicity, legal references, organization lists and work-location
+# descriptions remain separate. No money/unit/frequency conversion is introduced.
+#
+# Paging wrappers (nextPageUrl/previousPageUrl/results/totalItems/totalPages) are
+# processed by the adapter, outside this per-employee rule file.
+# Declared links and their nested fields are intentionally left to the engine's
+# existing preservation fallback: provider_fields.isolved.unmapped, original nesting.
+# They are NOT discarded or relabeled as employee business fields. The engine
+# currently owns source_metadata, so YAML cannot write link rules into that branch.
+# Unknown fields are preserved separately by the engine in source_extras.isolved.
+# Future adapter metadata handling can carry paging/link context without engine edits.
+
+version: 1
+provider: isolved
+entity: employee
+fields:
+- kind: field
+  source: id
+  target: employee_id
+  transform:
+    name: identifier
+- kind: field
+  source: adjustedServiceDate
+  target: seniority_date
+  transform:
+    name: date
+- kind: field
+  source: annualSalary
+  target: annual_salary
+- kind: field
+  source: birthDate
+  target: birth_date
+  transform:
+    name: date
+- kind: field
+  source: eeoGenderOverride
+  target: isolved_eeo_gender_override
+- kind: field
+  source: eligibleForRehire
+  target: eligible_for_rehire
+  transform:
+    name: label
+    arguments:
+      labels:
+        'true': eligible
+        'false': ineligible
+- kind: field
+  source: emailAddress
+  target: primary_email
+- kind: field
+  source: employeeNumber
+  target: employee_number
+- kind: field
+  source: employmentCategoryCode
+  target: provider_fields.isolved.employment_category_code
+- kind: field
+  source: employmentStatus
+  target: employment_status
+  transform:
+    name: label
+    arguments:
+      labels:
+        active: active
+        on leave: on leave
+        terminated: terminated
+- kind: field
+  source: ethnicOrigin
+  target: isolved_ethnic_origin_description
+- kind: field
+  source: gender
+  target: gender
+  transform:
+    name: label
+    arguments:
+      labels:
+        male: male
+        female: female
+        non-binary: non-binary
+        declined: declined
+        unknown: unknown
+- kind: field
+  source: hireDate
+  target: hire_date
+  transform:
+    name: date
+- kind: field
+  source: hourlyRate
+  target: hourly_rate
+- kind: field
+  source: jobEffectiveDate
+  target: job_effective_date
+  transform:
+    name: date
+- kind: field
+  source: legalCode
+  target: isolved_legal_code
+- kind: field
+  source: maritalStatus
+  target: marital_status
+  transform:
+    name: label
+    arguments:
+      labels:
+        single: single
+        married: married
+        divorced: divorced
+        widowed: widowed
+        civil union: civil union
+        other: other
+- kind: field
+  source: nameAddress.address1
+  target: address_line_1
+- kind: field
+  source: nameAddress.address2
+  target: address_line_2
+- kind: field
+  source: nameAddress.city
+  target: city
+- kind: field
+  source: nameAddress.firstName
+  target: first_name
+- kind: field
+  source: nameAddress.lastName
+  target: last_name
+- kind: field
+  source: nameAddress.middleName
+  target: middle_name
+- kind: field
+  source: nameAddress.preferredName
+  target: preferred_name
+- kind: field
+  source:
+  - nameAddress.preferredPronouns
+  - personal.preferredPronouns
+  target: preferred_pronouns
+  transform:
+    name: pronouns
+- kind: field
+  source: nameAddress.prefix
+  target: name_prefix
+- kind: field
+  source: nameAddress.state
+  target: state_code
+- kind: field
+  source: nameAddress.suffix
+  target: name_suffix
+- kind: field
+  source: nameAddress.zipCode
+  target: postal_code
+- kind: field
+  source: normalHours
+  target: standard_hours_per_pay_period
+- kind: field
+  source: originalHireDate
+  target: original_hire_date
+  transform:
+    name: date
+- kind: field
+  source: perPaySalary
+  target: per_pay_salary
+- kind: field
+  source: personal.homePhone
+  target: home_phone
+- kind: field
+  source: personal.mobilePhone
+  target: mobile_phone
+- kind: field
+  source: personal.officePhone
+  target: work_phone
+- kind: field
+  source: personal.personalEmailAddress
+  target: personal_email
+- kind: field
+  source: rehireDate
+  target: rehire_date
+  transform:
+    name: date
+- kind: field
+  source: terminationDate
+  target: termination_date
+  transform:
+    name: date
+- kind: field
+  source: tobaccoUse
+  target: isolved_tobacco_use
+- kind: field
+  source: uniqueId
+  target: isolved_derived_employee_unique_id
+- kind: field
+  source: updatedHireDate
+  target: isolved_updated_hire_date
+  transform:
+    name: date
+- kind: field
+  source: updatedJobEffectiveDate
+  target: isolved_updated_job_effective_date
+  transform:
+    name: date
+- kind: field
+  source: workLocation
+  target: work_location_code
+- kind: field
+  source: workLocationDashDescription
+  target: isolved_work_location_display
+- kind: field
+  source: acaEmploymentStatus
+  target: provider_fields.isolved.aca_employment_status
+- kind: field
+  source: activeDutySeparationDate
+  target: provider_fields.isolved.active_duty_separation_date
+  transform:
+    name: date
+- kind: object
+  source: assignedManager
+  target: provider_fields.isolved.assigned_manager
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: employeeName
+    target: employee_name
+  - kind: field
+    source: employeeNumber
+    target: employee_number
+  - kind: field
+    source: jobTitle
+    target: job_title
+  - kind: field
+    source: legalId
+    target: legal_id
+    transform:
+      name: identifier
+  - kind: field
+    source: payrollEmploymentStatusCode
+    target: payroll_employment_status_code
+- kind: object
+  source: assignedSupervisor
+  target: provider_fields.isolved.assigned_supervisor
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: employeeName
+    target: employee_name
+  - kind: field
+    source: employeeNumber
+    target: employee_number
+  - kind: field
+    source: jobTitle
+    target: job_title
+  - kind: field
+    source: legalId
+    target: legal_id
+    transform:
+      name: identifier
+  - kind: field
+    source: payrollEmploymentStatusCode
+    target: payroll_employment_status_code
+- kind: list
+  source: attachments
+  target: provider_fields.isolved.attachments
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: allowEmployeeAccess
+    target: allow_employee_access
+  - kind: field
+    source: allowManagerAccess
+    target: allow_manager_access
+  - kind: field
+    source: allowSupervisorAccess
+    target: allow_supervisor_access
+  - kind: field
+    source: clientMessageAttachmentId
+    target: client_message_attachment_id
+    transform:
+      name: identifier
+  - kind: field
+    source: documentCategory
+    target: document_category
+  - kind: field
+    source: documentContent
+    target: document_content
+  - kind: field
+    source: documentDescription
+    target: document_description
+  - kind: field
+    source: documentFileName
+    target: document_file_name
+  - kind: field
+    source: documentMimeType
+    target: document_mime_type
+  - kind: field
+    source: documentType
+    target: document_type
+  - kind: field
+    source: documentTypeDescription
+    target: document_type_description
+  - kind: field
+    source: documentUploadDate
+    target: document_upload_date
+    transform:
+      name: date
+  - kind: object
+    source: fileSubCategory
+    target: file_sub_category
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: object
+      source: fileCategory
+      target: file_category
+      fields:
+      - kind: field
+        source: id
+        target: id
+        transform:
+          name: identifier
+      - kind: field
+        source: documentCategoryDescription
+        target: document_category_description
+    - kind: field
+      source: subcategoryDescription
+      target: subcategory_description
+  - kind: field
+    source: isSystemGenerated
+    target: is_system_generated
+  - kind: field
+    source: readonlyEmployeeAccess
+    target: readonly_employee_access
+  - kind: field
+    source: readonlyManagerAccess
+    target: readonly_manager_access
+  - kind: field
+    source: readonlySupervisorAccess
+    target: readonly_supervisor_access
+  - kind: field
+    source: requiresElectronicSignature
+    target: requires_electronic_signature
+  - kind: field
+    source: signedAcknowledgementDocumentType
+    target: signed_acknowledgement_document_type
+  - kind: field
+    source: systemMessageAttachmentId
+    target: system_message_attachment_id
+    transform:
+      name: identifier
+- kind: field
+  source: citizenship
+  target: provider_fields.isolved.citizenship
+- kind: list
+  source: directDeposits
+  target: provider_fields.isolved.direct_deposits
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: accountNumber
+    target: account_number
+  - kind: field
+    source: accountType
+    target: account_type
+  - kind: field
+    source: amount
+    target: amount
+  - kind: field
+    source: bankName
+    target: bank_name
+  - kind: field
+    source: description
+    target: description
+  - kind: field
+    source: frequency
+    target: frequency
+  - kind: field
+    source: percent
+    target: percent
+  - kind: field
+    source: routingNumber
+    target: routing_number
+  - kind: field
+    source: sequenceNumber
+    target: sequence_number
+  - kind: field
+    source: status
+    target: status
+- kind: field
+  source: disabilityDescription
+  target: provider_fields.isolved.disability_description
+- kind: field
+  source: disabilityNotes
+  target: provider_fields.isolved.disability_notes
+- kind: field
+  source: disabled
+  target: provider_fields.isolved.disabled
+- kind: field
+  source: disabledEffectiveDate
+  target: provider_fields.isolved.disabled_effective_date
+  transform:
+    name: date
+- kind: field
+  source: disabledRequiresAccomodation
+  target: provider_fields.isolved.disabled_requires_accomodation
+- kind: field
+  source: employmentCategoryEffectiveDate
+  target: provider_fields.isolved.employment_category_effective_date
+  transform:
+    name: date
+- kind: field
+  source: employmentCategoryFullTimeEquivalent
+  target: provider_fields.isolved.employment_category_full_time_equivalent
+- kind: field
+  source: enableSelfService
+  target: provider_fields.isolved.enable_self_service
+- kind: object
+  source: i9Documents
+  target: provider_fields.isolved.i9_documents
+  fields:
+  - kind: object
+    source: documentA
+    target: document_a
+    fields:
+    - kind: field
+      source: allowEmployeeAccess
+      target: allow_employee_access
+    - kind: field
+      source: allowManagerAccess
+      target: allow_manager_access
+    - kind: field
+      source: allowSupervisorAccess
+      target: allow_supervisor_access
+    - kind: field
+      source: documentCode
+      target: document_code
+    - kind: field
+      source: documentContent
+      target: document_content
+    - kind: field
+      source: documentDescription
+      target: document_description
+    - kind: field
+      source: documentFileName
+      target: document_file_name
+    - kind: field
+      source: documentNumber
+      target: document_number
+    - kind: field
+      source: expirationDate
+      target: expiration_date
+      transform:
+        name: date
+    - kind: field
+      source: issuingAuthority
+      target: issuing_authority
+  - kind: object
+    source: documentB
+    target: document_b
+    fields:
+    - kind: field
+      source: allowEmployeeAccess
+      target: allow_employee_access
+    - kind: field
+      source: allowManagerAccess
+      target: allow_manager_access
+    - kind: field
+      source: allowSupervisorAccess
+      target: allow_supervisor_access
+    - kind: field
+      source: documentCode
+      target: document_code
+    - kind: field
+      source: documentContent
+      target: document_content
+    - kind: field
+      source: documentDescription
+      target: document_description
+    - kind: field
+      source: documentFileName
+      target: document_file_name
+    - kind: field
+      source: documentNumber
+      target: document_number
+    - kind: field
+      source: expirationDate
+      target: expiration_date
+      transform:
+        name: date
+    - kind: field
+      source: issuingAuthority
+      target: issuing_authority
+  - kind: object
+    source: documentC
+    target: document_c
+    fields:
+    - kind: field
+      source: allowEmployeeAccess
+      target: allow_employee_access
+    - kind: field
+      source: allowManagerAccess
+      target: allow_manager_access
+    - kind: field
+      source: allowSupervisorAccess
+      target: allow_supervisor_access
+    - kind: field
+      source: documentCode
+      target: document_code
+    - kind: field
+      source: documentContent
+      target: document_content
+    - kind: field
+      source: documentDescription
+      target: document_description
+    - kind: field
+      source: documentFileName
+      target: document_file_name
+    - kind: field
+      source: documentNumber
+      target: document_number
+    - kind: field
+      source: expirationDate
+      target: expiration_date
+      transform:
+        name: date
+    - kind: field
+      source: issuingAuthority
+      target: issuing_authority
+  - kind: field
+    source: i9Completed
+    target: i9_completed
+  - kind: field
+    source: i9CompletedDate
+    target: i9_completed_date
+    transform:
+      name: date
+- kind: field
+  source: idType
+  target: provider_fields.isolved.id_type
+- kind: field
+  source: isManager
+  target: provider_fields.isolved.is_manager
+- kind: field
+  source: isPending
+  target: provider_fields.isolved.is_pending
+- kind: field
+  source: isRecentlySeparatedVeteran
+  target: provider_fields.isolved.is_recently_separated_veteran
+- kind: field
+  source: isRemoteWorker
+  target: provider_fields.isolved.is_remote_worker
+- kind: field
+  source: isSupervisor
+  target: provider_fields.isolved.is_supervisor
+- kind: field
+  source: jobCode
+  target: provider_fields.isolved.job_code
+- kind: field
+  source: jobEeoCategory
+  target: provider_fields.isolved.job_eeo_category
+- kind: field
+  source: jobFLSAExempt
+  target: provider_fields.isolved.job_flsa_exempt
+- kind: field
+  source: jobGroup
+  target: provider_fields.isolved.job_group
+- kind: field
+  source: jobId
+  target: provider_fields.isolved.job_id
+  transform:
+    name: identifier
+- kind: field
+  source: jobIsSeasonal
+  target: provider_fields.isolved.job_is_seasonal
+- kind: field
+  source: jobIsUnion
+  target: provider_fields.isolved.job_is_union
+- kind: field
+  source: jobTitle
+  target: provider_fields.isolved.job_title
+- kind: list
+  source: labors
+  target: provider_fields.isolved.labors
+  fields:
+  - kind: field
+    source: laborDescription
+    target: labor_description
+  - kind: field
+    source: laborField
+    target: labor_field
+  - kind: field
+    source: laborFieldId
+    target: labor_field_id
+    transform:
+      name: identifier
+  - kind: field
+    source: laborValue
+    target: labor_value
+- kind: list
+  source: messages
+  target: provider_fields.isolved.messages
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: description
+    target: description
+- kind: field
+  source: militaryStatus
+  target: provider_fields.isolved.military_status
+- kind: list
+  source: miscDataSets
+  target: provider_fields.isolved.misc_data_sets
+  fields:
+  - kind: list
+    source: fields
+    target: fields
+    fields:
+    - kind: object
+      source: id
+      target: id
+      fields:
+      - kind: field
+        source: category
+        target: category
+      - kind: field
+        source: dataType
+        target: data_type
+      - kind: field
+        source: fieldCode
+        target: field_code
+      - kind: field
+        source: fieldTitle
+        target: field_title
+      - kind: list
+        source: lookups
+        target: lookups
+        fields:
+        - kind: field
+          source: description
+          target: description
+        - kind: field
+          source: id
+          target: id
+    - kind: field
+      source: miscValue
+      target: misc_value
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: isDeleted
+    target: is_deleted
+  - kind: object
+    source: miscFieldCategory
+    target: misc_field_category
+    fields:
+    - kind: field
+      source: categoryTitle
+      target: category_title
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: isDataSet
+      target: is_data_set
+- kind: list
+  source: miscFields
+  target: provider_fields.isolved.misc_fields
+  fields:
+  - kind: field
+    source: title
+    target: title
+  - kind: field
+    source: value
+    target: value
+- kind: object
+  source: nameAddress
+  target: provider_fields.isolved.name_address
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: object
+    source: overrideAddress
+    target: override_address
+    fields:
+    - kind: field
+      source: address1
+      target: address1
+    - kind: field
+      source: address2
+      target: address2
+    - kind: field
+      source: city
+      target: city
+    - kind: field
+      source: country
+      target: country
+    - kind: field
+      source: deleteAddress
+      target: delete_address
+    - kind: field
+      source: foreignPostalCode
+      target: foreign_postal_code
+    - kind: field
+      source: foreignStateProvince
+      target: foreign_state_province
+    - kind: field
+      source: militaryCity
+      target: military_city
+    - kind: field
+      source: militaryState
+      target: military_state
+    - kind: field
+      source: state
+      target: state
+    - kind: field
+      source: useForPaychecks
+      target: use_for_paychecks
+    - kind: field
+      source: useForTaxForms
+      target: use_for_tax_forms
+    - kind: field
+      source: zipCode
+      target: zip_code
+  - kind: field
+    source: residentGeoCode
+    target: resident_geo_code
+  - kind: field
+    source: schoolDistrictCode
+    target: school_district_code
+- kind: list
+  source: organizations
+  target: provider_fields.isolved.organizations
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: displayOrder
+    target: display_order
+  - kind: field
+    source: organizationId
+    target: organization_id
+    transform:
+      name: identifier
+  - kind: field
+    source: title
+    target: title
+  - kind: field
+    source: value
+    target: value
+  - kind: field
+    source: valueDescription
+    target: value_description
+- kind: object
+  source: overrideAddress
+  target: provider_fields.isolved.override_address
+  fields:
+  - kind: field
+    source: address1
+    target: address1
+  - kind: field
+    source: address2
+    target: address2
+  - kind: field
+    source: city
+    target: city
+  - kind: field
+    source: country
+    target: country
+  - kind: field
+    source: deleteAddress
+    target: delete_address
+  - kind: field
+    source: foreignPostalCode
+    target: foreign_postal_code
+  - kind: field
+    source: foreignStateProvince
+    target: foreign_state_province
+  - kind: field
+    source: militaryCity
+    target: military_city
+  - kind: field
+    source: militaryState
+    target: military_state
+  - kind: field
+    source: state
+    target: state
+  - kind: field
+    source: useForPaychecks
+    target: use_for_paychecks
+  - kind: field
+    source: useForTaxForms
+    target: use_for_tax_forms
+  - kind: field
+    source: zipCode
+    target: zip_code
+- kind: field
+  source: payFrequency
+  target: provider_fields.isolved.pay_frequency
+- kind: field
+  source: payGroup
+  target: provider_fields.isolved.pay_group
+- kind: list
+  source: payRates
+  target: provider_fields.isolved.pay_rates
+  fields:
+  - kind: field
+    source: payRateName
+    target: pay_rate_name
+  - kind: field
+    source: rateValue
+    target: rate_value
+- kind: field
+  source: payType
+  target: provider_fields.isolved.pay_type
+- kind: object
+  source: personal
+  target: provider_fields.isolved.personal
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: faxNumber
+    target: fax_number
+- kind: list
+  source: previousPunchLabors
+  target: provider_fields.isolved.previous_punch_labors
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: field
+    source: description
+    target: description
+- kind: field
+  source: profilePicture
+  target: provider_fields.isolved.profile_picture
+- kind: field
+  source: protectedVeteran
+  target: provider_fields.isolved.protected_veteran
+- kind: field
+  source: reciprocityRule
+  target: provider_fields.isolved.reciprocity_rule
+- kind: field
+  source: salaryEffectiveDate
+  target: provider_fields.isolved.salary_effective_date
+  transform:
+    name: date
+- kind: field
+  source: socCode
+  target: provider_fields.isolved.soc_code
+- kind: field
+  source: ssn
+  target: provider_fields.isolved.ssn
+- kind: field
+  source: statusDate
+  target: provider_fields.isolved.status_date
+  transform:
+    name: date
+- kind: object
+  source: taxes
+  target: provider_fields.isolved.taxes
+  fields:
+  - kind: object
+    source: federal
+    target: federal
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: additionalAmount
+      target: additional_amount
+    - kind: field
+      source: additionalIncomeAmount
+      target: additional_income_amount
+    - kind: field
+      source: additionalPercent
+      target: additional_percent
+    - kind: field
+      source: alternateCalculation
+      target: alternate_calculation
+    - kind: field
+      source: deductionExemptionAmount
+      target: deduction_exemption_amount
+    - kind: field
+      source: dependantExemptionAmount
+      target: dependant_exemption_amount
+    - kind: field
+      source: exemptionAmount
+      target: exemption_amount
+    - kind: field
+      source: filingStatus
+      target: filing_status
+    - kind: field
+      source: isBlocked
+      target: is_blocked
+    - kind: field
+      source: multipleJobsOrSpouseWorks
+      target: multiple_jobs_or_spouse_works
+    - kind: field
+      source: primaryExemptions
+      target: primary_exemptions
+    - kind: field
+      source: secondaryExemptions
+      target: secondary_exemptions
+    - kind: field
+      source: taxCategoryId
+      target: tax_category_id
+    - kind: field
+      source: taxDescription
+      target: tax_description
+    - kind: field
+      source: taxState
+      target: tax_state
+  - kind: object
+    source: nonResidentCity
+    target: non_resident_city
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: additionalAmount
+      target: additional_amount
+    - kind: field
+      source: additionalIncomeAmount
+      target: additional_income_amount
+    - kind: field
+      source: additionalPercent
+      target: additional_percent
+    - kind: field
+      source: alternateCalculation
+      target: alternate_calculation
+    - kind: field
+      source: deductionExemptionAmount
+      target: deduction_exemption_amount
+    - kind: field
+      source: dependantExemptionAmount
+      target: dependant_exemption_amount
+    - kind: field
+      source: exemptionAmount
+      target: exemption_amount
+    - kind: field
+      source: filingStatus
+      target: filing_status
+    - kind: field
+      source: isBlocked
+      target: is_blocked
+    - kind: field
+      source: multipleJobsOrSpouseWorks
+      target: multiple_jobs_or_spouse_works
+    - kind: field
+      source: primaryExemptions
+      target: primary_exemptions
+    - kind: field
+      source: secondaryExemptions
+      target: secondary_exemptions
+    - kind: field
+      source: taxCategoryId
+      target: tax_category_id
+    - kind: field
+      source: taxDescription
+      target: tax_description
+    - kind: field
+      source: taxState
+      target: tax_state
+  - kind: object
+    source: nonResidentState
+    target: non_resident_state
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: additionalAmount
+      target: additional_amount
+    - kind: field
+      source: additionalIncomeAmount
+      target: additional_income_amount
+    - kind: field
+      source: additionalPercent
+      target: additional_percent
+    - kind: field
+      source: alternateCalculation
+      target: alternate_calculation
+    - kind: field
+      source: deductionExemptionAmount
+      target: deduction_exemption_amount
+    - kind: field
+      source: dependantExemptionAmount
+      target: dependant_exemption_amount
+    - kind: field
+      source: exemptionAmount
+      target: exemption_amount
+    - kind: field
+      source: filingStatus
+      target: filing_status
+    - kind: field
+      source: isBlocked
+      target: is_blocked
+    - kind: field
+      source: multipleJobsOrSpouseWorks
+      target: multiple_jobs_or_spouse_works
+    - kind: field
+      source: primaryExemptions
+      target: primary_exemptions
+    - kind: field
+      source: secondaryExemptions
+      target: secondary_exemptions
+    - kind: field
+      source: taxCategoryId
+      target: tax_category_id
+    - kind: field
+      source: taxDescription
+      target: tax_description
+    - kind: field
+      source: taxState
+      target: tax_state
+  - kind: object
+    source: residentCity
+    target: resident_city
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: additionalAmount
+      target: additional_amount
+    - kind: field
+      source: additionalIncomeAmount
+      target: additional_income_amount
+    - kind: field
+      source: additionalPercent
+      target: additional_percent
+    - kind: field
+      source: alternateCalculation
+      target: alternate_calculation
+    - kind: field
+      source: deductionExemptionAmount
+      target: deduction_exemption_amount
+    - kind: field
+      source: dependantExemptionAmount
+      target: dependant_exemption_amount
+    - kind: field
+      source: exemptionAmount
+      target: exemption_amount
+    - kind: field
+      source: filingStatus
+      target: filing_status
+    - kind: field
+      source: isBlocked
+      target: is_blocked
+    - kind: field
+      source: multipleJobsOrSpouseWorks
+      target: multiple_jobs_or_spouse_works
+    - kind: field
+      source: primaryExemptions
+      target: primary_exemptions
+    - kind: field
+      source: secondaryExemptions
+      target: secondary_exemptions
+    - kind: field
+      source: taxCategoryId
+      target: tax_category_id
+    - kind: field
+      source: taxDescription
+      target: tax_description
+    - kind: field
+      source: taxState
+      target: tax_state
+  - kind: object
+    source: residentState
+    target: resident_state
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: additionalAmount
+      target: additional_amount
+    - kind: field
+      source: additionalIncomeAmount
+      target: additional_income_amount
+    - kind: field
+      source: additionalPercent
+      target: additional_percent
+    - kind: field
+      source: alternateCalculation
+      target: alternate_calculation
+    - kind: field
+      source: deductionExemptionAmount
+      target: deduction_exemption_amount
+    - kind: field
+      source: dependantExemptionAmount
+      target: dependant_exemption_amount
+    - kind: field
+      source: exemptionAmount
+      target: exemption_amount
+    - kind: field
+      source: filingStatus
+      target: filing_status
+    - kind: field
+      source: isBlocked
+      target: is_blocked
+    - kind: field
+      source: multipleJobsOrSpouseWorks
+      target: multiple_jobs_or_spouse_works
+    - kind: field
+      source: primaryExemptions
+      target: primary_exemptions
+    - kind: field
+      source: secondaryExemptions
+      target: secondary_exemptions
+    - kind: field
+      source: taxCategoryId
+      target: tax_category_id
+    - kind: field
+      source: taxDescription
+      target: tax_description
+    - kind: field
+      source: taxState
+      target: tax_state
+- kind: field
+  source: taxExemptStatus
+  target: provider_fields.isolved.tax_exempt_status
+- kind: object
+  source: team
+  target: provider_fields.isolved.team
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: object
+    source: calendarRule
+    target: calendar_rule
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: list
+      source: restrictedAbsencePolicies
+      target: restricted_absence_policies
+      fields:
+      - kind: field
+        source: id
+        target: id
+        transform:
+          name: identifier
+      - kind: field
+        source: absenceName
+        target: absence_name
+      - kind: object
+        source: accrual
+        target: accrual
+        fields:
+        - kind: field
+          source: id
+          target: id
+          transform:
+            name: identifier
+        - kind: field
+          source: accrualDescription
+          target: accrual_description
+        - kind: field
+          source: accrualName
+          target: accrual_name
+      - kind: field
+        source: allowEmployeeAccess
+        target: allow_employee_access
+      - kind: field
+        source: allowManagerAccess
+        target: allow_manager_access
+      - kind: field
+        source: allowSupervisorAccess
+        target: allow_supervisor_access
+      - kind: field
+        source: allowTimeOffRequest
+        target: allow_time_off_request
+      - kind: field
+        source: defaultHours
+        target: default_hours
+      - kind: field
+        source: isEarningPayItem
+        target: is_earning_pay_item
+      - kind: field
+        source: maximumHours
+        target: maximum_hours
+      - kind: field
+        source: minimumHours
+        target: minimum_hours
+      - kind: field
+        source: timeOffRequestBalanceLimit
+        target: time_off_request_balance_limit
+      - kind: field
+        source: timeOffRequestDurationLimitDays
+        target: time_off_request_duration_limit_days
+      - kind: field
+        source: validHourValues
+        target: valid_hour_values
+    - kind: field
+      source: ruleDescription
+      target: rule_description
+    - kind: field
+      source: ruleName
+      target: rule_name
+    - kind: list
+      source: timeOffRestrictionDates
+      target: time_off_restriction_dates
+      fields:
+      - kind: field
+        source: endDate
+        target: end_date
+        transform:
+          name: date
+      - kind: field
+        source: startDate
+        target: start_date
+        transform:
+          name: date
+  - kind: field
+    source: organizationField
+    target: organization_field
+  - kind: list
+    source: organizationValues
+    target: organization_values
+    fields:
+    - kind: field
+      source: code
+      target: code
+    - kind: field
+      source: description
+      target: description
+    - kind: field
+      source: isInactive
+      target: is_inactive
+  - kind: field
+    source: teamDescription
+    target: team_description
+  - kind: field
+    source: teamName
+    target: team_name
+- kind: field
+  source: terminationReason
+  target: provider_fields.isolved.termination_reason
+- kind: field
+  source: terminationType
+  target: provider_fields.isolved.termination_type
+- kind: field
+  source: timecardPunchStatusDate
+  target: provider_fields.isolved.timecard_punch_status_date
+  transform:
+    name: date
+- kind: field
+  source: timecardPunchStatusIsIn
+  target: provider_fields.isolved.timecard_punch_status_is_in
+- kind: field
+  source: timeclockId
+  target: provider_fields.isolved.timeclock_id
+- kind: field
+  source: tobaccoUseEffectiveDate
+  target: provider_fields.isolved.tobacco_use_effective_date
+  transform:
+    name: date
+- kind: field
+  source: updatedDisabledEffectiveDate
+  target: provider_fields.isolved.updated_disabled_effective_date
+  transform:
+    name: date
+- kind: field
+  source: updatedSalaryEffectiveDate
+  target: provider_fields.isolved.updated_salary_effective_date
+  transform:
+    name: date
+- kind: field
+  source: updatedStatusDate
+  target: provider_fields.isolved.updated_status_date
+  transform:
+    name: date
+- kind: field
+  source: veteranStatusNotSpecified
+  target: provider_fields.isolved.veteran_status_not_specified
+- kind: field
+  source: workersCompCode
+  target: provider_fields.isolved.workers_comp_code
+- kind: object
+  source: wotc
+  target: provider_fields.isolved.wotc
+  fields:
+  - kind: field
+    source: applicationDate
+    target: application_date
+    transform:
+      name: date
+  - kind: field
+    source: includeCertification
+    target: include_certification
+  - kind: field
+    source: jobAcceptedDate
+    target: job_accepted_date
+    transform:
+      name: date
+  - kind: field
+    source: jobOfferedDate
+    target: job_offered_date
+    transform:
+      name: date
+- kind: list
+  source: salary_history
+  target: provider_fields.isolved.salary_history
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: object
+    source: changeReason
+    target: change_reason
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: description
+      target: description
+  - kind: field
+    source: comments
+    target: comments
+  - kind: field
+    source: effectiveDate
+    target: effective_date
+    transform:
+      name: date
+  - kind: object
+    source: frequency
+    target: frequency
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: description
+      target: description
+  - kind: field
+    source: hourlyRate
+    target: hourly_rate
+  - kind: field
+    source: isInactive
+    target: is_inactive
+  - kind: field
+    source: lifeEvent
+    target: life_event
+  - kind: field
+    source: normalHours
+    target: normal_hours
+  - kind: object
+    source: payGroup
+    target: pay_group
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: description
+      target: description
+  - kind: object
+    source: payType
+    target: pay_type
+    fields:
+    - kind: field
+      source: id
+      target: id
+    - kind: field
+      source: description
+      target: description
+  - kind: field
+    source: perPaySalary
+    target: per_pay_salary
+  - kind: list
+    source: seasons
+    target: seasons
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: description
+      target: description
+    - kind: field
+      source: isSelected
+      target: is_selected
