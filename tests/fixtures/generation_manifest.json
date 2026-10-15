@@ -1,9 +1,9 @@
 {
-  "generator_version": 1,
+  "generator_version": 2,
   "seed": 42,
-  "case_count": 15,
-  "generator_sha256": "333c5c3fc1db98178e4cec872ef5575dd193deb9031d779d2be0c913d76863dc",
-  "source_model_policy": "Record IDs and documented required wrappers; other fields optional; existing null acceptance.",
+  "bundle_count": 3,
+  "generator_sha256": "29b9f63a557624afb83452ec7322fae5e6058af543d9d9b362aedbb4d6ea8f7c",
+  "validation": "contracts.prepare + contracts.validate (null = not supplied; required not enforced)",
   "evidence": [
     {
       "provider": "prismhr",
@@ -21,140 +21,18 @@
       "sha256": "32ec1d1e30731f94205acd07a8f09696586dc41525498947bbefaef64c15a622"
     }
   ],
-  "source_models": [
-    {
-      "path": "src/normalization/source_models/isolved/isolved_source_model_company.py",
-      "sha256": "531111e37a824235438148a37be1855e44bbea1aa37adc31470ad8d1dadb55c5"
-    },
-    {
-      "path": "src/normalization/source_models/isolved/isolved_source_model_deduction.py",
-      "sha256": "b0fa0f7ee29d5aae40b0b6481f2c2d9844b7c88d628b8de4856cb48830f2d7a7"
-    },
-    {
-      "path": "src/normalization/source_models/isolved/isolved_source_model_direct_deposit.py",
-      "sha256": "66dbecaaf333b54d5743097597f422c498dfaf40c3181c3edbff1ac5b64d676a"
-    },
-    {
-      "path": "src/normalization/source_models/isolved/isolved_source_model_employee.py",
-      "sha256": "b69c9ba3e79a72a1eff2bc35968864eae5283a7f58ec39c87b16518c9edb6bbd"
-    },
-    {
-      "path": "src/normalization/source_models/isolved/isolved_source_model_paycheck.py",
-      "sha256": "13de921041ee3c96970ca60e242b301b095437dd1b2576978b1426ca6b830180"
-    },
-    {
-      "path": "src/normalization/source_models/isolved/isolved_source_model_payroll_run.py",
-      "sha256": "38194dbebfa586f13ae94c55f2ecfba85fa488a53abb6a21d44362f437e13ad2"
-    },
-    {
-      "path": "src/normalization/source_models/prismhr/prismhr_source_model_company.py",
-      "sha256": "462b02400aa06cf712d1a44a17ef15b739ef013a6b8543a487aee73ce86bc93f"
-    },
-    {
-      "path": "src/normalization/source_models/prismhr/prismhr_source_model_deduction.py",
-      "sha256": "bab52c5e8aa79b7129f5b78e773d9aeeb43511ed48738ae0316c9ed8cdf81e0b"
-    },
-    {
-      "path": "src/normalization/source_models/prismhr/prismhr_source_model_direct_deposit.py",
-      "sha256": "99500209255e6a205473b19e2ab75a995bba0eb48396587b9b000a0392998634"
-    },
-    {
-      "path": "src/normalization/source_models/prismhr/prismhr_source_model_employee.py",
-      "sha256": "1a67acb03a0d6cea27f490e15da0ea55e1c544d0e767bda7fa162b8679495938"
-    },
-    {
-      "path": "src/normalization/source_models/prismhr/prismhr_source_model_paycheck.py",
-      "sha256": "5974c7ea2ba54bbfdb3e5924e5690e5b6bfc269197b7102be3b5738364f8d2b8"
-    },
-    {
-      "path": "src/normalization/source_models/prismhr/prismhr_source_model_payroll_run.py",
-      "sha256": "35a57302e27de306d637c42f078ae73eeaed651a59a07ae3afdf30ed21bb6ddb"
-    },
-    {
-      "path": "src/normalization/source_models/ukg_ready/ukg_ready_source_model_company.py",
-      "sha256": "61d0efd7ed06a3480d973dde2937fa51d682730aca90eaed632b869e6689a80c"
-    },
-    {
-      "path": "src/normalization/source_models/ukg_ready/ukg_ready_source_model_deduction.py",
-      "sha256": "46fa6ad88c7e16afb0be8266922928c7750fa7d03b8ced2b43d0fd721ed6ea2d"
-    },
-    {
-      "path": "src/normalization/source_models/ukg_ready/ukg_ready_source_model_direct_deposit.py",
-      "sha256": "554429332d0f544b8fd693500136ea0625e1630ce7449129f1b836e42b4daf73"
-    },
-    {
-      "path": "src/normalization/source_models/ukg_ready/ukg_ready_source_model_employee.py",
-      "sha256": "33f6c9562b53aaf44536e7399298db3be4d3f65d8ad55ce4f8ef7290c114c728"
-    },
-    {
-      "path": "src/normalization/source_models/ukg_ready/ukg_ready_source_model_paycheck.py",
-      "sha256": "73e771dd21651ad22f218c0a41129eff94560bcda52076bd063e7934ccc0af35"
-    },
-    {
-      "path": "src/normalization/source_models/ukg_ready/ukg_ready_source_model_payroll_run.py",
-      "sha256": "e70e0ce43b86cdd80790c5a0de737824ec7b560cf3a9f3f8538fc64694d933c6"
-    }
-  ],
   "files": [
     {
-      "path": "prismhr/employee/input.json",
-      "sha256": "3d922452f715498d3317bbaa24fe4bdf6214a6dc7aa7689a3307170675784abe"
+      "path": "prismhr.bundle.json",
+      "sha256": "0257aac18c5e70fc7d5f91258e6d9ca10efae31dba12122af2174e8b811ec218"
     },
     {
-      "path": "prismhr/direct_deposit/input.json",
-      "sha256": "d52ecd5d81b6dbbf3fb4aadaa3cce001a0cbb2b3e40a001e7c62283cf9dc9238"
+      "path": "isolved.bundle.json",
+      "sha256": "f8e863450e8a41f51d039ca2a0becda68aa4046c94cca93d977e0b32e7c76443"
     },
     {
-      "path": "prismhr/deduction/input.json",
-      "sha256": "d5289ccfb5bbd331191f1d077322e6a9ad588034a922478cc751e9416e270e71"
-    },
-    {
-      "path": "prismhr/company/input.json",
-      "sha256": "6f0d2001558fc16f81a2405c4a067774d3f52ccda17332f952bb620023e95ed2"
-    },
-    {
-      "path": "prismhr/payroll/input.json",
-      "sha256": "2aa1f4f509b82e06f93992327f88d5b1283d30b27518ea376ff40c715f0b1b51"
-    },
-    {
-      "path": "isolved/employee/input.json",
-      "sha256": "43c702476fa2d90bfa1ff35de39c0e5aed0e8a9446b54ea47704f1f2e2cfd9da"
-    },
-    {
-      "path": "isolved/direct_deposit/input.json",
-      "sha256": "cb19c79d2f25a99a3e26d43c119d64aa7fe5ed27e50b5654749cb7a024affefd"
-    },
-    {
-      "path": "isolved/deduction/input.json",
-      "sha256": "ce03901eb2805789e84aa26235ccdb82279c064d99672f7889c7db54f50d8744"
-    },
-    {
-      "path": "isolved/company/input.json",
-      "sha256": "6a1d76b39ed279ee65709ae1de11b2a423c12a34d4869e69f2ec606838f7eeaf"
-    },
-    {
-      "path": "isolved/payroll/input.json",
-      "sha256": "5e9dbf08ab56b5254e1a9341d53e5759b6ce964d6121dc1bf9200e291078eb41"
-    },
-    {
-      "path": "ukg-ready/employee/input.json",
-      "sha256": "9a3ac5a49319daf5879b54e37914261e216a2ad1992fa369f09bcc3576b896eb"
-    },
-    {
-      "path": "ukg-ready/direct_deposit/input.json",
-      "sha256": "42d5ce5a6a3577c5d488d86452998e32279670a38cd02ec8f8944de1bfc41a1d"
-    },
-    {
-      "path": "ukg-ready/deduction/input.json",
-      "sha256": "ffb9b142a6b85a33cb2a3dee9b31459deb22a13f91608c08c3f8298a4440cb2e"
-    },
-    {
-      "path": "ukg-ready/company/input.json",
-      "sha256": "ddc9e455e9103c7447c9b4d61f2e60d5feedd0771a769ce9a509a2dd9c0bf6c3"
-    },
-    {
-      "path": "ukg-ready/payroll/input.json",
-      "sha256": "8c3eca9906fa50c4108bd02460bc4de088d2bb255faaf83f1acf01cf90f4f659"
+      "path": "ukg-ready.bundle.json",
+      "sha256": "95b34d650a342503ab7fc31dabcb5b1a02c30f084a4ac22f39902172718a8857"
     }
   ]
 }

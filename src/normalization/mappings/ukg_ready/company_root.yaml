@@ -1,0 +1,15 @@
+# UKG Ready company: the cid itself (no company-profile endpoint exists).
+# Built from the EIN lookup response's request params; the EIN items are
+# separate company records (company.yaml) whose company_ref points here.
+version: 1
+provider: ukg-ready
+entity: company
+fields:
+- kind: field
+  source: source_record_type
+  source_scope: context
+  target: source_record_type
+- kind: field
+  source: source_record_id
+  source_scope: context
+  target: source_record_id

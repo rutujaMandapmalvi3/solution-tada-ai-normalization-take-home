@@ -1,0 +1,347 @@
+{
+  "provider": "prismhr",
+  "companies": [
+    {
+      "provider": "prismhr",
+      "id": "prismhr:company:001",
+      "source_record_type": "client",
+      "source_record_id": "001",
+      "legal_name": "Example Company",
+      "trade_name": "Example Trade",
+      "source_metadata": {
+        "original_values": {
+          "id": "001"
+        },
+        "prismhr": {
+          "sources": [
+            {
+              "response": 0,
+              "endpoint": "/clientMaster/v1/getClientMaster",
+              "path": "clientMaster"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "prismhr": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "employees": [
+    {
+      "provider": "prismhr",
+      "id": "prismhr:employee:001:007",
+      "company_ref": "prismhr:company:001",
+      "employee_id": "007",
+      "last_name": "Example",
+      "first_name": "Alex",
+      "birth_date": "2000-01-02",
+      "gender": "female",
+      "hourly_rate": 25.5,
+      "prismhr_client_id": "001",
+      "provider_fields": {
+        "prismhr": {
+          "person": {},
+          "compensation": {},
+          "direct_deposit": {},
+          "unmapped": {
+            "directDeposit": {}
+          }
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": "007",
+          "person.birthDate": "2000-01-02",
+          "person.gender": "F",
+          "compensation.hourlyPay": "25.50",
+          "context.client_id": "001"
+        },
+        "prismhr": {
+          "sources": [
+            {
+              "response": 1,
+              "endpoint": "/employee/v1/getEmployee",
+              "path": "employee/0"
+            },
+            {
+              "response": 2,
+              "endpoint": "/employee/v1/getEmployee",
+              "path": "employee/0"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "prismhr": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "direct_deposits": [
+    {
+      "provider": "prismhr",
+      "id": "prismhr:direct_deposit:001:007:000000000:000000001",
+      "company_ref": "prismhr:company:001",
+      "employee_ref": "prismhr:employee:001:007",
+      "deposit_id": null,
+      "employee_id": "007",
+      "account_number": "000000001",
+      "routing_number": "000000000",
+      "account_type": "savings",
+      "allocation_amount": 25.0,
+      "provider_fields": {
+        "prismhr": {
+          "ach_method": "fixed",
+          "method_amount": 25.0
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "accountType": "S",
+          "method": "F",
+          "amount": 25.0,
+          "context.employee_id": "007"
+        },
+        "prismhr": {
+          "sources": [
+            {
+              "response": 2,
+              "endpoint": "/employee/v1/getEmployee",
+              "path": "employee/0/directDeposit/achVoucher/0"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "deductions": [
+    {
+      "provider": "prismhr",
+      "id": "prismhr:deduction:001:007:SYNTHETIC",
+      "company_ref": "prismhr:company:001",
+      "employee_ref": "prismhr:employee:001:007",
+      "deduction_id": null,
+      "employee_id": "007",
+      "deduction_code": "SYNTHETIC",
+      "description": "Example deduction",
+      "start_date": "2026-10-01",
+      "provider_fields": {
+        "prismhr": {
+          "amount": 0.0
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "amount": 0,
+          "startDate": "2026-10-01",
+          "context.employee_id": "007"
+        },
+        "prismhr": {
+          "sources": [
+            {
+              "response": 3,
+              "endpoint": "/deductions/v1/getDeductions",
+              "path": "employeeDeductions/deduction/0"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "prismhr": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "payroll_runs": [
+    {
+      "provider": "prismhr",
+      "id": "prismhr:payroll_run:001:001",
+      "company_ref": "prismhr:company:001",
+      "provider_fields": {
+        "prismhr": {
+          "pay_group": [
+            {
+              "pay_group_id": "01",
+              "pay_period_start_date": "2026-10-01",
+              "pay_period_end_date": "2026-10-14"
+            }
+          ]
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "batchId": "001",
+          "payDate": "2026-10-15",
+          "payGroup.0.payGroupId": "01",
+          "payGroup.0.payPeriodStartDate": "2026-10-01",
+          "payGroup.0.payPeriodEndDate": "2026-10-14"
+        },
+        "prismhr": {
+          "sources": [
+            {
+              "response": 4,
+              "endpoint": "/payroll/v1/getBatchListByDate",
+              "path": "batchList/0"
+            }
+          ]
+        }
+      },
+      "payroll_run_id": "001",
+      "payroll_run_pay_date": "2026-10-15"
+    }
+  ],
+  "paychecks": [
+    {
+      "provider": "prismhr",
+      "id": "prismhr:paycheck:001:010",
+      "company_ref": "prismhr:company:001",
+      "provider_fields": {
+        "prismhr": {
+          "employee_tax": [
+            {
+              "emp_tax_amount": 0.0
+            }
+          ],
+          "earning": [
+            {
+              "hours_worked": 0.0,
+              "pay_amount": 25.0
+            }
+          ],
+          "deduction": [
+            {
+              "deduct_code": "SYNTHETIC",
+              "deduct_amount": 0.0
+            }
+          ],
+          "benefit": [
+            {
+              "plan_id": "SYNTHETIC",
+              "emp_contrib": 0.0
+            }
+          ]
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "checkNumber": "0001",
+          "checkNum": "0001",
+          "voucherId": "010",
+          "employeeId": "007",
+          "netPay": 0.0,
+          "batchId": "001",
+          "benefit.0.planId": "SYNTHETIC",
+          "checkAmt": 0.0
+        },
+        "prismhr": {
+          "sources": [
+            {
+              "response": 5,
+              "endpoint": "/payroll/v1/getPayrollVoucherForBatch",
+              "path": "payrollVouchers/0"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "prismhr": {
+          "fixture_note": false
+        }
+      },
+      "paycheck_id": "010",
+      "employee_ref": "prismhr:employee:001:007",
+      "payroll_run_ref": "prismhr:payroll_run:001:001",
+      "employee_id": "007",
+      "payroll_run_id": "001",
+      "check_number": "0001",
+      "net_pay": 0.0,
+      "check_amount": 0.0
+    }
+  ],
+  "provider_fields": {},
+  "source_metadata": {
+    "prismhr": {
+      "responses": [
+        {
+          "response": 0,
+          "endpoint": "/clientMaster/v1/getClientMaster",
+          "params": {
+            "clientId": "001"
+          },
+          "wrapper": {
+            "errorCode": "0",
+            "errorMessage": ""
+          }
+        },
+        {
+          "response": 1,
+          "endpoint": "/employee/v1/getEmployee",
+          "params": {
+            "clientId": "001"
+          },
+          "wrapper": {
+            "errorCode": "0",
+            "errorMessage": ""
+          }
+        },
+        {
+          "response": 2,
+          "endpoint": "/employee/v1/getEmployee",
+          "params": {
+            "clientId": "001",
+            "employeeId": "007",
+            "options": "DirectDeposit"
+          },
+          "wrapper": {
+            "errorCode": "0",
+            "errorMessage": ""
+          }
+        },
+        {
+          "response": 3,
+          "endpoint": "/deductions/v1/getDeductions",
+          "params": {
+            "clientId": "001",
+            "employeeId": "007"
+          },
+          "wrapper": {
+            "errorCode": "0",
+            "errorMessage": ""
+          }
+        },
+        {
+          "response": 4,
+          "endpoint": "/payroll/v1/getBatchListByDate",
+          "params": {
+            "clientId": "001",
+            "startDate": "2026-10-01",
+            "endDate": "2026-10-31",
+            "dateType": "PAY"
+          },
+          "wrapper": {
+            "errorCode": "0",
+            "errorMessage": ""
+          }
+        },
+        {
+          "response": 5,
+          "endpoint": "/payroll/v1/getPayrollVoucherForBatch",
+          "params": {
+            "clientId": "001",
+            "batchId": "001"
+          },
+          "wrapper": {
+            "errorCode": "0",
+            "errorMessage": ""
+          }
+        }
+      ]
+    }
+  },
+  "issues": []
+}

@@ -1,0 +1,156 @@
+# UKG Ready pay info: GET /v2/companies/{cid}/employees/{aid}/pay-info.
+# Wrapped as {pay_info: <body>} and merged into the employee by canonical id;
+# employee_id comes from params.aid (context). Rules moved unchanged from employee.yaml.
+version: 1
+provider: ukg-ready
+entity: employee
+fields:
+- kind: field
+  source: employee_id
+  source_scope: context
+  target: employee_id
+- kind: field
+  source: pay_info.job_last_changed
+  target: job_effective_date
+  transform:
+    name: date
+- kind: field
+  source: pay_info.standard_work_day
+  target: ukg_standard_work_day_milliseconds
+- kind: field
+  source: pay_info.employee_type.id
+  target: ukg_employee_type_id
+  transform:
+    name: identifier
+- kind: object
+  source: pay_info
+  target: provider_fields.ukg-ready.pay_info
+  fields:
+  - kind: object
+    source: default_job
+    target: default_job
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+  - kind: object
+    source: job_change_reason_code
+    target: job_change_reason_code
+    fields:
+    - kind: field
+      source: display_name
+      target: display_name
+  - kind: object
+    source: pay_type
+    target: pay_type
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+  - kind: object
+    source: shift_premium
+    target: shift_premium
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+  - kind: field
+    source: medical_eligibility
+    target: medical_eligibility
+  - kind: field
+    source: dental_eligibility
+    target: dental_eligibility
+  - kind: field
+    source: dependent_benefits_eligibility
+    target: dependent_benefits_eligibility
+  - kind: field
+    source: benefit_auto_enrollment_eligibility
+    target: benefit_auto_enrollment_eligibility
+  - kind: field
+    source: eeo_classification
+    target: eeo_classification
+  - kind: field
+    source: eeo4_classification
+    target: eeo4_classification
+  - kind: field
+    source: eeo4_function
+    target: eeo4_function
+  - kind: object
+    source: workers_comp_code
+    target: workers_comp_code
+    fields:
+    - kind: field
+      source: external_id
+      target: external_id
+  - kind: object
+    source: union
+    target: union
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+  - kind: field
+    source: payroll_classification
+    target: payroll_classification
+  - kind: field
+    source: bank_account_number
+    target: bank_account_number
+  - kind: object
+    source: pay_grade
+    target: pay_grade
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: object
+      source: parent
+      target: parent
+      fields:
+      - kind: field
+        source: id
+        target: id
+        transform:
+          name: identifier
+      - kind: field
+        source: code
+        target: code
+      - kind: field
+        source: name
+        target: name
+  - kind: list
+    source: gl_codes
+    target: gl_codes
+    fields:
+    - kind: field
+      source: index
+      target: index
+    - kind: field
+      source: value
+      target: value
+  - kind: list
+    source: ttoc
+    target: ttoc
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: display_name
+      target: display_name
+    - kind: field
+      source: effective_from
+      target: effective_from
+      transform:
+        name: date

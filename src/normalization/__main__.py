@@ -1,13 +1,14 @@
 # CLI entry point (`python -m normalization`): list-providers, check-inputs, normalize.
-# `normalize` checks provider readiness, reads the --input JSON, calls the provider
-# adapter, and writes the result to --output (refuses to overwrite an existing file).
+# `normalize` reads one provider bundle (--input), checks provider readiness,
+# runs the pipeline and writes one canonical document to --output (never overwrites).
 """Local entry point. Transformation output schema is chosen by the candidate."""
 import argparse
 import json
 import sys
 from pathlib import Path
 
-from .adapters import ADAPTERS, ENTITIES
+from .adapters import ADAPTERS
+from .pipeline import normalize_bundle
 from .references import all_readiness_issues, load_reference, readiness_issues
 
 
@@ -24,24 +25,15 @@ _REFERENCE_WARNINGS = {
 }
 
 
-# Attach reference provenance without replacing existing mapping metadata.
-def _add_reference_warnings(result, provider, reference, issues):
-    pack = {
+# Attach reference provenance to the document without replacing pipeline metadata.
+def _add_reference_warnings(document, provider, reference, issues):
+    document.setdefault("source_metadata", {}).setdefault(provider, {})["reference_pack"] = {
         "provider": provider,
         "reference_version": reference.get("reference_version"),
         "distribution_status": (reference.get("distribution") or {}).get("status"),
         "warnings": list(issues),
     }
-    if isinstance(result, list):
-        if not result:
-            # An empty employee list has no record on which to retain warnings.
-            result = {"employees": [], "source_metadata": {}}
-        else:
-            for record in result:
-                record.setdefault("source_metadata", {}).setdefault(provider, {})["reference_pack"] = dict(pack)
-            return result
-    result.setdefault("source_metadata", {}).setdefault(provider, {})["reference_pack"] = pack
-    return result
+    return document
 
 
 def main(argv=None):
@@ -50,13 +42,10 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list-providers")
     commands.add_parser("check-inputs")
-    run = commands.add_parser("normalize")
-    run.add_argument("--provider", choices=ADAPTERS, required=True)
-    run.add_argument("--entity", choices=ENTITIES, required=True)
-    run.add_argument("--input", type=Path, required=True)
+    run = commands.add_parser("normalize", help="normalize one provider bundle into one canonical document")
+    run.add_argument("--input", type=Path, required=True,
+                     help='bundle JSON: {"provider": ..., "responses": [{"endpoint", "params", "body"}]}')
     run.add_argument("--output", type=Path, required=True)
-    run.add_argument("--client-id", help="Original request client ID for PrismHR employee input")
-    run.add_argument("--employee-id", help="Employee owner for direct-deposit or deduction input")
     # Parse command-line arguments into the selected command and its inputs.
     args = parser.parse_args(argv)
     if args.command == "list-providers":
@@ -66,49 +55,33 @@ def main(argv=None):
         issues = all_readiness_issues()
         print(json.dumps(issues, indent=2))
         return 2 if any(issues.values()) else 0
-    requires_client_id = args.provider == "prismhr" and args.entity == "employee"
-    if requires_client_id and (args.client_id is None or not args.client_id.strip()):
-        parser.error("--client-id is required and must be nonblank for PrismHR employee normalization")
-    requires_employee_id = args.entity in ("direct_deposit", "deduction")
-    if requires_employee_id and (args.employee_id is None or not args.employee_id.strip()):
-        parser.error(f"--employee-id is required and must be nonblank for {args.entity} normalization")
-    # Check the selected provider reference before processing input data.
-    issues = readiness_issues(args.provider)
-    errors = [issue for issue in issues if issue not in _REFERENCE_WARNINGS]
-    reference_warnings = [issue for issue in issues if issue in _REFERENCE_WARNINGS]
-    if errors:
-        print(json.dumps({"provider": args.provider, "readiness_issues": errors}, indent=2), file=sys.stderr)
-        return 2
-    if reference_warnings:
-        print("Warning: " + json.dumps({"provider": args.provider,
-              "reference_warnings": reference_warnings}), file=sys.stderr)
     try:
-        # Open the input JSON file for reading.
+        # Open the bundle and deserialize JSON into Python dictionaries and lists.
         with args.input.open(encoding="utf-8") as stream:
-            # Read and deserialize JSON into Python dictionaries, lists, and values.
-            response = json.load(stream)
-        # Select the provider module from ADAPTERS using the requested provider name.
-        # Call normalize with the entity, deserialized response, and loaded reference.
-        reference = load_reference(args.provider)
-        if requires_client_id:
-            result = ADAPTERS[args.provider].normalize(
-                args.entity, response, reference, client_id=args.client_id
-            )
-        elif requires_employee_id:
-            result = ADAPTERS[args.provider].normalize(
-                args.entity, response, reference, employee_id=args.employee_id
-            )
-        else:
-            result = ADAPTERS[args.provider].normalize(args.entity, response, reference)
+            bundle = json.load(stream)
+        provider = bundle.get("provider") if isinstance(bundle, dict) else None
+        if provider not in ADAPTERS:
+            raise ValueError(f"Bundle 'provider' must be one of {', '.join(ADAPTERS)}")
+        # Check the provider reference before processing input data.
+        issues = readiness_issues(provider)
+        errors = [issue for issue in issues if issue not in _REFERENCE_WARNINGS]
+        reference_warnings = [issue for issue in issues if issue in _REFERENCE_WARNINGS]
+        if errors:
+            print(json.dumps({"provider": provider, "readiness_issues": errors}, indent=2), file=sys.stderr)
+            return 2
         if reference_warnings:
-            result = _add_reference_warnings(result, args.provider, reference, reference_warnings)
-        # Serialize first and refuse overwriting an existing file in this scaffold.
-        serialized = json.dumps(result, indent=2, allow_nan=False) + "\n"
-        # Create the output file and write the serialized result.
+            print("Warning: " + json.dumps({"provider": provider,
+                  "reference_warnings": reference_warnings}), file=sys.stderr)
+        document = normalize_bundle(bundle)
+        if reference_warnings:
+            document = _add_reference_warnings(document, provider, load_reference(provider),
+                                               reference_warnings)
+        # Serialize first and refuse overwriting an existing file.
+        serialized = json.dumps(document, indent=2, allow_nan=False) + "\n"
         with args.output.open("x", encoding="utf-8") as stream:
             stream.write(serialized)
-    # Report file, parsing, serialization, or adapter failures to the CLI caller.
-    except (OSError, ValueError, TypeError, NotImplementedError) as exc:
+    # Report file, parsing, contract, mapping or serialization failures to the caller.
+    except (OSError, ValueError, TypeError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
     return 0

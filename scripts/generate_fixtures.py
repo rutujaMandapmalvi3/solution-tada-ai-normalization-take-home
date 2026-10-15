@@ -1,9 +1,11 @@
-"""Generate 15 deterministic, synthetic provider input fixtures.
+"""Generate three deterministic, synthetic provider bundles.
 
-Explicit builders use the documented structures represented by the project's
-source models. This is not an arbitrary OpenAPI example generator: project
-requiredness/null policy and named supplemental sections are intentional.
-Expected canonical outputs are never generated or overwritten.
+Each bundle holds every captured response for one provider as
+{endpoint, params, body} (see src/normalization/pipeline.py). The explicit
+builders below invent identities and values; a seeded value pool varies a few
+of them. Every response body is checked against its contract with the same
+contract layer the pipeline uses before anything is written. Expected
+canonical outputs are never generated or overwritten.
 """
 from __future__ import annotations
 
@@ -19,22 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
-from normalization.source_models.prismhr.prismhr_source_model_employee import PrismHREmployeeResponse, PrismHREmployee
-from normalization.source_models.prismhr.prismhr_source_model_direct_deposit import PrismHRDirectDepositResponse
-from normalization.source_models.prismhr.prismhr_source_model_deduction import PrismHRDeductionResponse
-from normalization.source_models.prismhr.prismhr_source_model_company import PrismHRGetClientMasterResponse
-from normalization.source_models.prismhr.prismhr_source_model_payroll_run import PrismHRBatchByDateResponse
-from normalization.source_models.prismhr.prismhr_source_model_paycheck import PrismHRPayrollResponseWithPagination
-from normalization.source_models.isolved.isolved_source_model_employee import IsolvedEmployeeInput
-from normalization.source_models.isolved.isolved_source_model_direct_deposit import IsolvedEmployeeDirectDepositResponse
-from normalization.source_models.isolved.isolved_source_model_deduction import IsolvedEmployeePayItemResponse
-from normalization.source_models.isolved.isolved_source_model_company import IsolvedLegalModel
-from normalization.source_models.isolved.isolved_source_model_payroll_run import IsolvedPayrollInput
-from normalization.source_models.ukg_ready.ukg_ready_source_model_employee import UKGReadyEmployeeInput
-from normalization.source_models.ukg_ready.ukg_ready_source_model_direct_deposit import UKGReadyDirectDepositResponse
-from normalization.source_models.ukg_ready.ukg_ready_source_model_deduction import UKGReadyDeductionInput
-from normalization.source_models.ukg_ready.ukg_ready_source_model_company import UKGReadyEinsResponse
-from normalization.source_models.ukg_ready.ukg_ready_source_model_payroll_run import UKGReadyPayrollInput
+from normalization import contracts  # noqa: E402
 
 DEFAULT_SEED = 42
 DEFAULT_OUTPUT = ROOT / "tests" / "fixtures"
@@ -194,79 +181,121 @@ def build_cases(seed: int = DEFAULT_SEED) -> dict:
     return cases
 
 
-# Validate source structure without calling adapters, mappings or reference readiness.
-def validate_case(provider: str, entity: str, payload) -> None:
-    if provider == "prismhr" and entity == "employee":
-        envelope = PrismHREmployeeResponse.model_validate(payload)
-        for record in envelope.employee or []:
-            PrismHREmployee.model_validate(record)
-        return
-    if provider == "prismhr" and entity == "payroll":
-        PrismHRBatchByDateResponse.model_validate(payload)
-        PrismHRPayrollResponseWithPagination.model_validate(payload)
-        return
-    validators = {
-        ("prismhr", "direct_deposit"): PrismHRDirectDepositResponse.model_validate,
-        ("prismhr", "deduction"): PrismHRDeductionResponse.model_validate,
-        ("prismhr", "company"): PrismHRGetClientMasterResponse.model_validate,
-        ("isolved", "employee"): IsolvedEmployeeInput.validate_response,
-        ("isolved", "direct_deposit"): IsolvedEmployeeDirectDepositResponse.model_validate,
-        ("isolved", "deduction"): IsolvedEmployeePayItemResponse.model_validate,
-        ("isolved", "company"): IsolvedLegalModel.model_validate,
-        ("isolved", "payroll"): IsolvedPayrollInput.validate_response,
-        ("ukg-ready", "employee"): UKGReadyEmployeeInput.validate_response,
-        ("ukg-ready", "direct_deposit"): UKGReadyDirectDepositResponse.model_validate,
-        ("ukg-ready", "deduction"): UKGReadyDeductionInput.validate_response,
-        ("ukg-ready", "company"): UKGReadyEinsResponse.model_validate,
-        ("ukg-ready", "payroll"): UKGReadyPayrollInput.validate_response,
+# Owner ids used in params, shared by every response of a provider so the
+# bundle forms one connected company (relationship_policies.md).
+PRISM = {"clientId": "001"}
+ISOL = {"clientId": "4000", "legalId": "1"}
+UKG = {"cid": "001"}
+ISOL_LEGAL = "/api/clients/{clientId}/legals"
+UKG_CO = "/v2/companies/{cid}"
+
+
+def _response(endpoint: str, params: dict, body) -> dict:
+    return {"endpoint": endpoint, "params": params, "body": body}
+
+
+# Split each provider's cases into the contract responses they came from.
+def build_bundles(seed: int = DEFAULT_SEED) -> dict:
+    cases = build_cases(seed)
+    p, i, u = cases["prismhr"], cases["isolved"], cases["ukg-ready"]
+    prism_employee = p["employee"]["employee"][0]["id"]
+    payroll = p["payroll"]
+    isol_employee = str(i["employee"]["results"][0]["id"])
+    ukg_employee = "7"
+    return {
+        "prismhr": {"provider": "prismhr", "responses": [
+            _response("/clientMaster/v1/getClientMaster", PRISM, p["company"]),
+            _response("/employee/v1/getEmployee", PRISM, p["employee"]),
+            _response("/employee/v1/getEmployee", {**PRISM, "employeeId": prism_employee,
+                                                   "options": "DirectDeposit"}, p["direct_deposit"]),
+            _response("/deductions/v1/getDeductions", {**PRISM, "employeeId": prism_employee},
+                      p["deduction"]),
+            _response("/payroll/v1/getBatchListByDate",
+                      {**PRISM, "startDate": "2026-10-01", "endDate": "2026-10-31", "dateType": "PAY"},
+                      {k: v for k, v in payroll.items() if k != "payrollVouchers"}),
+            _response("/payroll/v1/getPayrollVoucherForBatch", {**PRISM, "batchId": "001"},
+                      {k: v for k, v in payroll.items() if k != "batchList"}),
+        ]},
+        "isolved": {"provider": "isolved", "responses": [
+            _response(ISOL_LEGAL, {"clientId": ISOL["clientId"]}, [i["company"]]),
+            _response(ISOL_LEGAL + "/{legalId}/employees", ISOL, i["employee"]),
+            # Salary history merges into the employee above by canonical id.
+            _response(ISOL_LEGAL + "/{legalId}/employees/{employeeId}/salaries",
+                      {**ISOL, "employeeId": isol_employee},
+                      [{"id": 90, "effectiveDate": "2026-01-01T00:00:00",
+                        "payType": {"id": "2", "description": "Salary"},
+                        "frequency": {"id": 26, "description": "Biweekly"}}]),
+            _response(ISOL_LEGAL + "/{legalId}/employees/{employeeId}/directdeposits",
+                      {**ISOL, "employeeId": isol_employee}, i["direct_deposit"]),
+            _response(ISOL_LEGAL + "/{legalId}/employees/{employeeId}/payItems",
+                      {**ISOL, "employeeId": isol_employee}, i["deduction"]),
+            _response(ISOL_LEGAL + "/{legalId}/paygroupId/{paygroupId}/payrollRunHistory/byDate",
+                      {**ISOL, "paygroupId": "77", "startDate": "2026-10-01", "endDate": "2026-10-31"},
+                      i["payroll"]["payroll_runs"]),
+            _response(ISOL_LEGAL + "/{legalId}/payGroups/{payGroupId}/checks",
+                      {**ISOL, "payGroupId": "77"}, {"results": i["payroll"]["paychecks"]}),
+        ]},
+        "ukg-ready": {"provider": "ukg-ready", "responses": [
+            _response(UKG_CO + "/lookup/eins", UKG, u["company"]),
+            _response(UKG_CO + "/employees", UKG, u["employee"]),
+            # pay-info and compensation history merge into the employee by canonical id.
+            _response(UKG_CO + "/employees/{aid}/pay-info", {**UKG, "aid": ukg_employee},
+                      {"standard_work_day": 28800000, "payroll_classification": "REGULAR"}),
+            _response(UKG_CO + "/employees/{aid}/compensation/history", {**UKG, "aid": ukg_employee},
+                      {"compensations": [{"id": 91, "employee": {"account_id": 7},
+                                          "effective_from": "2026-01-01", "amount": 95000,
+                                          "amount_period": "YEAR", "time": 7488000000,
+                                          "time_period": "YEAR", "currency": "USD"}]}),
+            _response(UKG_CO + "/employees/{aid}/direct-deposits", {**UKG, "aid": ukg_employee},
+                      u["direct_deposit"]),
+            _response(UKG_CO + "/employees/{aid}/deductions", {**UKG, "aid": ukg_employee},
+                      u["deduction"]["assignments"]),
+            # Catalog and benefits have no canonical record type: kept as unrouted responses.
+            _response(UKG_CO + "/lookup/deduction-codes", UKG, u["deduction"]["code_lookup"]),
+            _response(UKG_CO + "/employees/{aid}/benefits", {**UKG, "aid": ukg_employee},
+                      u["deduction"]["benefits"]),
+            _response(UKG_CO + "/payrolls", UKG, u["payroll"]["payroll_runs"]),
+            _response(UKG_CO + "/payrolls/{id}/pay-statements", {**UKG, "payroll_id": "1"},
+                      u["payroll"]["paycheck_list"]),
+            _response(UKG_CO + "/payrolls/{id}/pay-statements/{id}",
+                      {**UKG, "payroll_id": "1", "pay_statement_id": "10"},
+                      u["payroll"]["paychecks"][0]),
+        ]},
     }
-    validators[provider, entity](payload)
 
 
-# Keep request context separate from provider response fields.
-def case_context(provider: str, entity: str) -> dict[str, str]:
-    if provider == "prismhr" and entity == "employee":
-        return {"client_id": "001"}
-    if entity in ("direct_deposit", "deduction"):
-        return {"employee_id": "7" if provider == "isolved" else "007"}
-    return {}
+# Check every response against its contract (type errors raise ValueError).
+def validate_bundle(bundle: dict) -> None:
+    for response in bundle["responses"]:
+        body = contracts.prepare(bundle["provider"], response)
+        contracts.validate(bundle["provider"], response["endpoint"], body)
 
 
-# Write complete validated inputs and reproducibility metadata, never expected outputs.
+# Write validated bundles and reproducibility metadata, never expected outputs.
 def generate(seed: int = DEFAULT_SEED, output_dir: Path = DEFAULT_OUTPUT) -> list[Path]:
     output_dir = Path(output_dir)
-    cases = build_cases(seed)
     pending = {}
-    manifest = []
-    for provider, entities in cases.items():
-        for entity, payload in entities.items():
-            validate_case(provider, entity, payload)
-            relative = Path(provider) / entity / "input.json"
-            pending[relative] = json.dumps(payload, indent=2, allow_nan=False) + "\n"
-            manifest.append({"provider": provider, "entity": entity,
-                             "context": case_context(provider, entity)})
-    # All cases and evidence files must validate/read successfully before writing anything.
+    for provider, bundle in build_bundles(seed).items():
+        validate_bundle(bundle)
+        pending[Path(f"{provider}.bundle.json")] = json.dumps(bundle, indent=2, allow_nan=False) + "\n"
+    # All bundles and evidence files must validate/read successfully before writing anything.
     evidence = [{"provider": provider, "path": relative,
                  "sha256": hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()}
                 for provider, relative in CONTRACTS.items()]
     generation_manifest = {
-        "generator_version": 1, "seed": seed, "case_count": len(manifest),
+        "generator_version": 2, "seed": seed, "bundle_count": len(pending),
         "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-        "source_model_policy": "Record IDs and documented required wrappers; other fields optional; existing null acceptance.",
+        "validation": "contracts.prepare + contracts.validate (null = not supplied; required not enforced)",
         "evidence": evidence,
-        "source_models": [{"path": str(path.relative_to(ROOT)),
-                           "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
-                          for path in sorted((ROOT / "src/normalization/source_models").rglob("*.py"))],
         "files": [{"path": str(path), "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}
                   for path, text in pending.items()],
     }
-    pending[Path("manifest.json")] = json.dumps(manifest, indent=2) + "\n"
     pending[Path("generation_manifest.json")] = json.dumps(generation_manifest, indent=2) + "\n"
     for relative, text in pending.items():
         target = output_dir / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
-    return [output_dir / relative for relative in pending if relative.name == "input.json"]
+    return [output_dir / relative for relative in pending if relative.name.endswith(".bundle.json")]
 
 
 # Expose repeatable generation through the provided script entry point.
@@ -280,7 +309,7 @@ def main(argv=None) -> int:
     except (OSError, ValueError, TypeError) as exc:
         print(f"Fixture generation failed: {exc}", file=sys.stderr)
         return 1
-    print(f"Generated {len(paths)} input fixtures in {args.output_dir} (seed {args.seed}).")
+    print(f"Generated {len(paths)} bundles in {args.output_dir} (seed {args.seed}).")
     return 0
 
 

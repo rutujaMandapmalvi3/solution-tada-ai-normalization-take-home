@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 Provider = Literal["prismhr", "isolved", "ukg-ready"]
-CompanySourceRecordType = Literal["client", "legal_company", "ein"]
+CompanySourceRecordType = Literal["client", "legal_company", "ein", "company"]
 
 
 class CompanyMappingIssue(BaseModel):
@@ -45,6 +45,9 @@ class CanonicalCompany(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
     provider: Provider
+    # Canonical identity and links (docs/solution-docs/relationship_policies.md).
+    id: Optional[str] = None
+    company_ref: Optional[str] = None
     source_record_type: CompanySourceRecordType
     source_record_id: Optional[str]
     legal_name: Optional[str] = None

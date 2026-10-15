@@ -1,0 +1,464 @@
+{
+  "provider": "ukg-ready",
+  "companies": [
+    {
+      "provider": "ukg-ready",
+      "id": "ukg-ready:company:001",
+      "source_record_type": "company",
+      "source_record_id": "001",
+      "provider_fields": {
+        "ukg-ready": {
+          "unmapped": {}
+        }
+      },
+      "source_metadata": {
+        "ukg-ready": {
+          "sources": [
+            {
+              "response": 0,
+              "endpoint": "/v2/companies/{cid}/lookup/eins",
+              "path": "<body>"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "provider": "ukg-ready",
+      "id": "ukg-ready:company:001:ein:1",
+      "company_ref": "ukg-ready:company:001",
+      "source_record_type": "ein",
+      "source_record_id": "1",
+      "ukg_ein_tax_id": "SYNTHETIC-TAX-ID",
+      "ukg_ein_name": "Example EIN",
+      "source_metadata": {
+        "original_values": {
+          "id": 1,
+          "ein_tax_id": "SYNTHETIC-TAX-ID"
+        },
+        "ukg-ready": {
+          "sources": [
+            {
+              "response": 0,
+              "endpoint": "/v2/companies/{cid}/lookup/eins",
+              "path": "items/0"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "ukg-ready": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "employees": [
+    {
+      "provider": "ukg-ready",
+      "id": "ukg-ready:employee:001:7",
+      "company_ref": "ukg-ready:company:001",
+      "employee_id": "7",
+      "last_name": "Example",
+      "first_name": "Alex",
+      "birth_date": "2000-01-02",
+      "ukg_standard_work_day_milliseconds": 28800000,
+      "ukg_ein_name": "Example EIN",
+      "provider_fields": {
+        "ukg-ready": {
+          "dates": {},
+          "pay_info": {
+            "payroll_classification": "REGULAR"
+          },
+          "compensation_history": {
+            "compensations": [
+              {
+                "id": "91",
+                "employee": {
+                  "account_id": "7"
+                },
+                "effective_from": "2026-01-01",
+                "amount": 95000,
+                "currency": "USD",
+                "amount_period": "YEAR",
+                "time": 7488000000,
+                "time_period": "YEAR"
+              }
+            ]
+          }
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 7.0,
+          "dates.birthday": "2000-01-02",
+          "compensation_history.compensations.0.id": 91,
+          "compensation_history.compensations.0.employee.account_id": 7,
+          "compensation_history.compensations.0.effective_from": "2026-01-01"
+        },
+        "ukg-ready": {
+          "sources": [
+            {
+              "response": 1,
+              "endpoint": "/v2/companies/{cid}/employees",
+              "path": "employees/0"
+            },
+            {
+              "response": 2,
+              "endpoint": "/v2/companies/{cid}/employees/{aid}/pay-info",
+              "path": "<body>"
+            },
+            {
+              "response": 3,
+              "endpoint": "/v2/companies/{cid}/employees/{aid}/compensation/history",
+              "path": "<body>"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "ukg-ready": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "direct_deposits": [
+    {
+      "provider": "ukg-ready",
+      "id": "ukg-ready:direct_deposit:001:7:10",
+      "company_ref": "ukg-ready:company:001",
+      "employee_ref": "ukg-ready:employee:001:7",
+      "deposit_id": "10",
+      "employee_id": "7",
+      "account_number": "000000001",
+      "routing_number": "000000000",
+      "account_type": "checking",
+      "allocation_amount": 25.0,
+      "provider_fields": {
+        "ukg-ready": {
+          "active": false,
+          "amount": 25.0,
+          "calc_method": {
+            "type": "FLAT_AMOUNT"
+          }
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 10,
+          "amount": 25.0,
+          "calc_method.type": "FLAT_AMOUNT",
+          "account_type": "CHECKING",
+          "context.employee_id": "7"
+        },
+        "ukg-ready": {
+          "sources": [
+            {
+              "response": 4,
+              "endpoint": "/v2/companies/{cid}/employees/{aid}/direct-deposits",
+              "path": "deposits/0"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "ukg-ready": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "deductions": [
+    {
+      "provider": "ukg-ready",
+      "id": "ukg-ready:deduction:001:7:10",
+      "company_ref": "ukg-ready:company:001",
+      "employee_ref": "ukg-ready:employee:001:7",
+      "deduction_id": "10",
+      "employee_id": "7",
+      "provider_fields": {
+        "ukg-ready": {
+          "deduction": {
+            "code": "SYNTHETIC",
+            "name": "Example deduction"
+          },
+          "effective_from": "2026-10-01"
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 10,
+          "effective_from": "2026-10-01",
+          "context.employee_id": "7"
+        },
+        "ukg-ready": {
+          "sources": [
+            {
+              "response": 5,
+              "endpoint": "/v2/companies/{cid}/employees/{aid}/deductions",
+              "path": "deductions/0"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "ukg-ready": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "payroll_runs": [
+    {
+      "provider": "ukg-ready",
+      "id": "ukg-ready:payroll_run:001:1",
+      "company_ref": "ukg-ready:company:001",
+      "provider_fields": {
+        "ukg-ready": {
+          "pay_date": "2026-10-15"
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 1,
+          "pay_date": "2026-10-15"
+        },
+        "ukg-ready": {
+          "sources": [
+            {
+              "response": 8,
+              "endpoint": "/v2/companies/{cid}/payrolls",
+              "path": "payrolls/0"
+            }
+          ]
+        }
+      },
+      "payroll_run_id": "1"
+    }
+  ],
+  "paychecks": [
+    {
+      "provider": "ukg-ready",
+      "id": "ukg-ready:paycheck:001:10",
+      "company_ref": "ukg-ready:company:001",
+      "provider_fields": {
+        "ukg-ready": {
+          "employee": {
+            "account_id": "7"
+          },
+          "earnings": [
+            {
+              "id": "20",
+              "hours": 0,
+              "ee_amount": 0.0
+            }
+          ],
+          "deductions": [
+            {
+              "id": "30",
+              "ee_amount": 0.0,
+              "er_amount": 0.0
+            }
+          ],
+          "taxes": [
+            {
+              "id": "40",
+              "ee_amount": 0.0
+            }
+          ],
+          "payments": [
+            {
+              "id": "50",
+              "ee_amount": 0.0
+            }
+          ]
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "employee.account_id": 7.0,
+          "id": 10,
+          "earnings.0.id": 20,
+          "deductions.0.id": 30,
+          "taxes.0.id": 40,
+          "payments.0.id": 50
+        },
+        "ukg-ready": {
+          "sources": [
+            {
+              "response": 9,
+              "endpoint": "/v2/companies/{cid}/payrolls/{id}/pay-statements",
+              "path": "pay_statements/0"
+            },
+            {
+              "response": 10,
+              "endpoint": "/v2/companies/{cid}/payrolls/{id}/pay-statements/{id}",
+              "path": "<body>"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "ukg-ready": {
+          "fixture_note": false
+        }
+      },
+      "paycheck_id": "10",
+      "employee_ref": "ukg-ready:employee:001:7",
+      "payroll_run_ref": "ukg-ready:payroll_run:001:1"
+    }
+  ],
+  "provider_fields": {
+    "ukg-ready": {
+      "unrouted_responses": [
+        {
+          "response": 6,
+          "endpoint": "/v2/companies/{cid}/lookup/deduction-codes",
+          "params": {
+            "cid": "001"
+          },
+          "body": {
+            "items": [
+              {
+                "id": 11,
+                "code": "SYNTHETIC"
+              }
+            ]
+          }
+        },
+        {
+          "response": 7,
+          "endpoint": "/v2/companies/{cid}/employees/{aid}/benefits",
+          "params": {
+            "cid": "001",
+            "aid": "7"
+          },
+          "body": {
+            "benefits": [
+              {
+                "id": 12
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "source_metadata": {
+    "ukg-ready": {
+      "responses": [
+        {
+          "response": 0,
+          "endpoint": "/v2/companies/{cid}/lookup/eins",
+          "params": {
+            "cid": "001"
+          }
+        },
+        {
+          "response": 1,
+          "endpoint": "/v2/companies/{cid}/employees",
+          "params": {
+            "cid": "001"
+          }
+        },
+        {
+          "response": 2,
+          "endpoint": "/v2/companies/{cid}/employees/{aid}/pay-info",
+          "params": {
+            "cid": "001",
+            "aid": "7"
+          }
+        },
+        {
+          "response": 3,
+          "endpoint": "/v2/companies/{cid}/employees/{aid}/compensation/history",
+          "params": {
+            "cid": "001",
+            "aid": "7"
+          }
+        },
+        {
+          "response": 4,
+          "endpoint": "/v2/companies/{cid}/employees/{aid}/direct-deposits",
+          "params": {
+            "cid": "001",
+            "aid": "7"
+          },
+          "wrapper": {
+            "_links": {}
+          }
+        },
+        {
+          "response": 5,
+          "endpoint": "/v2/companies/{cid}/employees/{aid}/deductions",
+          "params": {
+            "cid": "001",
+            "aid": "7"
+          }
+        },
+        {
+          "response": 8,
+          "endpoint": "/v2/companies/{cid}/payrolls",
+          "params": {
+            "cid": "001"
+          }
+        },
+        {
+          "response": 9,
+          "endpoint": "/v2/companies/{cid}/payrolls/{id}/pay-statements",
+          "params": {
+            "cid": "001",
+            "payroll_id": "1"
+          }
+        },
+        {
+          "response": 10,
+          "endpoint": "/v2/companies/{cid}/payrolls/{id}/pay-statements/{id}",
+          "params": {
+            "cid": "001",
+            "payroll_id": "1",
+            "pay_statement_id": "10"
+          }
+        }
+      ],
+      "reference_pack": {
+        "provider": "ukg-ready",
+        "reference_version": "cached-v2-private-reference-1",
+        "distribution_status": "user_approved_private_upload",
+        "warnings": [
+          "Candidate-distribution permission has not been verified.",
+          "OpenAPI artifact is absent or unverified.",
+          "Approved OpenAPI filename is missing.",
+          "OpenAPI provenance/version/checksum metadata is incomplete."
+        ]
+      }
+    }
+  },
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "contract_drift",
+      "endpoint": "/v2/companies/{cid}/employees",
+      "path": "employees/0/dates",
+      "message": "Additional properties are not allowed ('birthday' was unexpected)",
+      "response": 1
+    },
+    {
+      "severity": "warning",
+      "code": "contract_drift",
+      "endpoint": "/v2/companies/{cid}/employees",
+      "path": "employees/0",
+      "message": "Additional properties are not allowed ('fixture_note' was unexpected)",
+      "response": 1
+    },
+    {
+      "severity": "warning",
+      "code": "contract_drift",
+      "endpoint": "/v2/companies/{cid}/employees/{aid}/direct-deposits",
+      "path": "deposits/0",
+      "message": "Additional properties are not allowed ('fixture_note' was unexpected)",
+      "response": 4
+    }
+  ]
+}

@@ -1,8 +1,9 @@
 """Execute validated mapping rules on already-validated source records.
 
 The engine is shared; provider/entity differences belong in YAML and helpers.
-It returns a canonical Pydantic object, leaving final JSON serialization to the
-caller. Adapter integration and full entity mapping files are separate steps.
+Source records are plain dicts checked against their contract schema
+(contracts.Schema); output is a canonical Pydantic object, leaving final JSON
+serialization to the caller.
 """
 from __future__ import annotations
 
@@ -12,6 +13,8 @@ import types
 from typing import Any, Union, get_args, get_origin
 
 from pydantic import BaseModel
+
+from .contracts import Schema
 import yaml
 from yaml.constructor import ConstructorError
 
@@ -64,23 +67,7 @@ def _is_model(annotation):
     return isinstance(annotation, type) and issubclass(annotation, BaseModel)
 
 
-# Finds the declared model field matching a name or alias.
-def _field_name(model, segment):
-    """Resolve declared Python names and JSON aliases, never object attributes."""
-    if segment in model.model_fields:
-        return segment
-    for name, field in model.model_fields.items():
-        aliases = [field.alias, field.serialization_alias]
-        validation_alias = field.validation_alias
-        if isinstance(validation_alias, str):
-            aliases.append(validation_alias)
-        aliases.extend(getattr(validation_alias, "choices", []))
-        if segment in aliases:
-            return name
-    raise ValueError(f"Unknown declared field {segment!r} on {model.__name__}")
-
-
-# Checks a nested field path and finds the type of its final value.
+# Checks a nested canonical (target) path and finds the type of its final value.
 def _path_type(annotation, path):
     for segment in path.split("."):
         annotation = _optional_type(annotation)
@@ -88,7 +75,9 @@ def _path_type(annotation, path):
             return Any
         if _is_model(annotation):
             annotation.model_rebuild()
-            annotation = annotation.model_fields[_field_name(annotation, segment)].annotation
+            if segment not in annotation.model_fields:
+                raise ValueError(f"Unknown declared field {segment!r} on {annotation.__name__}")
+            annotation = annotation.model_fields[segment].annotation
         elif get_origin(annotation) is dict:
             args = get_args(annotation)
             annotation = args[1] if args else Any
@@ -97,17 +86,19 @@ def _path_type(annotation, path):
     return _optional_type(annotation)
 
 
+# Checks a source path against the contract schema of the source record.
+def _source_path(schema: Schema, path: str) -> Schema:
+    try:
+        return schema.at(path)
+    except KeyError as exc:
+        raise ValueError(f"Source path {path!r}: field {exc.args[0]!r} is not in the contract schema") from None
+
+
 # Reads a value from a nested path and reports when it was not supplied.
 def _read(record, path):
     resolved = []
     for segment in path.split("."):
-        if isinstance(record, BaseModel):
-            name = _field_name(type(record), segment)
-            resolved.append(name)
-            if name not in record.model_fields_set:
-                return _MISSING, tuple(resolved)
-            record = getattr(record, name)
-        elif isinstance(record, dict):
+        if isinstance(record, dict):
             resolved.append(segment)
             if segment not in record:
                 return _MISSING, tuple(resolved)
@@ -119,43 +110,36 @@ def _read(record, path):
     return record, tuple(resolved)
 
 
-# Copies supplied values into ordinary Python structures without including model extras.
+# Copies a supplied source value into an independent plain structure.
 def _plain(value):
-    """Copy declared, supplied source values; extras are preserved separately."""
-    if isinstance(value, BaseModel):
-        return {(field.alias or name): _plain(getattr(value, name))
-                for name, field in type(value).model_fields.items()
-                if name in value.model_fields_set}
-    if isinstance(value, dict):
-        return {key: _plain(child) for key, child in value.items()}
-    if isinstance(value, list):
-        return [_plain(child) for child in value]
     return deepcopy(value)
 
 
-# Collects known source fields that the mapping rules have not used.
-def _remaining(value, consumed, path=()):
-    """Retain declared fields not consumed by rules, in original nesting."""
+def _child(schema, key):
+    return None if schema is None else schema.child(key)
+
+
+def _declared(schema, key):
+    return schema is None or schema.is_open or key in schema.declared()
+
+
+# Collects contract-declared source fields that the mapping rules have not used.
+def _remaining(value, consumed, schema=None, path=()):
+    """Retain declared, unconsumed fields in original nesting (schema None = all declared)."""
     if path in consumed:
         return _MISSING
-    if isinstance(value, BaseModel):
-        result = {}
-        for name, field in type(value).model_fields.items():
-            if name not in value.model_fields_set:
-                continue
-            child = _remaining(getattr(value, name), consumed, path + (name,))
-            if child is not _MISSING:
-                result[field.alias or name] = child
-        return result if result or not value.model_fields_set else _MISSING
     if isinstance(value, dict):
         result = {}
         for key, child in value.items():
-            child = _remaining(child, consumed, path + (key,))
+            if not _declared(schema, key):
+                continue  # undeclared fields belong to _extras
+            child = _remaining(child, consumed, _child(schema, key), path + (key,))
             if child is not _MISSING:
                 result[key] = child
         return result if result or not value else _MISSING
     if isinstance(value, list):
-        children = [_remaining(child, consumed, path + (index,))
+        items = None if schema is None else schema.items()
+        children = [_remaining(child, consumed, items, path + (index,))
                     for index, child in enumerate(value)]
         if value and all(child is _MISSING for child in children):
             return _MISSING
@@ -163,27 +147,25 @@ def _remaining(value, consumed, path=()):
     return deepcopy(value)
 
 
-# Collects unknown source fields while keeping their nesting and list positions.
-def _extras(value):
-    """Retain recursively declared model_extra values and list-item positions."""
-    if isinstance(value, BaseModel):
-        result = deepcopy(value.model_extra or {})
-        for name, field in type(value).model_fields.items():
-            if name not in value.model_fields_set:
+# Collects source fields the contract does not declare, keeping nesting and list positions.
+def _extras(value, schema=None):
+    """Undeclared fields per the contract schema; open schemas declare everything."""
+    if schema is None:
+        return _MISSING
+    if isinstance(value, dict):
+        if schema.is_open:
+            return _MISSING
+        result = {}
+        for key, child in value.items():
+            if key not in schema.declared():
+                result[key] = deepcopy(child)
                 continue
-            child = _extras(getattr(value, name))
+            child = _extras(child, schema.child(key))
             if child is not _MISSING:
-                key = field.alias or name
-                if key in result:
-                    raise ValueError(f"Extra-field collision at {key!r}")
                 result[key] = child
         return result if result else _MISSING
-    if isinstance(value, dict):
-        result = {key: child for key, item in value.items()
-                  if (child := _extras(item)) is not _MISSING}
-        return result if result else _MISSING
     if isinstance(value, list):
-        children = [_extras(child) for child in value]
+        children = [_extras(child, schema.items()) for child in value]
         if all(child is _MISSING for child in children):
             return _MISSING
         return [{} if child is _MISSING else child for child in children]
@@ -203,28 +185,26 @@ def _put(output, path, value):
     output[segments[-1]] = value
 
 
+
+
 class MappingEngine:
     """Preflight rule paths/helpers, then map one validated source record.
 
-    Remaining known fields live at provider_fields.<provider>.unmapped with
-    their source nesting. This reserved branch avoids mixing original names
-    with explicitly renamed provider fields. No adapters are called here.
+    Remaining contract-declared fields live at provider_fields.<provider>.unmapped
+    and undeclared fields at source_extras.<provider>, both with source nesting.
     """
 
-    # Sets up the engine and checks the rules against the source and output models.
-    def __init__(self, config: MappingConfig, source_model: type[BaseModel],
+    # Sets up the engine and checks the rules against the source schema and output model.
+    def __init__(self, config: MappingConfig, source_schema: Schema,
                  output_model: type[BaseModel]):
         self.config = config.model_copy(deep=True)
-        self.source_model = source_model
+        self.source_schema = source_schema
         self.output_model = output_model
-        # Resolve source/canonical forward annotations before inspecting paths.
-        # This builds schemas; it does not validate the input record again.
-        self.source_model.model_rebuild()
         self.output_model.model_rebuild()
-        self._preflight(self.config.fields, source_model, output_model, root=True)
+        self._preflight(self.config.fields, source_schema, output_model, root=True)
 
     # Checks field paths, nested rule types and available helpers before mapping.
-    def _preflight(self, rules, source_type, target_type, root=False):
+    def _preflight(self, rules, source_schema, target_type, root=False):
         for rule in rules:
             if root and rule.target.split(".")[0] in ("provider", "source_metadata", "source_extras"):
                 raise ValueError(f"Engine-owned target cannot be mapped: {rule.target!r}")
@@ -236,39 +216,39 @@ class MappingEngine:
                 paths = rule.source if isinstance(rule.source, list) else [rule.source]
                 if rule.source_scope == "record":
                     for path in paths:
-                        _path_type(source_type, path)
+                        _source_path(source_schema, path)
                 if rule.transform is not None:
                     validate_helper(rule.transform.name, len(paths), rule.transform.arguments)
                 continue
-            source_annotation = _path_type(source_type, rule.source)
+            source = _source_path(source_schema, rule.source)
             if isinstance(rule, ListMapping):
-                if get_origin(source_annotation) is not list:
+                if not source.is_array and not source.is_open:
                     raise ValueError(f"List rule requires a list source: {rule.source!r}")
-                source_annotation = get_args(source_annotation)[0]
+                source = source.items()
                 if target_annotation is not Any:
                     if get_origin(target_annotation) is not list:
                         raise ValueError(f"List rule requires a list target: {rule.target!r}")
                     target_annotation = get_args(target_annotation)[0]
-            for annotation in (source_annotation, target_annotation):
-                if annotation is not Any and not _is_model(annotation) and get_origin(annotation) is not dict:
-                    raise ValueError("Object/list item rules require object-shaped source and target")
-            self._preflight(rule.fields, source_annotation, target_annotation)
+            if (target_annotation is not Any and not _is_model(target_annotation)
+                    and get_origin(target_annotation) is not dict):
+                raise ValueError("Object/list item rules require an object-shaped target")
+            self._preflight(rule.fields, source, target_annotation)
 
-    # Maps one validated source record and returns a validated canonical object.
-    def map(self, source: BaseModel, *, context: dict[str, Any] | None = None,
+    # Maps one validated source record (a dict) and returns a validated canonical object.
+    def map(self, source: dict, *, context: dict[str, Any] | None = None,
             metadata: dict[str, Any] | None = None) -> BaseModel:
-        if not isinstance(source, self.source_model):
-            raise TypeError(f"Expected validated {self.source_model.__name__}")
+        if not isinstance(source, dict):
+            raise TypeError("Expected a source record object (dict)")
         output = {"provider": self.config.provider}
         consumed = set()
         original = {}
         issues = []
         self._apply(self.config.fields, source, output, context or {}, consumed,
                     original, issues)
-        remaining = _remaining(source, consumed)
+        remaining = _remaining(source, consumed, self.source_schema)
         if remaining is not _MISSING:
             _put(output, f"provider_fields.{self.config.provider}.unmapped", remaining)
-        extras = _extras(source)
+        extras = _extras(source, self.source_schema)
         if extras is not _MISSING:
             output["source_extras"] = {self.config.provider: extras}
         source_metadata = {}

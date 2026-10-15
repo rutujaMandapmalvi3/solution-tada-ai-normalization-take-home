@@ -46,6 +46,10 @@ class CanonicalDeduction(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
     provider: Provider
+    # Canonical identity and links (docs/solution-docs/relationship_policies.md).
+    id: Optional[str] = None
+    company_ref: Optional[str] = None
+    employee_ref: Optional[str] = None
     deduction_id: Optional[str]
     employee_id: Optional[str] = None
     employee_number: Optional[str] = None

@@ -1,0 +1,105 @@
+# isolved salary history: GET .../employees/{employeeId}/salaries.
+# The pipeline wraps the response list as {salary_history: [...]} and merges
+# this record into the employee with the same canonical id. The salary
+# records carry no employee id, so employee_id comes from params (context).
+version: 1
+provider: isolved
+entity: employee
+fields:
+- kind: field
+  source: employee_id
+  source_scope: context
+  target: employee_id
+- kind: list
+  source: salary_history
+  target: provider_fields.isolved.salary_history
+  fields:
+  - kind: field
+    source: id
+    target: id
+    transform:
+      name: identifier
+  - kind: object
+    source: changeReason
+    target: change_reason
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: description
+      target: description
+  - kind: field
+    source: comments
+    target: comments
+  - kind: field
+    source: effectiveDate
+    target: effective_date
+    transform:
+      name: date
+  - kind: object
+    source: frequency
+    target: frequency
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: description
+      target: description
+  - kind: field
+    source: hourlyRate
+    target: hourly_rate
+  - kind: field
+    source: isInactive
+    target: is_inactive
+  - kind: field
+    source: lifeEvent
+    target: life_event
+  - kind: field
+    source: normalHours
+    target: normal_hours
+  - kind: object
+    source: payGroup
+    target: pay_group
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: description
+      target: description
+  - kind: object
+    source: payType
+    target: pay_type
+    fields:
+    - kind: field
+      source: id
+      target: id
+    - kind: field
+      source: description
+      target: description
+  - kind: field
+    source: perPaySalary
+    target: per_pay_salary
+  - kind: list
+    source: seasons
+    target: seasons
+    fields:
+    - kind: field
+      source: id
+      target: id
+      transform:
+        name: identifier
+    - kind: field
+      source: description
+      target: description
+    - kind: field
+      source: isSelected
+      target: is_selected

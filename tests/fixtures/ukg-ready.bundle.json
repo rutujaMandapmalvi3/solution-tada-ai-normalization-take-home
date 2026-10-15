@@ -1,0 +1,219 @@
+{
+  "provider": "ukg-ready",
+  "responses": [
+    {
+      "endpoint": "/v2/companies/{cid}/lookup/eins",
+      "params": {
+        "cid": "001"
+      },
+      "body": {
+        "items": [
+          {
+            "id": 1,
+            "ein_name": "Example EIN",
+            "ein_tax_id": "SYNTHETIC-TAX-ID",
+            "fixture_note": false
+          }
+        ]
+      }
+    },
+    {
+      "endpoint": "/v2/companies/{cid}/employees",
+      "params": {
+        "cid": "001"
+      },
+      "body": {
+        "employees": [
+          {
+            "id": 7.0,
+            "first_name": "Alex",
+            "last_name": "Example",
+            "dates": {
+              "birthday": "2000-01-02"
+            },
+            "ein_name": "Example EIN",
+            "fixture_note": false
+          }
+        ]
+      }
+    },
+    {
+      "endpoint": "/v2/companies/{cid}/employees/{aid}/pay-info",
+      "params": {
+        "cid": "001",
+        "aid": "7"
+      },
+      "body": {
+        "standard_work_day": 28800000,
+        "payroll_classification": "REGULAR"
+      }
+    },
+    {
+      "endpoint": "/v2/companies/{cid}/employees/{aid}/compensation/history",
+      "params": {
+        "cid": "001",
+        "aid": "7"
+      },
+      "body": {
+        "compensations": [
+          {
+            "id": 91,
+            "employee": {
+              "account_id": 7
+            },
+            "effective_from": "2026-01-01",
+            "amount": 95000,
+            "amount_period": "YEAR",
+            "time": 7488000000,
+            "time_period": "YEAR",
+            "currency": "USD"
+          }
+        ]
+      }
+    },
+    {
+      "endpoint": "/v2/companies/{cid}/employees/{aid}/direct-deposits",
+      "params": {
+        "cid": "001",
+        "aid": "7"
+      },
+      "body": {
+        "deposits": [
+          {
+            "id": 10,
+            "account_number": "000000001",
+            "routing_number": "000000000",
+            "account_type": "CHECKING",
+            "amount": 25.0,
+            "calc_method": {
+              "type": "FLAT_AMOUNT"
+            },
+            "active": false,
+            "fixture_note": false
+          }
+        ],
+        "_links": {}
+      }
+    },
+    {
+      "endpoint": "/v2/companies/{cid}/employees/{aid}/deductions",
+      "params": {
+        "cid": "001",
+        "aid": "7"
+      },
+      "body": {
+        "deductions": [
+          {
+            "id": 10,
+            "deduction": {
+              "code": "SYNTHETIC",
+              "name": "Example deduction"
+            },
+            "effective_from": "2026-10-01",
+            "fixture_note": false
+          }
+        ]
+      }
+    },
+    {
+      "endpoint": "/v2/companies/{cid}/lookup/deduction-codes",
+      "params": {
+        "cid": "001"
+      },
+      "body": {
+        "items": [
+          {
+            "id": 11,
+            "code": "SYNTHETIC"
+          }
+        ]
+      }
+    },
+    {
+      "endpoint": "/v2/companies/{cid}/employees/{aid}/benefits",
+      "params": {
+        "cid": "001",
+        "aid": "7"
+      },
+      "body": {
+        "benefits": [
+          {
+            "id": 12
+          }
+        ]
+      }
+    },
+    {
+      "endpoint": "/v2/companies/{cid}/payrolls",
+      "params": {
+        "cid": "001"
+      },
+      "body": {
+        "payrolls": [
+          {
+            "id": 1,
+            "pay_date": "2026-10-15"
+          }
+        ]
+      }
+    },
+    {
+      "endpoint": "/v2/companies/{cid}/payrolls/{id}/pay-statements",
+      "params": {
+        "cid": "001",
+        "payroll_id": "1"
+      },
+      "body": {
+        "pay_statements": [
+          {
+            "id": 10,
+            "employee": {
+              "account_id": 7.0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "endpoint": "/v2/companies/{cid}/payrolls/{id}/pay-statements/{id}",
+      "params": {
+        "cid": "001",
+        "payroll_id": "1",
+        "pay_statement_id": "10"
+      },
+      "body": {
+        "id": 10,
+        "employee": {
+          "account_id": 7.0
+        },
+        "earnings": [
+          {
+            "id": 20,
+            "hours": 0,
+            "ee_amount": 0.0
+          }
+        ],
+        "deductions": [
+          {
+            "id": 30,
+            "ee_amount": 0.0,
+            "er_amount": 0.0
+          }
+        ],
+        "taxes": [
+          {
+            "id": 40,
+            "ee_amount": 0.0
+          }
+        ],
+        "payments": [
+          {
+            "id": 50,
+            "ee_amount": 0.0
+          }
+        ],
+        "fixture_note": false
+      }
+    }
+  ]
+}

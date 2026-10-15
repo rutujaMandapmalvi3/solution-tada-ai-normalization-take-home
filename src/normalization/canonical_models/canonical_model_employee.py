@@ -59,6 +59,9 @@ class CanonicalEmployee(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
     provider: Provider
+    # Canonical identity and links (docs/solution-docs/relationship_policies.md).
+    id: Optional[str] = None
+    company_ref: Optional[str] = None
     employee_id: Optional[str]
     last_name: Optional[str] = None
     first_name: Optional[str] = None

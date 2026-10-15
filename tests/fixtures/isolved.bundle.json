@@ -1,0 +1,173 @@
+{
+  "provider": "isolved",
+  "responses": [
+    {
+      "endpoint": "/api/clients/{clientId}/legals",
+      "params": {
+        "clientId": "4000"
+      },
+      "body": [
+        {
+          "id": 1,
+          "legalName": "Example Company",
+          "dbaName": "Example Trade",
+          "fixture_note": false
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees",
+      "params": {
+        "clientId": "4000",
+        "legalId": "1"
+      },
+      "body": {
+        "results": [
+          {
+            "id": 7,
+            "nameAddress": {
+              "id": 70,
+              "firstName": "Alex",
+              "lastName": "Example"
+            },
+            "birthDate": "2000-01-02",
+            "annualSalary": 50000.0,
+            "fixture_note": false
+          }
+        ],
+        "totalItems": 1,
+        "nextPageUrl": null
+      }
+    },
+    {
+      "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees/{employeeId}/salaries",
+      "params": {
+        "clientId": "4000",
+        "legalId": "1",
+        "employeeId": "7"
+      },
+      "body": [
+        {
+          "id": 90,
+          "effectiveDate": "2026-01-01T00:00:00",
+          "payType": {
+            "id": "2",
+            "description": "Salary"
+          },
+          "frequency": {
+            "id": 26,
+            "description": "Biweekly"
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees/{employeeId}/directdeposits",
+      "params": {
+        "clientId": "4000",
+        "legalId": "1",
+        "employeeId": "7"
+      },
+      "body": [
+        {
+          "id": 10,
+          "accountNumber": "000000001",
+          "routingNumber": "000000000",
+          "accountType": "Checking",
+          "amount": 25.0,
+          "percent": null,
+          "sequenceNumber": 0,
+          "fixture_note": false
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees/{employeeId}/payItems",
+      "params": {
+        "clientId": "4000",
+        "legalId": "1",
+        "employeeId": "7"
+      },
+      "body": [
+        {
+          "id": 10,
+          "employeeId": 7,
+          "payItemType": "Deduction",
+          "payItemName": "Example deduction",
+          "calcParams": [
+            {
+              "paramType": "Amount",
+              "paramValue": 0.0
+            }
+          ],
+          "fixture_note": false
+        },
+        {
+          "id": 11,
+          "payItemType": "Earning"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/clients/{clientId}/legals/{legalId}/paygroupId/{paygroupId}/payrollRunHistory/byDate",
+      "params": {
+        "clientId": "4000",
+        "legalId": "1",
+        "paygroupId": "77",
+        "startDate": "2026-10-01",
+        "endDate": "2026-10-31"
+      },
+      "body": [
+        {
+          "id": 1,
+          "runNumber": 2,
+          "payDate": "2026-10-15"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/clients/{clientId}/legals/{legalId}/payGroups/{payGroupId}/checks",
+      "params": {
+        "clientId": "4000",
+        "legalId": "1",
+        "payGroupId": "77"
+      },
+      "body": {
+        "results": [
+          {
+            "id": 10,
+            "employeeId": 7,
+            "payrollRunNumber": 2,
+            "checkNumber": 1,
+            "netPay": 0.0,
+            "checkAmount": 0.0,
+            "earnings": [
+              {
+                "id": 20,
+                "checkHours": 0.0
+              }
+            ],
+            "deductions": [
+              {
+                "id": 30,
+                "checkDollars": 0.0
+              }
+            ],
+            "taxes": [
+              {
+                "id": 40,
+                "checkDollars": 0.0
+              }
+            ],
+            "benefits": [
+              {
+                "checkEmployerContribution": 0.0
+              }
+            ],
+            "fixture_note": false
+          }
+        ]
+      }
+    }
+  ]
+}

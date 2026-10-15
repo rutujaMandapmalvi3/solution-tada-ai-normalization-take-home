@@ -21,6 +21,9 @@ class PayrollSourceMetadata(BaseModel):
 class PayrollRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
     provider: Provider
+    # Canonical identity and links (docs/solution-docs/relationship_policies.md).
+    id: str | None = None
+    company_ref: str | None = None
     provider_fields: dict[str, Any] = Field(default_factory=dict)
     source_metadata: PayrollSourceMetadata = Field(default_factory=PayrollSourceMetadata)
     source_extras: dict[str, Any] = Field(default_factory=dict)
@@ -37,6 +40,8 @@ class CanonicalPayrollRun(PayrollRecord):
 # Covers employee paycheck summaries, associations, dates and verified amounts.
 class CanonicalPaycheckHeader(PayrollRecord):
     paycheck_id: str | None
+    employee_ref: str | None = None
+    payroll_run_ref: str | None = None
     employee_id: str | None = None
     payroll_run_id: str | None = None
     pay_date: date | None = None

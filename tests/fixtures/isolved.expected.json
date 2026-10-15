@@ -1,0 +1,371 @@
+{
+  "provider": "isolved",
+  "companies": [
+    {
+      "provider": "isolved",
+      "id": "isolved:company:4000:1",
+      "source_record_type": "legal_company",
+      "source_record_id": "1",
+      "legal_name": "Example Company",
+      "trade_name": "Example Trade",
+      "source_metadata": {
+        "original_values": {
+          "id": 1
+        },
+        "isolved": {
+          "sources": [
+            {
+              "response": 0,
+              "endpoint": "/api/clients/{clientId}/legals",
+              "path": "0"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "isolved": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "employees": [
+    {
+      "provider": "isolved",
+      "id": "isolved:employee:4000:1:7",
+      "company_ref": "isolved:company:4000:1",
+      "employee_id": "7",
+      "last_name": "Example",
+      "first_name": "Alex",
+      "birth_date": "2000-01-02",
+      "annual_salary": 50000.0,
+      "provider_fields": {
+        "isolved": {
+          "name_address": {
+            "id": "70"
+          },
+          "salary_history": [
+            {
+              "id": "90",
+              "effective_date": "2026-01-01",
+              "frequency": {
+                "id": "26",
+                "description": "Biweekly"
+              },
+              "pay_type": {
+                "id": "2",
+                "description": "Salary"
+              }
+            }
+          ]
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 7,
+          "birthDate": "2000-01-02",
+          "nameAddress.id": 70,
+          "salary_history.0.id": 90,
+          "salary_history.0.effectiveDate": "2026-01-01T00:00:00",
+          "salary_history.0.frequency.id": 26
+        },
+        "isolved": {
+          "sources": [
+            {
+              "response": 1,
+              "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees",
+              "path": "results/0"
+            },
+            {
+              "response": 2,
+              "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees/{employeeId}/salaries",
+              "path": "<body>"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "isolved": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "direct_deposits": [
+    {
+      "provider": "isolved",
+      "id": "isolved:direct_deposit:4000:1:7:10",
+      "company_ref": "isolved:company:4000:1",
+      "employee_ref": "isolved:employee:4000:1:7",
+      "deposit_id": "10",
+      "employee_id": "7",
+      "account_number": "000000001",
+      "routing_number": "000000000",
+      "account_type": "checking",
+      "allocation_amount": 25.0,
+      "allocation_percentage": null,
+      "sequence": 0,
+      "source_metadata": {
+        "original_values": {
+          "id": 10,
+          "accountType": "Checking",
+          "amount": 25.0,
+          "percent": null,
+          "context.employee_id": "7"
+        },
+        "isolved": {
+          "sources": [
+            {
+              "response": 3,
+              "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees/{employeeId}/directdeposits",
+              "path": "0"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "isolved": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "deductions": [
+    {
+      "provider": "isolved",
+      "id": "isolved:deduction:4000:1:7:10",
+      "company_ref": "isolved:company:4000:1",
+      "employee_ref": "isolved:employee:4000:1:7",
+      "deduction_id": "10",
+      "employee_id": "7",
+      "deduction_name": "Example deduction",
+      "provider_fields": {
+        "isolved": {
+          "calc_params": [
+            {
+              "param_type": "Amount",
+              "param_value": 0.0
+            }
+          ],
+          "pay_item_type": "Deduction",
+          "request_employee_id": "7"
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 10,
+          "calcParams.0.paramValue": 0.0,
+          "employeeId": 7,
+          "context.employee_id": "7"
+        },
+        "isolved": {
+          "sources": [
+            {
+              "response": 4,
+              "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees/{employeeId}/payItems",
+              "path": "0"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "isolved": {
+          "fixture_note": false
+        }
+      }
+    }
+  ],
+  "payroll_runs": [
+    {
+      "provider": "isolved",
+      "id": "isolved:payroll_run:4000:1:77:1",
+      "company_ref": "isolved:company:4000:1",
+      "provider_fields": {
+        "isolved": {
+          "run_number": 2
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 1,
+          "payDate": "2026-10-15"
+        },
+        "isolved": {
+          "sources": [
+            {
+              "response": 5,
+              "endpoint": "/api/clients/{clientId}/legals/{legalId}/paygroupId/{paygroupId}/payrollRunHistory/byDate",
+              "path": "0"
+            }
+          ]
+        }
+      },
+      "payroll_run_id": "1",
+      "payroll_run_pay_date": "2026-10-15"
+    }
+  ],
+  "paychecks": [
+    {
+      "provider": "isolved",
+      "id": "isolved:paycheck:4000:1:10",
+      "company_ref": "isolved:company:4000:1",
+      "provider_fields": {
+        "isolved": {
+          "benefits": [
+            {
+              "check_employer_contribution": 0.0
+            }
+          ],
+          "deductions": [
+            {
+              "id": "30",
+              "check_dollars": 0.0
+            }
+          ],
+          "earnings": [
+            {
+              "id": "20",
+              "check_hours": 0.0
+            }
+          ],
+          "payroll_run_number": 2,
+          "taxes": [
+            {
+              "id": "40",
+              "check_dollars": 0.0
+            }
+          ]
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": 10,
+          "checkAmount": 0.0,
+          "checkNumber": 1,
+          "deductions.0.id": 30,
+          "earnings.0.id": 20,
+          "employeeId": 7,
+          "netPay": 0.0,
+          "taxes.0.id": 40
+        },
+        "isolved": {
+          "sources": [
+            {
+              "response": 6,
+              "endpoint": "/api/clients/{clientId}/legals/{legalId}/payGroups/{payGroupId}/checks",
+              "path": "results/0"
+            }
+          ]
+        }
+      },
+      "source_extras": {
+        "isolved": {
+          "fixture_note": false
+        }
+      },
+      "paycheck_id": "10",
+      "employee_ref": "isolved:employee:4000:1:7",
+      "employee_id": "7",
+      "check_number": "1",
+      "net_pay": 0.0,
+      "check_amount": 0.0
+    }
+  ],
+  "provider_fields": {
+    "isolved": {
+      "filtered_records": [
+        {
+          "response": 4,
+          "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees/{employeeId}/payItems",
+          "path": "1",
+          "reason": "not a deduction record",
+          "record": {
+            "id": 11,
+            "payItemType": "Earning"
+          }
+        }
+      ]
+    }
+  },
+  "source_metadata": {
+    "isolved": {
+      "responses": [
+        {
+          "response": 0,
+          "endpoint": "/api/clients/{clientId}/legals",
+          "params": {
+            "clientId": "4000"
+          }
+        },
+        {
+          "response": 1,
+          "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees",
+          "params": {
+            "clientId": "4000",
+            "legalId": "1"
+          },
+          "wrapper": {
+            "totalItems": 1,
+            "nextPageUrl": null
+          }
+        },
+        {
+          "response": 2,
+          "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees/{employeeId}/salaries",
+          "params": {
+            "clientId": "4000",
+            "legalId": "1",
+            "employeeId": "7"
+          }
+        },
+        {
+          "response": 3,
+          "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees/{employeeId}/directdeposits",
+          "params": {
+            "clientId": "4000",
+            "legalId": "1",
+            "employeeId": "7"
+          }
+        },
+        {
+          "response": 4,
+          "endpoint": "/api/clients/{clientId}/legals/{legalId}/employees/{employeeId}/payItems",
+          "params": {
+            "clientId": "4000",
+            "legalId": "1",
+            "employeeId": "7"
+          }
+        },
+        {
+          "response": 5,
+          "endpoint": "/api/clients/{clientId}/legals/{legalId}/paygroupId/{paygroupId}/payrollRunHistory/byDate",
+          "params": {
+            "clientId": "4000",
+            "legalId": "1",
+            "paygroupId": "77",
+            "startDate": "2026-10-01",
+            "endDate": "2026-10-31"
+          }
+        },
+        {
+          "response": 6,
+          "endpoint": "/api/clients/{clientId}/legals/{legalId}/payGroups/{payGroupId}/checks",
+          "params": {
+            "clientId": "4000",
+            "legalId": "1",
+            "payGroupId": "77"
+          }
+        }
+      ],
+      "reference_pack": {
+        "provider": "isolved",
+        "reference_version": "6-private-reference-1",
+        "distribution_status": "user_approved_private_upload",
+        "warnings": [
+          "Candidate-distribution permission has not been verified."
+        ]
+      }
+    }
+  },
+  "issues": []
+}
