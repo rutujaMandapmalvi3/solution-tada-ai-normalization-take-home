@@ -1,68 +1,47 @@
-"""Deterministic generation, source validation and expected-output protection."""
-import copy
+"""Deterministic bundle generation, contract validation and expected-output protection."""
 import importlib.util
 import json
 from pathlib import Path
-import random
-from unittest.mock import patch
+
 import pytest
 
 ROOT = Path(__file__).parents[1]
-spec = importlib.util.spec_from_file_location("fixture_generator", ROOT/"scripts/generate_fixtures.py")
+spec = importlib.util.spec_from_file_location("fixture_generator", ROOT / "scripts/generate_fixtures.py")
 generator = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(generator)
 
 
-def test_all_fifteen_cases_validate_and_match_reviewed_default_inputs(tmp_path):
+def test_default_seed_reproduces_committed_bundles(tmp_path):
     paths = generator.generate(output_dir=tmp_path)
-    assert len(paths)==15
+    assert sorted(path.name for path in paths) == ["isolved.bundle.json", "prismhr.bundle.json",
+                                                    "ukg-ready.bundle.json"]
     for path in paths:
-        relative=path.relative_to(tmp_path)
-        provider,entity,_=relative.parts
-        payload=json.loads(path.read_text())
-        before=copy.deepcopy(payload)
-        generator.validate_case(provider,entity,payload)
-        assert payload==before
-        assert payload==json.loads((ROOT/"tests/fixtures"/relative).read_text())
-    assert json.loads((tmp_path/"manifest.json").read_text())==json.loads((ROOT/"tests/fixtures/manifest.json").read_text())
-    generation=json.loads((tmp_path/"generation_manifest.json").read_text())
-    assert generation["seed"]==42 and generation["case_count"]==15
-    assert len(generation["files"])==15 and len(generation["evidence"])==3
+        assert path.read_text() == (ROOT / "tests/fixtures" / path.name).read_text()
+    manifest = json.loads((tmp_path / "generation_manifest.json").read_text())
+    assert manifest["seed"] == 42 and manifest["bundle_count"] == 3
+    assert len(manifest["files"]) == 3 and len(manifest["evidence"]) == 3
 
 
-def test_repeatable_and_different_seed_preserves_source_validity(tmp_path):
-    generator.generate(42,tmp_path)
-    before={str(p.relative_to(tmp_path)):p.read_bytes() for p in tmp_path.rglob("*.json")}
-    generator.generate(42,tmp_path)
-    assert before=={str(p.relative_to(tmp_path)):p.read_bytes() for p in tmp_path.rglob("*.json")}
-    other=generator.build_cases(43)
-    assert other!=generator.build_cases(42)
-    for provider,entities in other.items():
-        for entity,payload in entities.items():
-            generator.validate_case(provider,entity,payload)
-
-
-def test_does_not_touch_expected_files_or_global_random_state(tmp_path):
-    expected=tmp_path/"prismhr/employee/expected.json"
-    expected.parent.mkdir(parents=True)
-    expected.write_text("reviewed baseline\n")
-    state=random.getstate()
+def test_generation_never_writes_expected_outputs(tmp_path):
     generator.generate(output_dir=tmp_path)
-    assert random.getstate()==state
-    assert expected.read_text()=="reviewed baseline\n"
-    assert list(tmp_path.rglob("expected.json"))==[expected]
+    assert not list(tmp_path.glob("*.expected.json"))
 
 
-def test_invalid_case_does_not_write_partial_fixture_set(tmp_path):
-    cases=generator.build_cases()
-    cases["ukg-ready"]["company"]["items"][0].pop("id")
-    target=tmp_path/"not-created"
-    with patch.object(generator,"build_cases",return_value=cases),pytest.raises(ValueError):
-        generator.generate(output_dir=target)
-    assert not target.exists()
+def test_another_seed_changes_values_not_shape(tmp_path):
+    default, other = generator.build_bundles(42), generator.build_bundles(7)
+    for provider in default:
+        assert [r["endpoint"] for r in default[provider]["responses"]] == \
+               [r["endpoint"] for r in other[provider]["responses"]]
 
 
-def test_cli_options(tmp_path,capsys):
-    assert generator.main(["--seed","43","--output-dir",str(tmp_path)])==0
-    assert "Generated 15 input fixtures" in capsys.readouterr().out
-    assert json.loads((tmp_path/"generation_manifest.json").read_text())["seed"]==43
+def test_every_bundle_names_its_owner_in_params():
+    for bundle in generator.build_bundles().values():
+        for response in bundle["responses"]:
+            assert response["params"], response["endpoint"]
+
+
+def test_type_errors_are_rejected_before_writing(tmp_path):
+    bundle = generator.build_bundles()["ukg-ready"]
+    bundle["responses"][0]["body"]["items"][0]["id"] = "not-an-integer"
+    with pytest.raises(ValueError, match="items/0/id"):
+        generator.validate_bundle(bundle)

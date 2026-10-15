@@ -2,8 +2,8 @@
 # ids/refs are built (docs/solution-docs/relationship_policies.md, Tables 1-2).
 """PrismHR routes.
 
-Route keys (see pipeline.py): type, records, yaml, context, ignore, where,
-check, defaults, id, refs. Placeholders: {params.x} request params,
+Route keys (see pipeline.py): type, records, yaml, schema, wrap, context,
+ignore, where, check, fill_record, defaults, id, refs. Placeholders: {params.x} request params,
 {record.x} the mapped record, {parent.x} the enclosing record.
 Owner scope = clientId (PrismHR employee ids are unique only within a client).
 """

@@ -80,7 +80,8 @@ ROUTES = {
     }],
     COMPANIES + "/payrolls/{id}/pay-statements/{id}": [{
         "type": "paycheck", "records": "", "yaml": "paycheck",
-        "id": ["{params.cid}:{record.id}", "{params.cid}:{params.pay_statement_id}"],
+        "fill_record": {"id": "{params.pay_statement_id}"},
+        "id": "{params.cid}:{record.id}",
         "refs": _STATEMENT_REFS,
     }],
 }

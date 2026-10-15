@@ -195,6 +195,14 @@ def normalize_bundle(bundle: Any) -> dict:
                     if a is not None and b is not None and a != b:
                         raise ValueError(f"{endpoint} {where}: params owner {right} = {b!r} "
                                          f"conflicts with response {left} = {a!r}")
+                # Policy rule 5: a single-record response without its own id takes
+                # it from params (e.g. UKG statement detail -> pay_statement_id).
+                filled = {field: render(template, scope)
+                          for field, template in (route.get("fill_record") or {}).items()
+                          if record.get(field) in (None, "")}
+                if filled:
+                    record = {**record, **{k: v for k, v in filled.items() if v is not None}}
+                    scope["record"] = record
                 key = _first(route["id"], scope)
                 if key is None:
                     raise ValueError(f"{endpoint} {where}: cannot build {route['type']} id from "
