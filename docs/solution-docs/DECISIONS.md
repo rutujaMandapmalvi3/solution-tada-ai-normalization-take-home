@@ -1,249 +1,188 @@
-# Assumptions & Decisions
+# Decisions, assumptions and gaps
 
-## Architecture change: contracts, bundles and merge by id
+This log describes the system as it is implemented. Each decision has its reason.
+Record ids, refs and merge rules are specified in full in
+[relationship_policies.md](./relationship_policies.md). Per-field mapping evidence
+is in the proposals listed at the end.
 
-This section supersedes the earlier rows it lists below. Relationship rules are
-in [relationship_policies.md](./relationship_policies.md).
+Data flow:
 
-| Decision | Reason |
+```
+bundle file → read + deserialize (CLI) → readiness check
+  → per response: prepare (status, provider error, live renames) → validate against the contract
+  → route lookup → map each record (YAML) → stamp id + refs
+→ merge by id → re-validate records → link check → canonical document → write file (CLI)
+```
+
+## 1. Input
+
+| Decision | Why |
 |---|---|
-| Validate each response directly against its contract (`src/normalization/contracts.py`); the 18 Pydantic source models are removed. | The contracts are the source of truth. A hand-written copy of every field drifts from them and doubles maintenance. |
-| Contract sources: PrismHR OpenAPI 3.0.1, isolved primary Swagger 2.0 only, UKG `reference-schemas.json` (the GET schema of the page named after the endpoint; no HTML is read). | These are the README-approved references. The README says not to mix the two isolved snapshots. |
-| `null` counts as "not supplied". A non-null value of the wrong type stops the run (exit 1). Undocumented fields, enum, length and range violations are `contract_drift` warnings in `issues`. `required` is not enforced. | Live data returns null for most fields, and the contracts mark nearly every field required. Only record ids are required, and the id templates enforce them. A wrong type means a record cannot be mapped safely, matching the previous Pydantic behaviour. |
-| Four live PrismHR spellings are renamed to the contract names before validation (`payrollVoucher`, `person.employerId`, `person.autoPolicy`, `client.hawaiiMedWaiver`), scoped by parent key. | Replaces the `AliasChoices` in the source models. `clientMaster.employerId` is a real contract field, so the renames are scoped. |
-| Fields the live demo returns but the contract does not list are declared once in `contracts.LIVE_FIELDS` (PrismHR company/employee/voucher, isolved pay item `balance`, UKG `ein_name`, payroll `ein.ein_country_id`). | The source models declared these as "live-only". Listing them keeps YAML preflight strict while still allowing these fields to be mapped. |
-| The engine maps plain dicts. YAML source paths are preflighted against the contract schema, and unknown names fail at load time. Declared but unmapped fields go to `provider_fields.<p>.unmapped`; undeclared fields go to `source_extras.<p>`. | Same output layout and the same typo protection as before, without model classes. |
-| UKG employee list items are mapped with the employee detail schema (route key `schema`). | The list page schema is a cut-down view of the same employee resource. Validation still uses the list schema. |
-| Input is one bundle per provider: `{provider, responses: [{endpoint, params, status?, body}]}`. | `endpoint` selects the contract schema. `params` carries owner ids that bodies omit. One run sees company, employees and children together, so it can merge records and check links. |
-| `--entity`, `--client-id` and `--employee-id` are removed; owner ids come from each response's `params`. | A flag could silently disagree with the file it is used with. |
-| One run writes one document: `companies, employees, direct_deposits, deductions, payroll_runs, paychecks, provider_fields, source_metadata, issues`. | Links can be checked within the same run. |
-| Every record gets `id`; children get `company_ref` / `employee_ref` / `payroll_run_ref` (relationship_policies.md, Tables 1–2). Existing source-id fields (`employee_id`, `source_record_id`, …) keep their meaning. | One cross-provider rule for identity and links, without changing the meaning of existing fields. |
-| Records with the same `id` merge: missing fields are filled, objects merge, lists join, and differing values keep the first one and add `merge_conflict`. The merged record is validated again. | Several responses describe one record (UKG profile + pay-info + compensation; isolved employee + salaries; UKG statement header + detail). |
-| Combined inputs become separate responses. The YAML rules for `salary_history`, `pay_info` and `compensation_history` moved unchanged into `employee_salaries.yaml`, `employee_pay_info.yaml` and `employee_compensation.yaml`; the pipeline wraps the response as `{section: body}` (route key `wrap`). | Keeps the existing mapping rules and output, while each body is validated against its own endpoint. |
-| UKG: one company record per `cid` (`source_record_type: company`, `company_root.yaml`). EIN lookup items stay `ein` records, with `company_ref` pointing to it. | UKG employees can then link to a real company, not to an EIN. |
-| UKG pay-statement header and detail merge into one paycheck; `paycheck_headers` is removed. | Supersedes "keep distinct roles": both describe the same statement and share its id. |
-| isolved company comes from `GET /api/clients/{clientId}/legals` (a list). | The primary snapshot has no single-legal GET. |
-| isolved non-deduction pay items, and responses with no canonical type (UKG deduction-code catalog, benefits), are kept under `provider_fields.<p>.filtered_records` / `unrouted_responses`. | Supplied data is never dropped. |
-| Each response's wrapper fields (e.g. PrismHR `errorCode`, UKG `_links`) are kept in `source_metadata.<p>.responses[]` together with endpoint and params. Each record lists its `sources`. | Provenance per response and per record. |
-| Integral floats (`7.0`) count as integers during contract validation. | Draft 4 alone rejects them; the previous source models and the identifier helper accept them, and UKG fixtures carry ids such as `7.0`. |
-| YAML preflight stays as strict as the old engine: a field path cannot walk into a list without `[]`, and a list rule needs a list source. Only untyped or object nodes without listed properties are open. | Keeps the typo and shape protection the Pydantic engine gave. |
-| A single-record response without its own id takes it from params before mapping (route key `fill_record`, e.g. UKG statement detail → `pay_statement_id`). | Policy rule 5 in relationship_policies.md; the canonical id field (`paycheck_id`) must be present when the record is mapped. |
-| Reference-pack warnings are attached once, at `source_metadata.<p>.reference_pack`. | The output is now a single document instead of per-employee records. |
-| Fixtures are three generated bundles (`tests/fixtures/<provider>.bundle.json`) plus reviewed `<provider>.expected.json`. They are validated with the contract layer. | One connected company per provider exercises ids, refs and merges end to end. |
+| The input is one **bundle** file per provider: `{provider, responses: [{endpoint, params, status?, body}]}`. | One run sees a provider's company, employees, deposits, deductions and payroll together. That lets records from different responses be merged and their links checked in the same run. |
+| `endpoint` is the contract path, written exactly as in the provider's contract (UKG: the documented resource path). | It selects the contract schema used to validate the body, so no guessing from shapes is needed. Different endpoints for the same entity (e.g. an employee list vs a single employee) have different schemas. |
+| `params` holds the request's path and query values (owner ids such as `clientId`, `legalId`, `cid`, `employeeId`, `aid`). | Response bodies often leave out who they belong to: PrismHR deductions have no client or employee id, and isolved deposits and UKG pay-info have no employee id. The request always says who was asked for. |
+| `status` is optional and defaults to 200. | It records a failed call as a failure instead of an empty dataset (the isolved demo returned HTTP 404 for payroll). |
+| UKG pay-statement paths contain two `{id}` placeholders, so bundles pass them as `payroll_id` and `pay_statement_id`. | A params object cannot hold two keys both named `id`. |
+| There are no CLI flags for owner ids; the CLI takes `--input` and `--output` only. | Owner ids live next to the response they describe, so a flag can never disagree with the file. |
+| The input is a local file and no API is called. | The README requires local, deterministic runs. Fetching and pagination belong to a separate capture step that writes bundles. |
 
-**Superseded earlier rows:**
-- `--employee-id` / `--client-id` context;
-- the UKG/isolved combined-input models;
-- separate provider source models;
-- `paycheck_headers`;
-- per-employee reference warnings;
-- the 15 per-entity fixture pairs and `manifest.json`;
-- `non_deduction_items` (now `filtered_records`).
+## 2. Contract validation (`contracts.py`)
 
-**Known gaps of this change:**
-- One wrong-typed value still stops the whole run; per-record rejection is part of the planned edge-case work.
-- Merging joins lists, so supplying the same response twice duplicates history and lines.
-- isolved checks still carry no payroll run id, so they have no `payroll_run_ref`.
-
-## Earlier decisions (before the architecture change)
-
-
-| Assumption / Decision | Reason |
+| Decision | Why |
 |---|---|
-| Preserve unexpected deduction records separately; do not classify them as deductions or discard them. | Retain supplied information while adapter filtering selects canonical deduction records. |
-| Use provider adapter filtering after source validation and before deduction mapping; keep selection out of YAML and the shared engine. | Select deduction records using provider-specific evidence without changing source models. |
-| isolved deductions map only verified Deduction items; retain other/unknown item kinds in provider_fields.isolved.non_deduction_items. | Preserve supplied known records without misclassifying earnings/memo items or treating them as unknown extras. |
-| Preserve unclear deduction amounts, calculation parameters and field meanings; apply only verified conversions. | Selected parameter descriptions/lookups do not establish a cross-provider calculation rule. |
-| Standalone deductions use CLI --employee-id context; preserve/check any source employee ID without silent overwrite. | Explicit employee association, consistent with direct deposits. |
-| Direct deposits use CLI --employee-id context for standalone inputs; preserve and check any response employee ID without silent overwrite. | Explicit ownership using the existing CLI-context pattern. |
-| Direct-deposit fixed allocation_amount matches Prism F, isolved amount and UKG FLAT_AMOUNT; preserve other Prism methods/limits separately. | Verified fixed/flat meaning; other bases/behavior remain unconfirmed. |
-| Preserve UKG direct-deposit type, including RESERVE_LIVE_CHECK, and undocumented values without inferred conversion. | Keep source meaning when descriptions are insufficient. |
-| Use one UKG employee input model and YAML for list/detail fields and supplements; keep EIN ID/name separate. | Shared validation and mapping; endpoint-specific field restrictions are relaxed. |
-| Canonical identifiers use strings; convert numeric IDs during mapping. | Consistent cross-provider identity without losing string formatting. |
-| Use one shared pronoun value; identical inputs appear once, while conflicting source values are retained without silent overwrite. | Avoid duplicate output keys and lost values. |
-| Keep ordinary gender, isolved EEO override, and PrismHR designation separate. | They serve different roles. |
-| Canonical dates serialize as YYYY-MM-DD; helpers handle invalid, blank, and timezone cases. | Consistent date representation. |
-| Compensation values are numeric; retain their documented basis without inferred unit/currency conversions. | Preserve amount meaning. |
-| Keep ethnic code, ethnic-origin description, and Hispanic flag separate until a verified crosswalk exists. | Relevant dictionaries and common categories remain unconfirmed. |
-| Keep provider-specific fields and unknown extras outside shared business fields. | Preserve data without overwriting shared meanings. |
-| UKG combined inputs use employee `pay_info`/`compensation_history`, deduction `assignments`/`code_lookup`/`benefits`, and payroll `payroll_runs`/`paycheck_list`/`paychecks`; reuse native schemas inside sections. | Validate supplemental data together without mixing field meanings or removing required wrapper checks. |
-| Keep isolved paycheck models in the payroll source file; combined input uses optional `payroll_runs` and `paychecks`. Native run arrays and paged-check responses remain supported. | Validate complete payroll information without mixing run and paycheck field meanings. |
-| Use one main isolved employee input model; keep employee fields at the top level and supplemental salary records under optional `salary_history`. | Validate combined data recursively while keeping employee and salary field meanings separate. |
-| Require record IDs and documented required wrapper fields; other fields, including reference IDs, are optional. Keep existing ID null acceptance; nested record IDs are required only when the record is supplied. | JSON input may combine API fields; requiring complete endpoint responses complicates validation. |
-| Do not manufacture a company ID when source input omits it; preserve supplied client/legal/EIN references and explicit context. | A required record-ID assumption does not create missing company identity. |
-| Build a separate company-related output model with source record type and ID; retain employee associations separately. | Company model and three YAMLs were subsequently requested and built; no global company identity is asserted. |
-| Keep the current canonical structure; use class comments to mark README coverage instead of adding category sections. | Documents coverage without restructuring the models. |
-| Treat reference metadata gaps as CLI warnings and preserve them in output metadata. | Existing private-upload status and UKG reference format must remain truthful. |
-| Add `direct_deposit` and `deduction` entities. | Both are required by the README. |
-| Payroll output uses separate `payroll_runs`, `paycheck_headers` and `paychecks` lists; preserve overlapping sections with provenance, without merging or totaling them. | Keep distinct record roles and all supplied information. |
-| Payroll preserves supplied employee/run references; missing references stay empty without new CLI requirements. | Mapping can proceed without inferred associations; missing links remain a deferred gap. |
-| Payroll YAMLs are split by source record role: run, paycheck, and UKG header. | One source class and one map call per record; one payroll entity/output remains. |
-| Preserve all payroll components under their provider scope unless a shared meaning is verified. | Earnings, hours, taxes, deductions, benefits and payments retain their nested source roles; no arithmetic or guessed conversions. |
-| Resolve Prism checkNumber/checkNum with identifier_alias; unequal values yield null plus originals and an issue. | Neither alias silently overwrites the other; leading zeros remain significant. |
-| Reuse date/identifier/number helpers; preserve unknown status/type domains and ambiguous amounts. | No new lookup meanings, currency conversions or associations are inferred. |
-| Emit a payroll result container even for empty collections and preserve wrapper context. | Empty runs/checks must not discard warnings, pagination or source metadata. |
-| Add reference-pack warnings at CLI serialization, per employee record or result container. | Adapter mapping stays independent of reference readiness. An empty warned employee list uses an employees: [] container with metadata. |
-| Store 15 synthetic CLI fixture pairs and compare complete expected JSON in tests. | One per entity/provider; generated baseline independently checked for semantic rules and preservation before saving. |
-| Use the supplied scripts/generate_fixtures.py with explicit source-shaped builders and seed 42. | Generate 15 repeatable, source-validated inputs; record evidence/checksums without treating mapper output as its own expected result. |
+| Each response body is validated against the GET 200 response schema of its endpoint in the provider contract. No separate source-model copies of the schemas exist. | The contracts are the source of truth and already describe every field. A second hand-written copy would drift from them and double the maintenance. |
+| **Sources:**<ul><li>PrismHR: OpenAPI 3.0.1.</li><li>isolved: the primary Swagger 2.0 snapshot only.</li><li>UKG Ready: `reference-schemas.json`, using the GET schema of the cached page whose name matches the endpoint (`/` → `__`, `{}` → `()`, plus `.html`). No HTML file is read.</li></ul> | These are the README-approved references. The README says not to mix the two isolved snapshots. UKG has no OpenAPI file; its extracted schemas are the closest contract. No UKG page has more than one GET schema. |
+| Validation uses JSON Schema Draft 4, with `$ref` resolved inside the spec. | OpenAPI 3.0 and Swagger 2.0 schemas are Draft-4 based, and 401 of the 478 UKG schemas declare Draft 4. |
+| Validation runs on the deserialized Python object, once, after `json.load`. | JSON Schema validates dicts and lists. Validating once at this layer means there is no second validation of the same data. |
+| `null` counts as "not supplied". | Live PrismHR and isolved return null for most optional fields, but neither contract marks fields nullable. |
+| A non-null value of the wrong type stops the run (exit 1), with the JSON path in the message. | Such a record cannot be mapped safely. Rejecting only that record instead is planned edge-case work. |
+| `required` is not enforced. | The contracts mark nearly every field required, but real and synthetic responses omit most of them. Only record ids are required, and the id templates enforce them. |
+| Undocumented fields, enum, length, range and pattern violations are `contract_drift` warnings in `issues`; mapping continues. | Live data drifts from the documentation in harmless ways. The drift stays visible without blocking the run. |
+| Integral floats (`7.0`) count as integers. | Draft 4 alone rejects them, but they are valid ids, and the identifier helper accepts them. |
+| The HTTP status and the provider's own failure flag are checked before validation (PrismHR `errorCode` must be `"0"`). | A failed response has no usable body. PrismHR reports failures inside HTTP 200 bodies; isolved and UKG use the HTTP status. |
+| Four live PrismHR field spellings are renamed to the contract spelling before validation, scoped by parent key: `payrollVoucher` → `payrollVouchers` (top level), `person.employerId`, `person.autoPolicy`, `client.hawaiiMedWaiver`. If both spellings are supplied, nothing is renamed. | The live demo uses these singular names. Renaming once means validation and YAML only ever see contract names. The scoping matters: `clientMaster.employerId` is a real singular contract field. |
+| Fields the live demo returns but the contract does not list are declared in `LIVE_FIELDS`: PrismHR client-master, employee `compensation.payPeriodsPerWeek` and voucher fields, isolved pay-item `balance`, UKG `ein_name` and payroll `ein.ein_country_id`. | YAML may map them and preflight stays strict. Validation still reports them as drift, because the contract does not list them. |
+
+## 3. Mapping (routes, YAML, engine)
+
+| Decision | Why |
+|---|---|
+| Each provider adapter is a **route table**: endpoint → one or more routes. A route gives:<ul><li>the canonical record type;</li><li>the path to the records (`""`, `[]`, `employee[]`, `employee[].directDeposit.achVoucher[]`);</li><li>the YAML file;</li><li>context values;</li><li>an optional filter (`where`), ignored paths, owner checks and fallbacks;</li><li>the id and ref templates.</li></ul> | Provider differences are declared as data in one place per provider. The pipeline that runs the routes is shared. |
+| Template placeholders are `{params.x}`, `{record.x}` and `{parent.x}` (`parent` = the enclosing record, e.g. the employee around a PrismHR deposit). | Every id part and ref says exactly where its value comes from. |
+| One shared `MappingEngine` runs the provider YAML files on plain dict records. | Mapping rules stay declarative and identical in behaviour across providers. The YAML loader rejects duplicate keys, the config rejects unknown keys and overlapping targets, and helpers come from an allowlist. |
+| YAML source paths are **preflighted** against the contract schema when an engine is built:<ul><li>unknown field names fail;</li><li>a path cannot walk into a list without `[]`;</li><li>a list rule needs a list source.</li></ul>Only untyped or object nodes without listed properties accept any field. | A typo or a wrong shape is caught at load time, not as silently missing data. |
+| Unused source fields are split by the contract: fields the contract declares go to `provider_fields.<p>.unmapped`; fields it does not declare go to `source_extras.<p>`. | Nothing supplied is lost, and known-but-unmapped data stays separate from unknown data. |
+| UKG employee list items are mapped with the employee detail schema (route key `schema`). | The list schema is a cut-down view of the same employee resource, and one YAML file covers both. Validation still uses the list schema. |
+| Some responses are a **section** of one canonical record: isolved salaries, UKG pay-info, UKG compensation history.<ul><li>The pipeline wraps the body as `{section: body}` (route key `wrap`).</li><li>Each section has its own YAML file: `employee_salaries`, `employee_pay_info`, `employee_compensation`.</li></ul> | Each body is validated against its own endpoint while still mapping into the employee record. The section stays together under `provider_fields`. |
+| Records that belong to someone else in the same response are mapped by their own route. The parent route drops that path (route key `ignore`; PrismHR `directDeposit.achVoucher` is dropped from the employee). | The deposit accounts become deposit records and are not duplicated inside the employee. |
+| Filters live in routes, not in YAML: isolved pay items map only `payItemType == "Deduction"`. Other items are kept under `provider_fields.isolved.filtered_records` with their path and the reason. | The pay-items endpoint also returns Earning and Memo Calc items. They are not deductions, but supplied data is never dropped. |
+| Responses from an endpoint with no route (UKG `lookup/deduction-codes`, `/employees/{aid}/benefits`) are kept verbatim under `provider_fields.<p>.unrouted_responses`. | A code catalog or benefit enrollment is not an assigned deduction, but the data stays available. |
+| Each response's wrapper fields (everything except the record list itself, e.g. PrismHR `errorCode`, UKG `_links`, fields beside a nested record list) are kept in `source_metadata.<p>.responses[]` with the endpoint and params. | This is the response-level provenance and context that belongs to no single record. |
+| Each record lists its `sources` (response index, endpoint, JSON path). | Every merged record shows which responses built it. |
+
+## 4. Identity and relationships
+
+| Decision | Why |
+|---|---|
+| Every record gets `id = provider:record_type:owner_scope[:employee_key]:record_key` (Table 1 in relationship_policies.md). | One unambiguous key across providers and record types. Source ids repeat across owners (e.g. PrismHR employee ids per client), and some records have no source id. |
+| **Owner scope:** PrismHR `clientId`, isolved `clientId:legalId`, UKG `cid`. It always comes from `params`. | That is the level at which provider ids are unique, and bodies rarely carry it. |
+| The record key is the provider's own id. When a response is about one record and has no id, the key comes from `params` (route key `fill_record`, e.g. UKG statement detail → `pay_statement_id`). When the provider has no id at all, the smallest stable natural key is used:<ul><li>PrismHR deposit: routing + account number;</li><li>PrismHR deduction: deduction code.</li></ul> | A key must identify the record and stay the same when its settings change. That is why amounts and methods are never part of a key. |
+| Refs are foreign keys holding another record's id, built from values in the same response, with the parent's own template. Nothing is looked up.<ul><li>`company_ref` is on every non-company record and on UKG EIN records.</li><li>`employee_ref` is on deposits, deductions and paychecks.</li><li>`payroll_run_ref` is on paychecks where the run id is available.</li></ul> | A link is then a plain equality check that works the same way for every provider. |
+| Refs are stored on every output record, not once per file. | Each record stands alone in the output. |
+| Existing source-id fields (`employee_id`, `deposit_id`, `source_record_id`, `payroll_run_id`, …) keep their source meaning next to the canonical `id`. | Consumers can still see and search by the provider's own ids. |
+| Records with the same `id` from different responses **merge**:<ul><li>a missing field is filled from the other record;</li><li>objects merge field by field;</li><li>lists are joined;</li><li>a differing value keeps the first one and adds a `merge_conflict` warning.</li></ul>The merged record is validated again against its canonical model. | Several responses describe one record: an isolved employee and its salaries; a UKG employee, its pay-info and its compensation history; a UKG statement header and its detail. Re-validation catches merged fragments that are not a valid record together. |
+| The UKG company is the `cid` (`source_record_type: company`), built from the EIN lookup response. EIN items stay separate `ein` company records with `company_ref` pointing to it. | UKG has no company-profile endpoint. Employees belong to a `cid`, not to an EIN. |
+| A `params` owner id that disagrees with the owner id in the body stops the run. Checked for: PrismHR client master and employees/deposits, isolved employee detail and deductions, UKG employee detail. | The source is never silently overwritten. |
+| **When values are missing:**<ul><li>a missing id part stops the run, naming the template;</li><li>a missing ref part leaves the ref empty and adds a `missing_ref` warning;</li><li>a ref whose target is not in the bundle adds a `dangling_link` info issue.</li></ul> | An id is required for merging; a missing link is information. Partial bundles are normal. |
+
+## 5. Canonical output
+
+| Decision | Why |
+|---|---|
+| One run writes one document:<ul><li>`provider`;</li><li>`companies`, `employees`, `direct_deposits`, `deductions`, `payroll_runs`, `paychecks`;</li><li>`provider_fields`, `source_metadata`, `issues`.</li></ul> | All entities and their links can be checked together, and the document is written even when a list is empty. |
+| A UKG pay-statement header and its detail are one paycheck. | Both describe the same statement and share its id. |
+| Canonical models are strict Pydantic models with `extra="forbid"`: ids are strings and dates are dates. Conversion happens in YAML helpers, never by implicit coercion. Merged records are re-validated through a JSON round trip. | Wrong output types are bugs to catch, not values to coerce silently. |
+| Unset, null and empty stay distinct (`exclude_unset`). Zero and `false` are kept. No business defaults are invented. | Supplied values are not lost, and missing ones are not made up. |
+| Business fields are shared only when meanings match. Unverified codes, units and bases stay provider-scoped, and source values are kept in `original_values` with a `mapping_issue` when a conversion fails. | A similar field name or another field's lookup table is not evidence of the same meaning. |
+| Issues have a severity (`warning` or `info`), a code, a path and a message: `contract_drift`, `missing_ref`, `merge_conflict`, `dangling_link`. | Problems that do not stop the run stay machine-readable in the output. |
+
+## 6. Entity mapping choices
+
+| Decision | Why |
+|---|---|
+| **Company:**<ul><li>Identity is `source_record_type` + `source_record_id`. The types are `client` (PrismHR), `legal_company` (isolved), `company` and `ein` (UKG).</li><li>isolved companies come from `GET /api/clients/{clientId}/legals` (a list).</li></ul> | These are distinct organisational levels and must not be merged. The primary isolved snapshot has no single-legal-company GET. |
+| **Company fields:**<ul><li>Legal, DBA, federal-id and NAICS values are mapped only where the descriptions match.</li><li>UKG EIN name, tax id, country and currency stay EIN-specific.</li><li>Recursive isolved back-references keep only nested ids.</li></ul> | An EIN lookup does not prove the legal company name. Recursive structures must not be expanded without limit. |
+| **Employee:** gender, isolved EEO override and PrismHR gender designation stay separate. So do preferred name vs nickname, and the separate hire and change dates. | They serve different roles. |
+| **Employee:** pronouns use one supplied value; conflicting sources keep both originals, an issue, and a null shared value. | No arbitrary precedence. |
+| **Employee:** rehire is `eligible` / `ineligible` / `no preference`; absent or null stays unavailable. | PrismHR Y/N/blank and isolved booleans have explicit rules. Unknown is not "no". |
+| **Employee:** state and location codes stay provider-scoped; ZIP text and suffix follow the helper's conflict rules. Ethnic code, ethnic-origin description and the Hispanic flag stay separate. | No crosswalk or global code table is verified. |
+| **Direct deposit:** a canonical fixed `allocation_amount` comes only from PrismHR method `F` and UKG `FLAT_AMOUNT` (via `conditional_number`). PrismHR `P`/`PN`/`FS`/`B` and limits, isolved amount and percent, and UKG percentage, sequence and calculation fields stay provider-scoped. | Only the fixed-amount meaning is verified across providers. Percentage scale, basis and ordering are not. |
+| **Direct deposit:** only account setup is mapped. Paycheck payments stay in payroll, HSA stays outside, and UKG `RESERVE_LIVE_CHECK` keeps its type. | These have different business roles. |
+| **Deduction:** isolved deductions take `employee_id` from the record, falling back to `params.employeeId`. The request owner is also kept as `provider_fields.isolved.request_employee_id`. | Ownership is explicit and provenance is kept. |
+| **Deduction:** unclear amounts and calculation parameters (e.g. isolved `Amount2`) are kept without calculation. | No cross-provider calculation rule is documented. |
+| **Payroll:** runs and paychecks are separate records, and all components (earnings, hours, taxes, deductions, benefits, payments) stay in provider scope unless a shared meaning is verified. | No arithmetic or guessed equivalence. |
+| **Payroll:** PrismHR `checkNumber` and `checkNum` are resolved with `identifier_alias`; unequal values give null, keep both originals, and add an issue. | Neither alias overwrites the other, and leading zeros stay significant. |
+
+## 7. CLI and reference pack
+
+| Decision | Why |
+|---|---|
+| `normalize --input <bundle> --output <file>`. The provider comes from the bundle. | One source of truth for the provider. |
+| The output is written only to the given path, in create-only mode. An existing file stops the run (exit 1) and stays untouched. The parent folder must exist. No file is written when the run stops. | Never overwrite results; no partial output. |
+| Exit codes:<ul><li>0 = document written, even with issues;</li><li>1 = unusable input (unreadable file, bad bundle shape, provider failure, wrong type, unknown endpoint, missing id, owner conflict);</li><li>2 = unreadable or mismatched reference pack.</li></ul> | Callers can tell "processed with notes" from "nothing usable". |
+| Reference-pack metadata gaps are printed as warnings and recorded once in `source_metadata.<p>.reference_pack`. These gaps are the unverified isolved/UKG distribution permission and the missing UKG OpenAPI artifact. `check-inputs` still reports them and exits 2. | The README approves using the pack, and these gaps cannot be fixed in code. They stay visible without blocking normalization. |
+
+## 8. Fixtures and tests
+
+| Decision | Why |
+|---|---|
+| Fixtures are three generated bundles, `tests/fixtures/<provider>.bundle.json`, each one connected synthetic company. They are produced by `scripts/generate_fixtures.py` with seed 42 and checked with the same contract layer before writing. | Ids, refs and merges are exercised end to end, and the generator reproduces the bundles byte for byte. |
+| The reviewed `<provider>.expected.json` files are compared in full by `test_bundle_cli.py`. Tests never regenerate them. | Any change to the output must be reviewed deliberately. |
+| Test suites by layer:<ul><li>contracts;</li><li>engine and YAML preflight;</li><li>per-provider field mapping;</li><li>relationships (Table 1 ids, Table 2 refs, merges, missing values);</li><li>CLI;</li><li>generator;</li><li>reference integrity.</li></ul>Latest full run: 218 tests, 3,337 subtests passed. | Each layer's rules are tested where they live. |
 
 ## Assumptions
 
-- CLI employee context identifies the owner of a deduction file when source assignments omit it. Reason: Prism/UKG assignments lack a direct owner; optional isolved source owners are checked when present.
+- **Request parameters are correct.** The bundle's `params` are the values used in the request that produced each body. *Reason:* bodies omit owner ids; where a body does carry one, it is checked against `params`.
+- **PrismHR success code.** `errorCode == "0"` means success. *Reason:* the saved demo responses and the OpenAPI operations.
+- **PrismHR work location.** PrismHR `client.homeLocation` is the employee's work location (`work_location_code`). *Reason:* confirmed role; codes stay provider-scoped.
+- **PrismHR gender labels.** PrismHR gender `M`/`F`/`X`/`D`/`U` map to male / female / non-binary / declined / unknown by the approved interpretation, not a verified provider dictionary. *Reason:* the contract lists the codes without meanings; originals are kept.
+- **UKG employee id.** UKG `id` is the employee id; UKG `employee_id` is kept as `ukg_employee_id`. *Reason:* the demo GET by employee succeeded with `id`.
+- **UKG compensation time.** UKG compensation `time` and `standard_work_day` are in milliseconds. *Reason:* stated in the cached schema text for those fields only; no other field's unit is inferred.
 
-- CLI employee context identifies the owner of a direct-deposit file. Reason: selected isolved/UKG deposit responses contain no employee-owner field to verify it against.
-- Prism employee homeLocation is used as work_location_code. Reason: user-confirmed employee work-location role; codes remain provider-scoped.
-- Prism employee gender M/F/X/D/U labels follow the user-approved interpretation (including U as unknown), not a newly verified universal dictionary. Reason: preserve the explicitly chosen labels while retaining originals and evidence limits.
+## Gaps
 
-- Inputs match the selected provider/entity and include required record IDs; nested IDs identify nested records. Reason: avoid extra input-type configuration; retain existing null acceptance.
+**General**
+- **Wrong types stop the whole run.** One wrong-typed value stops the run instead of rejecting only its record.
+- **Merging can duplicate list entries.** Merging joins lists, so supplying the same response twice duplicates list entries (history, paycheck lines).
+- **No pagination.** Paged responses are mapped page by page, and their page metadata is only kept in the wrapper.
+- **No business-rule checks yet.** Conditional rules are not checked: amount vs percent, PrismHR method-specific amount/limit, negative amounts, duplicate ids inside one response. These are planned edge cases.
 
-- PrismHR `errorCode="0"` means success; other codes mean failure. Reason: Postman success and other OpenAPI operations.
-- PrismHR `--client-id` matches the request that produced the file. Reason: the response omits client context.
-- UKG `id` supplies canonical `employee_id`; preserve source `employee_id` as `ukg_employee_id`. Reason: the user’s GET test succeeded with `id`, not the other field.
+**PrismHR**
+- Fields with missing, vague or conflicting descriptions are kept without semantic mapping:
+  - `benefitEnrollmentCompleted`;
+  - Person: `cobraSSN`, `cobraOnly`, `taxZipCode`, `w2ElecForm`, `w2ElecFormDate`, `legacyEmployeeId`;
+  - Client: `typeClass`;
+  - Compensation: `longPayTable`, `longBasisDate`, `quartile`, `compaRatio`, `benefitsBasePay`, `taxCreditEmp`, `autoPayCode`, `profitSharing`, `wagePlanCA`, `compReviewNextDate`, `notes`, `electronicPayStub`, `irsLockInDate`, `payPeriodsPerWeek`;
+  - PayPeriodInfo: `periodCode`, `periodBase`;
+  - EeImage: `masterId`, `verifyDateTime`, `verifyUserId`;
+  - I9ImageAudit: `auditDate`, `auditUser`, `auditId`, `auditStep`;
+  - LockIns: `stateDate`, `authUser`;
+  - SkillsAndEducation: `osha10Certified`;
+  - wrapper: `updateMessage`, `extension`.
+- **Same account twice.** Two deposits on the same routing + account number (e.g. with different `voucherTypeOverride`) share one id and merge, with a `merge_conflict`.
 
-## YAML, canonical-model and adapter implementation choices
+**isolved**
+- **No run link on checks.** Checks carry no payroll run id, so paychecks have no `payroll_run_ref`.
+- **Undocumented pay-item parameters.** Pay-item parameters such as `Amount2` and `Rate` are undocumented, and `employmentCategoryCode` has no verified dictionary. Both are kept raw.
+- **Flat `seasons` is not a salary field.** A `seasons` field at the employee root is not a declared employee field, so it stays in `source_extras`. Salary seasons belong to the salaries response.
 
-These record how the approved design is implemented. Status is separate from approval; a prepared model/YAML does not mean its adapter is connected. Universal preservation rules apply to every entity, not separate new decisions for each provider.
+**UKG Ready**
+- **No company name.** No company-profile endpoint exists, so the cid company has no name.
+- **EIN links.** EINs are linked to the company, but `ein` on employees is documented only for multi-EIN companies.
+- **Thin descriptions.** Many deposit, deduction and company properties lack descriptions. `RESERVE_LIVE_CHECK` behaviour is undocumented.
+- **Live data was empty or unavailable.** The live employee-deductions endpoint returned 404, and the saved deposits, benefits and pay statements were empty. These are mapped from the contract and synthetic data only.
+- **Undocumented link.** `_links.country-fields` on employees is undocumented, so it stays in `source_extras`.
 
-| Choice | Reason / limit | Status |
+**Reference pack** (reported, not blocking)
+
+| Provider | Gap | Current metadata |
 |---|---|---|
-| Shared Pydantic output schemas; separate provider source models. | Validate input types once, then validate mapped output; do not conflate validation with semantic mapping. | Implemented for all five entities. |
-| One common MappingEngine with provider/entity YAMLs and an allowlisted helper registry. | Rules stay outside adapters; YAML cannot execute arbitrary functions. Config forbids unknown keys/overlapping targets; loader rejects duplicate keys. | Implemented. |
-| One source record per engine.map call; adapters unwrap wrappers and assemble collections/results. | Preserve distinct record roles without requiring a universal API response shape. | All five entities connected for all three providers. |
-| IDs are already strings and date values already Python dates in strict canonical models. | Conversion belongs to helpers, not implicit output coercion. Optional business fields remain unset/null when unavailable. | Implemented. |
-| Known explicit source-specific values → provider_fields; unused known fields/record links → provider_fields.<provider>.unmapped. | Preserve source meaning, nesting and list positions without false semantic matches. | Implemented common policy. |
-| Undeclared properties → source_extras; wrappers → source_metadata.<provider>.response; conversions → original_values/mapping_issues. | Separate unknown data, response context and conversion provenance. | Implemented. Raw provenance starts after source validation. |
-| Share business fields only when meanings match; preserve unverified codes/units/bases without inferred conversions. | A similar field name or another field's lookup is insufficient evidence. | Universal policy; per-field evidence lives in linked proposals. |
-| Preserve missing/null/empty distinctions with exclude_unset; retain zero/false; use independent mutable defaults. | Do not lose supplied values or manufacture business defaults. | Implemented output/helper convention. |
-| Canonical result containers preserve provider data when record lists are empty. | No fabricated account/deduction/company record just to carry supplements. | Deposit/deduction/company results integrated. Employee retains its existing list output. |
-| Deposit YAMLs map account setup only; paycheck payments remain payroll and HSA stays outside deposit setup. | Related source schemas have different business roles. | Implemented. |
-| conditional_number(value, selector, equals=...) reuses number conversion; condition value belongs in YAML. | Keep provider-specific meanings out of generic Python helper code. A nonmatch returns null only for the shared target. | Prism F / UKG FLAT_AMOUNT implemented; amount/method preservation rules remain active. |
-| isolved amount/percent stay separate; Prism P/PN/FS/B and limit remain method-scoped. UKG uncertain percentage/sequence/calculation fields stay provider-specific. | No guessed percentage scale, basis, ordering or insufficient-funds equivalence. | Implemented deposit rules. |
-| Require --employee-id for direct_deposit across providers; attach one owner per file. | Supplied request context preserves association; a deposit ID is not an employee ID. | CLI/adapters implemented for deposits and deductions. |
-| Prism compares every supplied employee.id to employee context before mapping; isolved/UKG cannot verify owner from their selected deposit schemas. | No silent replacement or ownership inference from bank numbers, links or position. | Implemented; context trust is listed as an assumption. |
-| Validate nested account input once and reuse one engine per nonempty input; record source array indexes. | Preserve order/provenance without joins, deduplication or repeated source validation. | Implemented deposit adapters. |
-| Preserve Prism wrapper/setup data with remaining/extras traversal outside mapped populated account lists. | Retain known employee/setup fields, empty collections and unknown nesting alongside account output. | Implemented; account extras may also appear in result-level provenance. |
-| Deduction owner context is required; selected isolved employeeId must agree when present and otherwise uses supplied context. | No silent source-owner replacement; Prism/UKG assignment ownership remains trusted context when absent from source. | Implemented; unexpected isolved records retain their own source references. |
-| Preserve exact non-Deduction/missing/null/unknown isolved types and UKG supplements separately, without canonicalizing their raw IDs as assignment IDs. | Retain source values without false classification or inherited ownership. | Implemented with original source indexes and existing extras traversal. |
-| Deduction filtering belongs in provider adapters, not YAML conditions. | Select verified isolved Deduction items, UKG assignments.deductions, Prism employeeDeductions.deduction. | Implemented in all three deduction adapters. |
-| Preserve unexpected deduction records separately; UKG code_lookup/benefits use result-level provider_fields, not deduction assignments. | A catalog definition or enrollment is not an assigned deduction or withheld amount. | Implemented; supplemental/unexpected-only input retains result data with deductions=[]. |
-| Company needs no new helpers or CLI context: validate native shapes, map with fixed internal role, preserve wrappers and return companies plus metadata. | Existing helpers and source records cover the proposal; no missing identity or joins are invented. | Implemented and integration-tested for all providers. |
-| Company source identity is provider + source_record_type + source_record_id. | Prism client, isolved legal_company and UKG ein are distinct scopes, not interchangeable company keys. | Model/three YAMLs/adapters connected. |
-| Company adapters supply the fixed source_record_type internally. | It describes the selected source model; no new user input-type CLI option. | Implemented in company adapters; no new CLI option. |
-| Company legal/DBA/federal/NAICS matches use verified descriptions; UKG EIN name/tax/country/currency remain separate. | EIN lookup is not proof of legal company name, jurisdiction or API company identity. | Model/YAMLs built. |
-| isolved recursive company back-references map nested IDs only; remaining finite input stays in unmapped/extras. | Avoid infinite schema expansion, inferred joins or replacing the root legal company with parent data. | Company YAMLs built. |
-| Preserve native input formats: isolved deposits are arrays; UKG deposits use deposits/_links. | Pydantic RootModel.root is an accessor, not a provider envelope. | Implemented; wrappers not invented. |
-| CLI reference metadata gaps warn on stderr and persist in source_metadata.<provider>.reference_pack. | Allow normalization with honest provenance; unreadable/malformed lookup files, wrong provider and invalid lookup container still block. | Implemented in __main__.py; references.py and reference packs unchanged. |
-| No API fetching, source joins, sums/reconciliation, sorting or deduplication is introduced by mapping. | Offline normalization uses supplied data and explicit context only. | Current implementation boundary. |
-| Models → JSON-compatible dictionaries in adapters; dictionaries → JSON text in CLI. | Keep output validation before serialization; refuse output-file overwrite. | Implemented. |
+| isolved, UKG Ready | `distribution.status` is not `verified` | `user_approved_private_upload`; evidence reference present |
+| UKG Ready | no OpenAPI artifact | `openapi.status: not_available`; the references are cached HTML and extracted JSON schemas |
+| UKG Ready | OpenAPI version and checksum | `null` |
 
-## Schemas & Enums
+## Open items
 
-| Decision | Limit / reason |
-|---|---|
-| Full readable canonical gender/marital/status-class/pay-basis labels only from approved or verified field dictionaries. | Approved vocabulary is not evidence that every provider uses the same source codes; preserve unmapped values. |
-| Rehire is eligible / ineligible / no preference; source absence/null remains unavailable. | Prism Y/N/blank and isolved booleans have explicit rules; do not collapse all unknown/missing cases into false. |
-| Preferred pronouns use one supplied/agreed value; conflicts preserve both originals with an issue and null shared value. | No arbitrary precedence. |
-| Name parts and source roles stay distinct: preferred name vs nickname, gender vs reporting/designation, separate hire/change dates. | Do not merge fields solely because descriptions or values look similar. |
-| State/location codes retain provider scope; ZIP text/suffix uses the documented helper conflict rules. | No global code equivalence, numeric ZIP coercion, or inferred location lookup. |
-| Distinct legal/client/EIN references and their list/scalar shape remain separate. | Preserve relationship references without inventing a universal company identifier. |
+- **Edge-case validation:** per-record rejection, business-rule checks, de-duplication on merge (planned).
+- **Live capture:** a capture step that fetches and paginates provider APIs into bundles (not built).
+- **Write path:** writing canonical data back to a provider (not built).
 
-Exact field destinations/types and accepted code tables are in the proposal index below; they are part of the decision record, not requests to approve every source path again.
+## Detailed evidence
 
-## Provider Mappings & Gaps
-<!-- Per provider: key mappings, missing data, how handled -->
-
-### PrismHR
-
-| Gap | Handling |
-|---|---|
-| ACH contract marks amount/limit required but descriptions give method-specific restrictions. | Project requiredness makes non-ID business fields optional. Conditional business validation remains deferred; preserve supplied values. |
-| `updateMessage` and `extension` meanings are undocumented; Postman returned null. | Keep it optional; do not treat nonempty values as errors without evidence. |
-| Employee fields with insufficient descriptions: `benefitEnrollmentCompleted`; Person: `cobraSSN`, `cobraOnly`, `taxZipCode`, `w2ElecForm`, `w2ElecFormDate`, `legacyEmployeeId`; Client: `typeClass`; Compensation: `longPayTable`, `longBasisDate`, `quartile`, `compaRatio`, `benefitsBasePay`, `taxCreditEmp`, `autoPayCode`, `profitSharing`, `wagePlanCA`, `compReviewNextDate`, `notes`, `electronicPayStub`, `irsLockInDate`, `payPeriodsPerWeek`; PayPeriodInfo: `periodCode`, `periodBase`; EeImage: `masterId`, `verifyDateTime`, `verifyUserId`; I9ImageAudit: `auditDate`, `auditUser`, `auditId`, `auditStep`; LockIns: `stateDate`, `authUser`; SkillsAndEducation: `osha10Certified`; wrapper: `updateMessage`, `extension.any`. | Missing, vague, or conflicting descriptions; meanings, units, or allowed values need clarification before semantic mapping. |
-
-### isolved
-
-| Gap | Handling |
-|---|---|
-| Deposit response has no employee-owner field. | Trust required CLI employee context; do not claim response-based verification. |
-| Pay items include Deduction/Earning/Memo Calc; parameter meanings such as Amount2/Rate lack sufficient descriptions. | Filter in adapter when integrated, preserve other records/parameters; no guessed calculations. |
-| employmentCategoryCode has no verified field dictionary. | Preserve raw employment_category_code; no guessed full-time/part-time label. |
-| Employee and salary records both use `id`; a bare object containing only a salary ID can be interpreted as an employee record. | Keep `salary_only` for standalone salary arrays so salary IDs are not mapped as employee IDs. Bare-object identity remains ambiguous; combined input uses employee `id` with nested `salary_history`. |
-| Flat employee-root `seasons` is not a declared employee field. | Supported salary data belongs in salary_history[].seasons and is validated there. Flat undeclared fields stay extras; arbitrary flattened schema merging is not supported. |
-
-### UKG Ready
-
-| Gap | Handling |
-|---|---|
-| Many deposit/deduction/company properties lack descriptions; saved deposits/benefits/paycheck list are empty. | Use only verified matches; preserve uncertain values. Synthetic tests verify structure, not live semantic completeness. |
-| Deposit owner is absent; RESERVE_LIVE_CHECK behavior is undocumented. | Trust supplied owner context and preserve type; do not reinterpret reserve records as bank deposits. |
-| EIN lookup is not company detail or a mapping to the API company ID. | Preserve EIN record identity/name/tax/currency/country separately. |
-| No populated paycheck responses; compensation history is available from a separate API. | Map compensation history into employee compensation output; validate paychecks from documented schemas and synthetic data. Compensation history does not replace paycheck details. |
-
-## Data Issues
-
-| Gap / deferred review | Handling |
-|---|---|
-| Prism Postman/OpenAPI field-name differences (employerId/employerIds, autoPolicy/autoPolicies, hawaiiMedWaiver/hawaiiMedWaivers). | Existing aliases remain; audit conflicting simultaneous names later. |
-| Generic id alone does not prove entity/owner, and arbitrary flattened mixes lack a declared schema. | Use selected entity plus supported native/named sections; preserve unclassified values, not inferred identities. |
-| Payroll checks may lack employee/run references. | Preserve supplied references; leave missing links empty. Resolve associations later without guessing. |
-| Conditional business rules, invalid/negative amounts, duplicates and mixed-validity input need later review. | Existing structural/source checks and helper diagnostics only; do not invent limits/reconciliation rules. |
-
-## Testing
-
-- Verify canonical strict types and helper rules, then source/YAML/output compatibility and adapter/CLI integration.
-- Use synthetic fixtures for edge cases; saved samples supply evidence but do not establish exhaustive enum or response coverage.
-- Cover missing/null/empty, zero/false, source preservation, unknown codes/extras, nested scope, context conflicts and no input mutation.
-- Test real readiness blocking separately from isolated CLI integration tests. Latest completed full run: 284 tests and 3980 subtests passed.
-
-## Write Path
-
-- Only local JSON input/output; no provider requests or output-file overwrite.
-- CLI employee client context is required for Prism employees; CLI employee owner is required for direct-deposit and deduction providers.
-- All five entity adapters map all providers; payroll uses separate run/header/detail lists.
-
-## Open Questions
-
-- Reference metadata gaps now warn and persist in output; verification/permission evidence remains unresolved and is not relabeled.
-- Payroll mapping is implemented; missing employee/run associations remain a deferred gap.
-- Review remaining business edge cases and additional mappings only when evidence or implementation requires them. Universal preservation is already decided.
-
-
-### Reference metadata gaps — warnings during normalization
-
-These checks still report gaps; normalize emits stderr warnings and records them in output. check-inputs remains diagnostic and returns nonzero for these gaps. No reference metadata or permission status was changed.
-
-| Provider | Failed condition | Current metadata / artifact |
-|---|---|---|
-| isolved, UKG Ready | distribution.status must equal verified | user_approved_private_upload; evidence reference is present. |
-| UKG Ready | openapi.status must equal verified | not_available; actual references are cached HTML/extracted JSON schemas. |
-| UKG Ready | openapi.relative_path must name an OpenAPI file | null; no approved OpenAPI filename. |
-| UKG Ready | OpenAPI version/source/sha256 must all be present | source is present; version and sha256 are null. |
-
-PrismHR passes. CLI normalization continues for the listed metadata gaps. Unreadable/invalid lookup JSON, wrong provider, invalid lookup container and unrecognized readiness failures still block. OpenAPI availability/provenance limitations are warnings; they do not assert that an artifact exists or permissions are verified.
-
-## Future Improvements
-
-| Improvement | Reason |
-|---|---|
-| Combine PrismHR payroll batch and paycheck input models; validate both sections with one model. | Separate validation paths are simpler to implement now; both supplied sections are already validated. |
-| Extend the implemented shared YAML engine only for demonstrated new requirements. | Shared engine/config/helper registry already exist; avoid adding unused mapping features. |
-
-## Detailed decision and implementation index
-
-These documents retain per-field evidence and implementation detail; this log records the shared decisions and current status. Keep this index and the relevant log rows current with future YAML/model/adapter changes.
-
-- [Employee proposal and implementation contract](./data-types-cpmparison/Employee%20Canonical%20Mapping%20Proposal.md)
-- [Employee code review](./data-types-cpmparison/Employee%20Code%20Mapping%20Review.md)
+- [Relationship policies: ids, refs, merge](./relationship_policies.md)
+- [Employee proposal](./data-types-cpmparison/Employee%20Canonical%20Mapping%20Proposal.md) and [code review](./data-types-cpmparison/Employee%20Code%20Mapping%20Review.md)
 - [Direct-deposit proposal](./data-types-cpmparison/Direct%20Deposit%20Canonical%20Mapping%20Proposal.md)
 - [Deduction proposal](./data-types-cpmparison/Deduction%20Canonical%20Mapping%20Proposal.md)
 - [Company proposal](./data-types-cpmparison/Company%20Canonical%20Mapping%20Proposal.md)
 - [Payroll proposal](./data-types-cpmparison/Payroll%20Canonical%20Mapping%20Proposal.md)
-- [PrismHR deposit implementation choices](./PrismHR%20Direct%20Deposit%20Mapper%20Implementation.md)
-- [isolved/UKG deposit implementation choices](./iSolved%20and%20UKG%20Direct%20Deposit%20Mapper%20Implementation.md)
-
-- [Company adapter implementation choices](./Company%20Mapper%20Implementation.md)
-
-- [Deduction adapter implementation choices](./Deduction%20Mapper%20Implementation.md)
-
-- [Payroll mapper implementation](./Payroll%20Mapper%20Implementation.md)
 - [Synthetic fixture guide](../../tests/fixtures/README.md)
