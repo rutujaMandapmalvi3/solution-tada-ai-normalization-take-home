@@ -1,3 +1,4 @@
+# YAML mapping-rule models. Input: a parsed YAML mapping file (dict). Output: a validated MappingConfig of field/object/list rules.
 """Pydantic schema for mapping configuration loaded from YAML.
 
 This module validates configuration only. It neither loads YAML nor executes
@@ -47,6 +48,7 @@ class FieldMapping(ConfigModel):
     source_scope: Literal["record", "context"] = "record"
     transform: Transform | None = None
 
+    # Rejects a multi-source field rule that has no combining helper.
     @model_validator(mode="after")
     def multiple_sources_need_helper(self) -> FieldMapping:
         if isinstance(self.source, list) and self.transform is None:
@@ -62,6 +64,7 @@ class ObjectMapping(ConfigModel):
     target: Path
     fields: list[MappingRule] = Field(min_length=1)
 
+    # Rejects overlapping targets among an object rule's nested rules.
     @model_validator(mode="after")
     def check_destinations(self) -> ObjectMapping:
         _check_destinations(self.fields)
@@ -80,6 +83,7 @@ class ListMapping(ConfigModel):
     target: Path
     fields: list[MappingRule] = Field(min_length=1)
 
+    # Rejects overlapping targets among a list rule's nested rules.
     @model_validator(mode="after")
     def check_destinations(self) -> ListMapping:
         _check_destinations(self.fields)
@@ -91,6 +95,7 @@ MappingRule = Annotated[
 ]
 
 
+# Raises when two rules write the same or overlapping target.
 def _check_destinations(rules: list[MappingRule]) -> None:
     """One rule owns each destination, including its nested subtree."""
     targets: set[str] = set()
@@ -118,6 +123,7 @@ class MappingConfig(ConfigModel):
     entity: Literal["employee", "company", "direct_deposit", "deduction", "payroll"]
     fields: list[MappingRule] = Field(min_length=1)
 
+    # Accepts only the integer version 1.
     @field_validator("version", mode="before")
     @classmethod
     def integer_version(cls, value: object) -> object:
@@ -125,6 +131,7 @@ class MappingConfig(ConfigModel):
             raise ValueError("version must be the integer 1")
         return value
 
+    # Rejects overlapping targets among a file's top-level rules.
     @model_validator(mode="after")
     def check_destinations(self) -> MappingConfig:
         _check_destinations(self.fields)

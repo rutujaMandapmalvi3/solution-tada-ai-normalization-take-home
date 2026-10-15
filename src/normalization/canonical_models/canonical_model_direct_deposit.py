@@ -1,3 +1,4 @@
+# Canonical direct-deposit models. Input: mapped deposit data. Output: validated direct-deposit records.
 """Shared direct deposit output for PrismHR, isolved and UKG Ready.
 
 contracts.py validates provider input; these classes validate mapper output only.

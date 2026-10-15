@@ -1,3 +1,4 @@
+# Command-line interface. Input: a command plus --input bundle JSON and --output path. Output: the canonical document file, stderr messages and an exit code.
 # CLI entry point (`python -m normalization`): list-providers, check-inputs, normalize.
 # `normalize` reads one provider bundle (--input), checks provider readiness,
 # runs the pipeline and writes one canonical document to --output (never overwrites).
@@ -26,6 +27,7 @@ _REFERENCE_WARNINGS = {
 
 
 # Attach reference provenance to the document without replacing pipeline metadata.
+# Records reference-pack warnings once in the document's source_metadata.
 def _add_reference_warnings(document, provider, reference, issues):
     document.setdefault("source_metadata", {}).setdefault(provider, {})["reference_pack"] = {
         "provider": provider,
@@ -36,6 +38,7 @@ def _add_reference_warnings(document, provider, reference, issues):
     return document
 
 
+# Parses the command, checks reference readiness, runs the pipeline and writes the document.
 def main(argv=None):
     # Define the CLI commands and accepted arguments.
     parser = argparse.ArgumentParser(description="Tada AI normalization starter")

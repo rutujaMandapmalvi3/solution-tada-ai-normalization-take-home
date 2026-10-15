@@ -1,3 +1,4 @@
+# Canonical document model. Input: validated record dicts, provider fields, metadata and issues. Output: the document schema plus MODELS/COLLECTIONS lookups.
 # One canonical document per bundle: every record type plus run-level issues.
 """Canonical document produced by pipeline.normalize_bundle.
 

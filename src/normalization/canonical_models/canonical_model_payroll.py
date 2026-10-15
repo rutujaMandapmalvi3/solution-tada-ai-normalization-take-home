@@ -1,3 +1,4 @@
+# Canonical payroll models. Input: mapped run and paycheck data. Output: validated payroll-run and paycheck records.
 """Shared payroll output; runs, summaries and detailed checks retain distinct roles."""
 from datetime import date
 from typing import Any, Literal

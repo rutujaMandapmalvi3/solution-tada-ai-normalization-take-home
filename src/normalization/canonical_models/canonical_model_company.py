@@ -1,3 +1,4 @@
+# Canonical company models. Input: mapped company data. Output: validated company records.
 """Shared company-related output; source organizational levels stay distinct.
 
 Client, legal-company and EIN lookup records are not interchangeable company

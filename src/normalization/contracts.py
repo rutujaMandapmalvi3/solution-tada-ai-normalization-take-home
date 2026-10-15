@@ -1,3 +1,4 @@
+# Contract layer. Input: provider, endpoint and a response (status, body). Output: the prepared body, contract-drift warnings (ValueError on unusable data) and Schema nodes for mapping.
 # Contract layer: replaces the hand-written Pydantic source models.
 # Each provider response is validated against the schema its own contract file
 # declares for that endpoint, and the mapping engine reads field names from the
@@ -103,6 +104,7 @@ class Schema:
     LIVE_FIELDS paths for this response, which count as declared properties.
     """
 
+    # Stores a schema node with its spec root, body path and live-only fields.
     def __init__(self, node: Any, root: dict, path: str = "", live: frozenset = frozenset()):
         self.root = root
         self.path = path
@@ -110,6 +112,7 @@ class Schema:
         self.wrapped: dict[str, "Schema"] = {}
         self.node = self._resolve(node if isinstance(node, dict) else {})
 
+    # Follows local $refs and merges allOf parts into one schema node.
     def _resolve(self, node):
         seen = 0
         while "$ref" in node:
@@ -132,18 +135,22 @@ class Schema:
             node = merged
         return node
 
+    # Creates the Schema for a child node, keeping the root and live-only fields.
     def _sub(self, node, path):
         return Schema(node, self.root, path, self.live)
 
+    # Returns the live-only field names declared directly at this node.
     def _live_here(self) -> set[str]:
         prefix = self.path + "." if self.path else ""
         return {p[len(prefix):] for p in self.live
                 if p.startswith(prefix) and "." not in p[len(prefix):] and "[" not in p[len(prefix):]}
 
+    # Returns the JSON types this node lists.
     def _types(self) -> set:
         kind = self.node.get("type")
         return set(kind) if isinstance(kind, list) else ({kind} if kind else set())
 
+    # True when the node is untyped or an object without listed properties.
     @property
     def is_open(self) -> bool:
         """An untyped or object node without listed properties accepts any field."""
@@ -152,14 +159,17 @@ class Schema:
         types = self._types() - {"null"}
         return not types or "object" in types
 
+    # True when the node describes a list.
     @property
     def is_array(self) -> bool:
         kind = self.node.get("type")
         return kind == "array" or (isinstance(kind, list) and "array" in kind) or "items" in self.node
 
+    # Returns the field names the contract (plus live-only list) declares here.
     def declared(self) -> set[str]:
         return set(self.node.get("properties") or {}) | self._live_here()
 
+    # Returns the schema of one property; KeyError when this node has no such field.
     def child(self, name: str) -> "Schema":
         """Schema of one property; KeyError when a closed schema does not list it."""
         if name in self.wrapped:
@@ -178,9 +188,11 @@ class Schema:
             return self._sub({}, path)  # live-only field: undocumented, so open
         raise KeyError(name)
 
+    # Returns the schema of this list's items.
     def items(self) -> "Schema":
         return self._sub(self.node.get("items") or {}, self.path + "[]")
 
+    # Walks a dotted path with [] steps and returns the schema found there.
     def at(self, path: str) -> "Schema":
         """Walk 'a.b[].c' ('[]' steps into list items); KeyError on unknown names."""
         schema = self
@@ -192,6 +204,7 @@ class Schema:
                 schema = schema.items()
         return schema
 
+    # Returns the schema of {name: <this body>}, used by section-wrapped routes.
     def wrap(self, name: str) -> "Schema":
         """Schema of {name: <this body>}: used for section wrappers like salary_history."""
         outer = Schema({"type": "object", "properties": {name: {}}}, self.root)
@@ -199,10 +212,12 @@ class Schema:
         return outer
 
 
+# Escapes a path segment for use in a JSON pointer.
 def _escape(segment: str) -> str:
     return segment.replace("~", "~0").replace("/", "~1")
 
 
+# Loads a provider's OpenAPI/Swagger file and its $ref registry (cached).
 @lru_cache(maxsize=None)
 def _spec(provider: str):
     with SPEC_FILES[provider].open(encoding="utf-8") as stream:
@@ -211,6 +226,7 @@ def _spec(provider: str):
     return spec, registry
 
 
+# Indexes the UKG reference schemas as page name -> GET response schema (cached).
 @lru_cache(maxsize=None)
 def _ukg_pages() -> dict:
     with UKG_SCHEMAS.open(encoding="utf-8") as stream:
@@ -221,11 +237,13 @@ def _ukg_pages() -> dict:
             for entry in entries if entry["method"] == "GET"}
 
 
+# Converts a UKG endpoint path into its cached page name.
 def ukg_page(endpoint: str) -> str:
     """'/v2/companies/{cid}/employees/{aid}' -> '__v2__companies__(cid)__employees__(aid).html'."""
     return endpoint.replace("/", "__").replace("{", "(").replace("}", ")") + ".html"
 
 
+# Returns the GET 200 response schema of an endpoint as a Schema.
 @lru_cache(maxsize=None)
 def response_schema(provider: str, endpoint: str) -> Schema:
     """Schema of the GET 200 response body of `endpoint` in the provider contract."""
@@ -244,10 +262,12 @@ def response_schema(provider: str, endpoint: str) -> Schema:
     return Schema(node, spec, live=_live(provider, endpoint))
 
 
+# Returns the live-only field paths declared for an endpoint.
 def _live(provider: str, endpoint: str) -> frozenset:
     return frozenset(LIVE_FIELDS.get(provider, {}).get(endpoint, ()))
 
 
+# Builds the cached JSON Schema validator for an endpoint's response.
 @lru_cache(maxsize=None)
 def _validator(provider: str, endpoint: str):
     if provider == "ukg-ready":
@@ -262,6 +282,7 @@ def _validator(provider: str, endpoint: str):
     return Validator({"$ref": f"urn:{provider}{pointer}"}, registry=registry)
 
 
+# Renames live PrismHR field spellings to contract names, scoped by parent key.
 def _rename(provider: str, node: Any, parent: str | None = None) -> Any:
     renames = LIVE_RENAMES.get(provider)
     if not renames:
@@ -279,6 +300,7 @@ def _rename(provider: str, node: Any, parent: str | None = None) -> Any:
     return node
 
 
+# Checks HTTP status and provider error code, then applies live renames; returns the body.
 def prepare(provider: str, response: dict) -> Any:
     """Checks that must happen before schema validation; returns the body to validate.
 
@@ -298,6 +320,7 @@ def prepare(provider: str, response: dict) -> Any:
     return _rename(provider, body)
 
 
+# Validates a body against its contract; returns drift warnings, raises on wrong types.
 def validate(provider: str, endpoint: str, body: Any) -> list[dict]:
     """Validate a prepared body; return contract-drift warnings, raise on type errors."""
     warnings = []

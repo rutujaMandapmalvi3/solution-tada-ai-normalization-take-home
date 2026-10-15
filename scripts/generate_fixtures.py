@@ -1,3 +1,4 @@
+# Builds the synthetic fixture bundles. Input: a seed (default 42) and an output folder. Output: <provider>.bundle.json files and generation_manifest.json.
 """Generate three deterministic, synthetic provider bundles.
 
 Each bundle holds every captured response for one provider as
@@ -33,6 +34,7 @@ CONTRACTS = {
 
 
 # Build documented shapes with invented identities and a small seeded value pool.
+# Builds the seeded synthetic response bodies for each provider and entity.
 def build_cases(seed: int = DEFAULT_SEED) -> dict:
     cases = {'prismhr': {'employee': {'errorCode': '0',
                               'errorMessage': '',
@@ -190,11 +192,13 @@ ISOL_LEGAL = "/api/clients/{clientId}/legals"
 UKG_CO = "/v2/companies/{cid}"
 
 
+# Wraps one body with its contract endpoint and request params.
 def _response(endpoint: str, params: dict, body) -> dict:
     return {"endpoint": endpoint, "params": params, "body": body}
 
 
 # Split each provider's cases into the contract responses they came from.
+# Splits the synthetic cases into per-provider bundles of {endpoint, params, body} responses.
 def build_bundles(seed: int = DEFAULT_SEED) -> dict:
     cases = build_cases(seed)
     p, i, u = cases["prismhr"], cases["isolved"], cases["ukg-ready"]
@@ -265,6 +269,7 @@ def build_bundles(seed: int = DEFAULT_SEED) -> dict:
 
 
 # Check every response against its contract (type errors raise ValueError).
+# Checks every response in a bundle against its contract; raises ValueError on type errors.
 def validate_bundle(bundle: dict) -> None:
     for response in bundle["responses"]:
         body = contracts.prepare(bundle["provider"], response)
@@ -272,6 +277,7 @@ def validate_bundle(bundle: dict) -> None:
 
 
 # Write validated bundles and reproducibility metadata, never expected outputs.
+# Validates and writes the bundles plus the generation manifest; returns the bundle paths.
 def generate(seed: int = DEFAULT_SEED, output_dir: Path = DEFAULT_OUTPUT) -> list[Path]:
     output_dir = Path(output_dir)
     pending = {}
@@ -299,6 +305,7 @@ def generate(seed: int = DEFAULT_SEED, output_dir: Path = DEFAULT_OUTPUT) -> lis
 
 
 # Expose repeatable generation through the provided script entry point.
+# Command-line entry: reads --seed/--output-dir and runs generate.
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)

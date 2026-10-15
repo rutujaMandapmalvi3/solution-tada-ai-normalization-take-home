@@ -1,3 +1,4 @@
+# Canonical employee model. Input: mapped employee data. Output: validated employee records.
 """Shared employee output for PrismHR, isolved and UKG Ready.
 
 contracts.py validates provider input. These models define mapper output only:

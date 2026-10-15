@@ -1,3 +1,4 @@
+# Bundle pipeline. Input: a provider bundle {provider, responses: [{endpoint, params, body}]}. Output: one canonical document dict.
 # Bundle pipeline: one input file with many captured provider responses in,
 # one canonical document out. Implements docs/solution-docs/relationship_policies.md:
 # every record gets a canonical id, children get refs, records sharing an id merge.
@@ -30,16 +31,19 @@ _REFS = ("company_ref", "employee_ref", "payroll_run_ref")
 
 
 # ---------------------------------------------------------------- templates
+# Reads a dotted path from a value; None when missing.
 def _lookup(value: Any, path: str) -> Any:
     for segment in path.split("."):
         value = value.get(segment) if isinstance(value, dict) else None
     return value
 
 
+# Fills {params|record|parent.x} placeholders; None if any value is missing.
 def render(template: str, scope: dict) -> str | None:
     """Fill {params.x} / {record.x} / {parent.x}; None when any value is missing."""
     missing = False
 
+    # Replaces one placeholder with its value normalized as an identifier.
     def fill(match):
         nonlocal missing
         value = identifier(_lookup(scope.get(match.group(1)), match.group(2))).value
@@ -52,6 +56,7 @@ def render(template: str, scope: dict) -> str | None:
     return None if missing else text
 
 
+# Renders templates in order and returns the first one that succeeds.
 def _first(templates, scope):
     for template in templates if isinstance(templates, list) else [templates]:
         value = render(template, scope)
@@ -60,6 +65,7 @@ def _first(templates, scope):
     return None
 
 
+# Builds a route's engine context from templates and literal values.
 def _context(route: dict, scope: dict) -> dict:
     """Route context: templates are rendered, literals (including None) pass through."""
     return {name: render(value, scope) if isinstance(value, str) and "{" in value else value
@@ -67,11 +73,13 @@ def _context(route: dict, scope: dict) -> dict:
 
 
 # ---------------------------------------------------------------- record paths
+# Yields each record, its parent and its JSON path for a route's records path.
 def iterate(body: Any, path: str):
     """Yield (record, parent, json_path) for a records path such as
     '' (the body), '[]' (each item of a list body), 'employee[]' or
     'employee[].directDeposit.achVoucher[]' (parent = the enclosing employee)."""
 
+    # Follows path segments recursively, iterating the lists marked with [].
     def walk(node, segments, parent, json_path):
         if not segments:
             if isinstance(node, dict):
@@ -92,6 +100,7 @@ def iterate(body: Any, path: str):
     yield from walk(body, [s for s in path.split(".") if s], None, ())
 
 
+# Removes a dotted path from a record copy.
 def _drop(record: dict, path: str) -> None:
     *parents, last = path.split(".")
     for name in parents:
@@ -100,6 +109,7 @@ def _drop(record: dict, path: str) -> None:
         record.pop(last, None)
 
 
+# Returns the body minus its record collections (the response wrapper).
 def _wrapper(body: dict, record_paths: list[str]) -> dict:
     """Body minus its record collections; every sibling field is kept.
 
@@ -124,6 +134,12 @@ def _wrapper(body: dict, record_paths: list[str]) -> dict:
 
 
 # ---------------------------------------------------------------- merge
+# Merges a record into the existing one with the same id, reporting conflicts.
+# inputs - target: The record already saved in records, which gets updated in place
+# incoming: The new record with the same id (data)
+# record_id: That shared id, used only in conflict messages
+# issues: The run's issue list, where merge_conflict warnings are added
+# prefix: Used internally when it calls itself for nested dicts ("provider_fields."); empty on the first call
 def _merge(target: dict, incoming: dict, record_id: str, issues: list, prefix: str = "") -> None:
     """Fill missing fields, merge nested objects, join lists, report differing values."""
     for key, value in incoming.items():
@@ -142,11 +158,13 @@ def _merge(target: dict, incoming: dict, record_id: str, issues: list, prefix: s
 
 # ---------------------------------------------------------------- pipeline
 class _Engines:
+    # Prepares an engine cache for one provider.
     def __init__(self, provider: str):
         self.provider = provider
         self.directory = "ukg_ready" if provider == "ukg-ready" else provider
         self.cache = {}
 
+    # Returns the engine for a route and endpoint, building it once.
     def get(self, route: dict, endpoint: str) -> MappingEngine:
         key = (route["yaml"], endpoint, route["records"], route.get("wrap"))
         if key not in self.cache:
@@ -165,6 +183,7 @@ class _Engines:
         return self.cache[key]
 
 
+# Runs prepare, validate, route, map, stamp, merge, re-validate and link check.
 def normalize_bundle(bundle: Any) -> dict:
     if not isinstance(bundle, dict) or bundle.get("provider") not in ADAPTERS:
         raise ValueError(f"Bundle must be an object with provider in {sorted(ADAPTERS)}")
@@ -199,6 +218,7 @@ def normalize_bundle(bundle: Any) -> dict:
             wrapper = _wrapper(body, [route["records"] for route in endpoint_routes])
             if wrapper:
                 meta["wrapper"] = wrapper
+        #stored parts of the body that are not records
         responses_meta.append(meta)
 
         for route in endpoint_routes:
@@ -209,6 +229,7 @@ def normalize_bundle(bundle: Any) -> dict:
                 where = "/".join(str(part) for part in json_path) or "<body>"
                 scope = {"params": params, "record": record, "parent": parent}
                 if any(_lookup(record, path) != expected for path, expected in (route.get("where") or {}).items()):
+                    #sets aside the values that are unrelated to the entity data type
                     filtered.append({"response": index, "endpoint": endpoint, "path": where,
                                      "reason": f"not a {route['type']} record", "record": record})
                     continue
@@ -234,6 +255,7 @@ def normalize_bundle(bundle: Any) -> dict:
                     _drop(source, path)
                 if route.get("wrap"):
                     source = {route["wrap"]: source}
+                #source - deepcopy, context - extra values that aren't in the body, metadata - error response, endpoint, path where the record is found
                 canonical = engine.map(source, context=_context(route, scope), metadata={
                     "sources": [{"response": index, "endpoint": endpoint, "path": where}]})
                 data = canonical.model_dump(mode="json", exclude_unset=True)
@@ -249,6 +271,8 @@ def normalize_bundle(bundle: Any) -> dict:
                                        "path": ref, "message": f"No value for {template}; ref left empty."})
                         continue
                     data[ref] = f"{provider}:{ref_type}:{ref_key}"
+                # checks if the id exists in records(meaning if the python dict for it exists or not)
+                # if yes, dont save it in the records dict again, instead merge it, if no - save it
                 if record_id in records:
                     _merge(records[record_id][1], data, record_id, issues)
                 else:

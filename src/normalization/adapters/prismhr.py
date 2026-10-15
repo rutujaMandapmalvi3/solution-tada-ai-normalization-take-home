@@ -1,3 +1,4 @@
+# PrismHR route table. Input: none (static data). Output: ROUTES, endpoint -> how its records are mapped, identified and linked.
 # PrismHR adapter: which contract endpoint feeds which canonical record, and how
 # ids/refs are built (docs/solution-docs/relationship_policies.md, Tables 1-2).
 """PrismHR routes.
@@ -6,6 +7,9 @@ Route keys (see pipeline.py): type, records, yaml, schema, wrap, context,
 ignore, where, check, fill_record, defaults, id, refs. Placeholders: {params.x} request params,
 {record.x} the mapped record, {parent.x} the enclosing record.
 Owner scope = clientId (PrismHR employee ids are unique only within a client).
+provider:record_type:owner_scope[:employee_key]:record_key
+provider : record_type : owner_scope : [employee_key] : record_key - taken from response
+prismhr  : employee    : 001         : (none)         : 007
 """
 
 COMPANY = ("company", "{params.clientId}")

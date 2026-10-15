@@ -1,3 +1,4 @@
+# Mapping engine. Input: one source record dict, its contract Schema, YAML rules and context. Output: a validated canonical Pydantic record.
 """Execute validated mapping rules on already-validated source records.
 
 The engine is shared; provider/entity differences belong in YAML and helpers.
@@ -30,6 +31,7 @@ class _UniqueKeyLoader(yaml.SafeLoader):
     """Do not silently discard an earlier YAML rule/key."""
 
     # Converts a YAML object into a dictionary and rejects duplicate keys.
+    # Builds a YAML mapping and rejects duplicate keys.
     def construct_mapping(self, node, deep=False):
         self.flatten_mapping(node)
         seen = set()
@@ -46,6 +48,7 @@ class _UniqueKeyLoader(yaml.SafeLoader):
 
 
 # Reads the YAML file and checks that its mapping rules are valid.
+# Reads a YAML mapping file and validates it as a MappingConfig.
 def load_mapping_config(path: str | Path) -> MappingConfig:
     """Safely parse YAML, reject duplicate keys, then validate rule structure."""
     with Path(path).open(encoding="utf-8") as stream:
@@ -54,6 +57,7 @@ def load_mapping_config(path: str | Path) -> MappingConfig:
 
 
 # Gets the underlying type from an optional type, such as str from str or None.
+# Unwraps Optional[X] to X.
 def _optional_type(annotation):
     if get_origin(annotation) in (Union, types.UnionType):
         choices = [t for t in get_args(annotation) if t is not type(None)]
@@ -63,11 +67,13 @@ def _optional_type(annotation):
 
 
 # Checks whether a type is a Pydantic model.
+# True when an annotation is a Pydantic model class.
 def _is_model(annotation):
     return isinstance(annotation, type) and issubclass(annotation, BaseModel)
 
 
 # Checks a nested canonical (target) path and finds the type of its final value.
+# Returns the canonical model type at a target path; raises on unknown fields.
 def _path_type(annotation, path):
     for segment in path.split("."):
         annotation = _optional_type(annotation)
@@ -87,6 +93,7 @@ def _path_type(annotation, path):
 
 
 # Checks a source path against the contract schema of the source record.
+# Returns the contract schema at a source path; raises on unknown fields.
 def _source_path(schema: Schema, path: str) -> Schema:
     try:
         return schema.at(path)
@@ -95,6 +102,7 @@ def _source_path(schema: Schema, path: str) -> Schema:
 
 
 # Reads a value from a nested path and reports when it was not supplied.
+# Reads a dotted path from a record, reporting values that are not supplied.
 def _read(record, path):
     resolved = []
     for segment in path.split("."):
@@ -111,19 +119,23 @@ def _read(record, path):
 
 
 # Copies a supplied source value into an independent plain structure.
+# Returns an independent copy of a source value.
 def _plain(value):
     return deepcopy(value)
 
 
+# Returns a property's schema, or None when no schema limits the fields.
 def _child(schema, key):
     return None if schema is None else schema.child(key)
 
 
+# True when the contract declares this field (or no schema limits it).
 def _declared(schema, key):
     return schema is None or schema.is_open or key in schema.declared()
 
 
 # Collects contract-declared source fields that the mapping rules have not used.
+# Collects declared source fields that no rule consumed, keeping their nesting.
 def _remaining(value, consumed, schema=None, path=()):
     """Retain declared, unconsumed fields in original nesting (schema None = all declared)."""
     if path in consumed:
@@ -148,6 +160,7 @@ def _remaining(value, consumed, schema=None, path=()):
 
 
 # Collects source fields the contract does not declare, keeping nesting and list positions.
+# Collects source fields the contract does not declare, keeping their nesting.
 def _extras(value, schema=None):
     """Undeclared fields per the contract schema; open schemas declare everything."""
     if schema is None:
@@ -173,6 +186,7 @@ def _extras(value, schema=None):
 
 
 # Writes a value at an output path without overwriting an existing value.
+# Writes a value at a dotted output path, refusing to overwrite.
 def _put(output, path, value):
     segments = path.split(".")
     for segment in segments[:-1]:
@@ -195,6 +209,7 @@ class MappingEngine:
     """
 
     # Sets up the engine and checks the rules against the source schema and output model.
+    # Stores the rules, source schema and output model, then preflights the rules.
     def __init__(self, config: MappingConfig, source_schema: Schema,
                  output_model: type[BaseModel]):
         self.config = config.model_copy(deep=True)
@@ -204,6 +219,7 @@ class MappingEngine:
         self._preflight(self.config.fields, source_schema, output_model, root=True)
 
     # Checks field paths, nested rule types and available helpers before mapping.
+    # Checks every rule's source path, target path and helper before any mapping.
     def _preflight(self, rules, source_schema, target_type, root=False):
         for rule in rules:
             if root and rule.target.split(".")[0] in ("provider", "source_metadata", "source_extras"):
@@ -235,6 +251,7 @@ class MappingEngine:
             self._preflight(rule.fields, source, target_annotation)
 
     # Maps one validated source record (a dict) and returns a validated canonical object.
+    # Maps one record: applies rules, adds unmapped/extras/metadata, validates the output.
     def map(self, source: dict, *, context: dict[str, Any] | None = None,
             metadata: dict[str, Any] | None = None) -> BaseModel:
         if not isinstance(source, dict):
@@ -263,6 +280,7 @@ class MappingEngine:
         return self.output_model.model_validate(output)
 
     # Applies each rule, calls its helper if needed and handles nested objects or lists.
+    # Applies field/object/list rules recursively, recording consumed paths and issues.
     def _apply(self, rules, source, output, context, consumed, original, issues, prefix=()):
         for rule in rules:
             use_context = isinstance(rule, FieldMapping) and rule.source_scope == "context"

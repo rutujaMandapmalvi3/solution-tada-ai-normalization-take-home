@@ -1,3 +1,4 @@
+# Reference-pack checks. Input: a provider name. Output: its lookup reference data and readiness issue lists.
 # Loads contracts/<provider>/lookup-reference.json and reports readiness issues
 # (provider id, lookup status, distribution permission, OpenAPI file and checksum metadata).
 """Basic input readiness checks, not licensing or OpenAPI validation."""
@@ -9,12 +10,14 @@ from .adapters import ADAPTERS
 ROOT = Path(__file__).resolve().parents[2]
 
 
+# Loads a provider's lookup-reference.json.
 def load_reference(provider, root=ROOT):
     path = root / "contracts" / provider / "lookup-reference.json"
     with path.open(encoding="utf-8") as stream:
         return json.load(stream)
 
 
+# Lists metadata gaps in a provider's reference pack.
 def readiness_issues(provider, root=ROOT):
     try:
         ref = load_reference(provider, root)
@@ -50,5 +53,6 @@ def readiness_issues(provider, root=ROOT):
         return ["Cannot read reference metadata: " + str(exc)]
 
 
+# Returns the readiness issues for every provider.
 def all_readiness_issues(root=ROOT):
     return {provider: readiness_issues(provider, root) for provider in ADAPTERS}

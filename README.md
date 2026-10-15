@@ -1,5 +1,7 @@
 # Tada AI · Data Normalization Take-Home
 
+> **Solution:** setup, usage and approach are in [docs/solution-docs/README.md](docs/solution-docs/README.md); decisions and assumptions are in [docs/solution-docs/DECISIONS.md](docs/solution-docs/DECISIONS.md).
+
 Build a local platform that normalizes company, employee, direct deposit,
 deduction, and payroll data from
 **PrismHR, isolved, and UKG Ready** into a consistent model. Discover the provider

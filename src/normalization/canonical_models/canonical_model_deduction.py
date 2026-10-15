@@ -1,3 +1,4 @@
+# Canonical deduction models. Input: mapped deduction data. Output: validated deduction records.
 """Shared deduction output for PrismHR, isolved and UKG Ready.
 
 contracts.py validates provider input; these classes validate mapper output only.

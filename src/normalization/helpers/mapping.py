@@ -1,3 +1,4 @@
+# YAML transform helpers. Input: source values plus helper arguments from YAML. Output: Conversion(value, issue) results.
 """Reusable value conversions selected by YAML mapping rules.
 
 No provider-specific field names, lookup meanings or API calls belong here.
@@ -15,6 +16,7 @@ class Conversion:
     issue: str | None = None
 
 
+# Converts an id to text, keeping text ids and integral numbers.
 def identifier(value: Any) -> Conversion:
     """Keep text IDs; stringify integral numbers without losing leading zeros."""
     if value is None or isinstance(value, str):
@@ -26,6 +28,7 @@ def identifier(value: Any) -> Conversion:
     raise ValueError("Identifier must be text, an integral finite number, or null")
 
 
+# Parses a source date into a date, or returns an issue.
 def date_value(value: Any) -> Conversion:
     """Retain the written calendar date; never shift an offset to another zone."""
     if value is None:
@@ -49,6 +52,7 @@ def date_value(value: Any) -> Conversion:
 
 
 # Converts numeric text into a finite number without changing units or basis.
+# Converts a numeric value to a number, or returns an issue.
 def number(value: Any) -> Conversion:
     if value is None:
         return Conversion(None)
@@ -71,6 +75,7 @@ def number(value: Any) -> Conversion:
 
 
 # Returns a number only when its source selector matches the configured value.
+# Returns the number only when the selector equals the configured value.
 def conditional_number(value: Any, selector: Any, *, equals: str) -> Conversion:
     """Select a verified numeric meaning; other values are preserved by mapping rules."""
     if selector == equals:
@@ -79,6 +84,7 @@ def conditional_number(value: Any, selector: Any, *, equals: str) -> Conversion:
 
 
 # Replaces a known code or readable label using only the supplied dictionary.
+# Translates a code through the YAML label table; unknown codes give an issue.
 def label(value: Any, *, labels: dict[str, str]) -> Conversion:
     if value is None:
         return Conversion(None)
@@ -101,6 +107,7 @@ def label(value: Any, *, labels: dict[str, str]) -> Conversion:
 
 
 # Combines ZIP and suffix as text without duplicating or guessing an extension.
+# Combines ZIP and ZIP+4 suffix as text, flagging conflicts.
 def postal_code(zipcode: Any, suffix: Any) -> Conversion:
     if zipcode is not None and not isinstance(zipcode, str):
         return Conversion(None, "ZIP must be text; original components retained")
@@ -119,6 +126,7 @@ def postal_code(zipcode: Any, suffix: Any) -> Conversion:
 
 
 # Combines two pronoun fields without letting conflicting values overwrite each other.
+# Resolves one pronoun value from two fields, flagging conflicts.
 def pronouns(first: Any, second: Any) -> Conversion:
     if any(value is not None and not isinstance(value, str) for value in (first, second)):
         return Conversion(None, "Invalid pronoun value; originals retained")
@@ -133,6 +141,7 @@ def pronouns(first: Any, second: Any) -> Conversion:
 
 
 # Resolves two identifier aliases without choosing between conflicting values.
+# Resolves two alias id fields to one value; null plus issue when they differ.
 def identifier_alias(first: Any, second: Any) -> Conversion:
     left, right = identifier(first).value, identifier(second).value
     if left is None:
@@ -143,6 +152,7 @@ def identifier_alias(first: Any, second: Any) -> Conversion:
 
 
 # Checks helper arguments before mapping any source records.
+# Checks that a YAML transform names a known helper with valid arguments.
 def validate_helper(name: str, source_count: int, arguments: dict[str, Any]) -> None:
     if name not in HELPERS:
         raise ValueError(f"Helper not implemented yet: {name}")
