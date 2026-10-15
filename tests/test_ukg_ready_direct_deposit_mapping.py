@@ -3,31 +3,31 @@ import copy
 import json
 import unittest
 from unittest.mock import patch
-from normalization.adapters import ukg_ready as adapter
+
+from bundle_helpers import UKG, UKG_CO, only, run_one
+from normalization import contracts, pipeline
 from normalization.mapping_engine import MappingEngine
+
+DEPOSITS = UKG_CO + "/employees/{aid}/direct-deposits"
 
 
 class DepositMappingChecks(unittest.TestCase):
-    def test_requires_owner_context(self):
-        for value in [None, '', '  ', 7]:
-            with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'nonblank employee_id'):
-                adapter.normalize('direct_deposit', {'deposits': [], '_links': {}}, {}, employee_id=value)
+    def test_requires_owner_param(self):
+        # Previously the --employee-id flag; now params.aid builds the id and employee_ref.
+        with self.assertRaisesRegex(ValueError, 'cannot build direct_deposit id'):
+            run_one("ukg-ready", DEPOSITS, {'deposits': [{'id': 1}], '_links': {}}, **UKG)
 
-    def test_empty_input_skips_engine_and_retains_result(self):
-        with patch.object(adapter, 'MappingEngine') as factory:
-            result = adapter.normalize('direct_deposit', {'deposits': [], '_links': {}}, {}, employee_id='007')
-        self.assertEqual(result['employee_id'], '007')
+    def test_empty_input_maps_nothing_and_keeps_wrapper(self):
+        result = run_one("ukg-ready", DEPOSITS, {'deposits': [], '_links': {}}, **UKG, aid="007")
         self.assertEqual(result['direct_deposits'], [])
-        factory.assert_not_called()
+        self.assertEqual(result['source_metadata']['ukg-ready']['responses'][0]['wrapper'], {'_links': {}})
 
-    def test_one_response_validation_and_engine_per_input(self):
-        validator = adapter.UKGReadyDirectDepositResponse.model_validate
-        with patch.object(adapter.UKGReadyDirectDepositResponse, 'model_validate', wraps=validator) as validation, \
-             patch.object(adapter.UKGReadyDirectDepositResponseDepositsItem, 'model_validate') as again, \
-             patch.object(adapter, 'MappingEngine', wraps=MappingEngine) as factory:
-            result = adapter.normalize('direct_deposit', {'deposits': [{'id': 1}, {'id': 2}], '_links': {}}, {}, employee_id='007')
+    def test_one_validation_and_engine_per_input(self):
+        with patch.object(contracts, 'validate', wraps=contracts.validate) as validation, \
+             patch.object(pipeline, 'MappingEngine', wraps=MappingEngine) as factory:
+            result = run_one("ukg-ready", DEPOSITS, {'deposits': [{'id': 1}, {'id': 2}], '_links': {}},
+                             **UKG, aid="007")
         self.assertEqual(validation.call_count, 1)
-        again.assert_not_called()
         self.assertEqual(factory.call_count, 1)
         self.assertEqual(len(result['direct_deposits']), 2)
 
@@ -41,8 +41,11 @@ class DepositMappingChecks(unittest.TestCase):
              'type': 'RESERVE_LIVE_CHECK'}], '_links': {'self': '/synthetic/deposits'},
              '_total_count': 2, '_routing_type': 'ABA', 'future_wrapper': {'flag': False}}
         before = copy.deepcopy(payload)
-        result = adapter.normalize('direct_deposit', payload, {}, employee_id='007')
+        result = run_one("ukg-ready", DEPOSITS, payload, **UKG, aid="007")
         fixed, other = result['direct_deposits']
+        self.assertEqual(fixed['id'], 'ukg-ready:direct_deposit:001:007:12')
+        self.assertEqual(fixed['employee_ref'], 'ukg-ready:employee:001:007')
+        self.assertEqual(fixed['employee_id'], '007')
         self.assertEqual(fixed['deposit_id'], '12')
         self.assertEqual(fixed['allocation_amount'], 500.0)
         self.assertEqual(fixed['account_number'], '000123')
@@ -57,20 +60,20 @@ class DepositMappingChecks(unittest.TestCase):
         self.assertEqual(other['provider_fields']['ukg-ready']['percentage'], 5.0)
         self.assertEqual(other['provider_fields']['ukg-ready']['type'], 'RESERVE_LIVE_CHECK')
         self.assertEqual(other['source_metadata']['original_values']['calc_method.type'], 'GROSS_EARNING')
-        self.assertEqual(result['source_metadata']['ukg-ready']['response'],
+        self.assertEqual(result['source_metadata']['ukg-ready']['responses'][0]['wrapper'],
                          {k: v for k, v in before.items() if k != 'deposits'})
         self.assertEqual(payload, before)
         json.dumps(result, allow_nan=False)
 
     def test_empty_wrapper_metadata_and_unknown_methods_are_retained(self):
         payload = {'deposits': [], '_links': {'self': '/synthetic'}, 'future': False}
-        result = adapter.normalize('direct_deposit', payload, {}, employee_id='007')
-        self.assertEqual(result['source_metadata']['ukg-ready']['response'],
+        result = run_one("ukg-ready", DEPOSITS, payload, **UKG, aid="007")
+        self.assertEqual(result['source_metadata']['ukg-ready']['responses'][0]['wrapper'],
                          {'_links': {'self': '/synthetic'}, 'future': False})
         for method in [None, {}, {'type': 'UNVERIFIED'}]:
             with self.subTest(method=method):
-                result = adapter.normalize('direct_deposit', {'deposits': [
-                    {'id': 1, 'amount': 10, 'calc_method': method}], '_links': {}}, {}, employee_id='007')
-                deposit = result['direct_deposits'][0]
+                result = run_one("ukg-ready", DEPOSITS, {'deposits': [
+                    {'id': 1, 'amount': 10, 'calc_method': method}], '_links': {}}, **UKG, aid="007")
+                deposit = only(result, 'direct_deposits')
                 self.assertIsNone(deposit['allocation_amount'])
                 self.assertEqual(deposit['provider_fields']['ukg-ready']['amount'], 10.0)

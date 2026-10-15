@@ -1,5 +1,7 @@
 # Deduction mapper implementation
 
+> **Historical:** written before the contracts/bundle change. CLI flags, source models and per-entity outputs described here were replaced; see [DECISIONS.md](./DECISIONS.md) and [relationship_policies.md](./relationship_policies.md).
+
 All three deduction adapters now validate, select, map and preserve supplied data using existing source models, canonical schemas, YAMLs and helpers. references.py and payroll remain unchanged.
 
 ## Why selection is in adapters

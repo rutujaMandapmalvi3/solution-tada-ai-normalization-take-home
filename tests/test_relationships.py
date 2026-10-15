@@ -158,6 +158,13 @@ class PreservedNotDropped(unittest.TestCase):
         unrouted = {r["endpoint"] for r in ukg["provider_fields"]["ukg-ready"]["unrouted_responses"]}
         self.assertEqual(unrouted, {UKG_CO + "/lookup/deduction-codes", UKG_CO + "/employees/{aid}/benefits"})
 
+    def test_fields_beside_a_nested_record_list_stay_in_the_wrapper(self):
+        body = {"errorCode": "0", "employeeDeductions": {"deduction": [{"deductionCode": "001"}],
+                                                         "future_section": {"flag": False}}}
+        document = run_one("prismhr", "/deductions/v1/getDeductions", body, **PRISM, employeeId="7")
+        wrapper = document["source_metadata"]["prismhr"]["responses"][0]["wrapper"]
+        self.assertEqual(wrapper["employeeDeductions"], {"future_section": {"flag": False}})
+
     def test_company_from_isolved_legals_list(self):
         document = run_one("isolved", ISOL_LEGALS, [{"id": 1, "legalName": "A"}, {"id": 2, "legalName": "B"}],
                            clientId="4000")

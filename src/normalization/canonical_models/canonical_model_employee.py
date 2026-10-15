@@ -1,6 +1,6 @@
 """Shared employee output for PrismHR, isolved and UKG Ready.
 
-Source models validate provider input. These models define mapper output only:
+contracts.py validates provider input. These models define mapper output only:
 no source-code translation, date parsing, joins or unit conversion occurs here.
 Provider-specific structures retain their nesting in provider_fields; unknown
 source fields belong in source_extras, never undeclared employee attributes.

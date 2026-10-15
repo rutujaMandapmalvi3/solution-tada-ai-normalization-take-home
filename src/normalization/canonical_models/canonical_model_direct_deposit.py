@@ -1,6 +1,6 @@
 """Shared direct deposit output for PrismHR, isolved and UKG Ready.
 
-Source models validate input; these classes validate mapper output only.
+contracts.py validates provider input; these classes validate mapper output only.
 No source selection, code translation, ID generation or unit conversion occurs
 here. Provider-specific values and unknown extras retain their own nesting.
 Deposit setup only; paycheck payments and HSA are separate scopes.

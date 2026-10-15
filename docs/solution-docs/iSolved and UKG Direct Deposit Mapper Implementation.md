@@ -1,5 +1,7 @@
 # iSolved and UKG direct-deposit mapping
 
+> **Historical:** written before the contracts/bundle change. CLI flags, source models and per-entity outputs described here were replaced; see [DECISIONS.md](./DECISIONS.md) and [relationship_policies.md](./relationship_policies.md).
+
 Uses the same record/result models and mapping engine as PrismHR. No new helper implementation was added: UKG reuses conditional_number.
 
 ## Input and mapping boundary

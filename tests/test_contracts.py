@@ -73,6 +73,11 @@ class Validate(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "employee/0/firstName"):
             contracts.validate("prismhr", EMPLOYEE, {"errorCode": "0", "employee": [{"id": "7", "firstName": 5}]})
 
+    def test_integral_float_counts_as_integer(self):
+        self.assertEqual(contracts.validate("ukg-ready", "/v2/companies/{cid}/employees/{aid}", {"id": 7.0}), [])
+        with self.assertRaisesRegex(ValueError, "id"):
+            contracts.validate("ukg-ready", "/v2/companies/{cid}/employees/{aid}", {"id": 7.5})
+
     def test_undocumented_field_is_contract_drift(self):
         warnings = contracts.validate("ukg-ready", "/v2/companies/{cid}/employees/{aid}",
                                       {"id": 7, "ein_name": "Primary"})

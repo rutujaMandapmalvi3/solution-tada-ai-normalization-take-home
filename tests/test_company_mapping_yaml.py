@@ -1,62 +1,61 @@
 """Company YAML execution preserves source identity, scope and recursive references."""
-import inspect
 from importlib.resources import files
 from pathlib import Path
-import types
-from typing import Any, Union, get_args, get_origin
 import unittest
 
-from pydantic import BaseModel
+from normalization import contracts
 from normalization.canonical_models.canonical_model_company import CanonicalCompany
 from normalization.mapping_engine import MappingEngine, load_mapping_config
-from normalization.source_models.prismhr.prismhr_source_model_company import PrismHRClientMaster
-from normalization.source_models.isolved.isolved_source_model_company import IsolvedLegalModel
-from normalization.source_models.ukg_ready.ukg_ready_source_model_company import UKGReadyEinsResponseItemsItem
+
+# Company record schemas from the contracts, as the adapters route them.
+PRISM = contracts.response_schema("prismhr", "/clientMaster/v1/getClientMaster").at("clientMaster")
+ISOLVED = contracts.response_schema("isolved", "/api/clients/{clientId}/legals").at("[]")
+UKG = contracts.response_schema("ukg-ready", "/v2/companies/{cid}/lookup/eins").at("items[]")
 
 
-def synthetic(model, seen=()):
-    model.model_rebuild()
-    recursive = model in seen
-    def value(t):
-        if get_origin(t) in (Union, types.UnionType):
-            return value(next(x for x in get_args(t) if x is not type(None)))
-        if get_origin(t) is list:
-            return [value(get_args(t)[0])]
-        if get_origin(t) is dict:
-            return {'future': False}
-        if inspect.isclass(t) and issubclass(t, BaseModel):
-            return synthetic(t, (*seen, model))
-        return {str: 'synthetic', int: 0, float: 0.0, bool: False, Any: None}[t]
-    return {(f.alias or n): value(f.annotation) for n, f in model.model_fields.items()
-            if not recursive or n == 'id'}
+def synthetic(schema, seen=()):
+    """Synthetic record covering every contract-declared field (no customer data)."""
+    node = schema.node
+    kind = node.get("type")
+    if isinstance(kind, list):
+        kind = next((k for k in kind if k != "null"), None)
+    if kind == "array" or (kind is None and "items" in node):
+        return [synthetic(schema.items(), seen)]
+    if kind == "object" or (kind is None and "properties" in node):
+        if schema.is_open:
+            return {"synthetic": False}
+        if id(node) in seen:  # recursive reference: keep only its identity
+            return {"id": synthetic(schema.child("id"), seen)} if "id" in schema.declared() else {}
+        seen = seen + (id(node),)
+        return {name: synthetic(schema.child(name), seen) for name in sorted(schema.declared())}
+    return {"string": "synthetic", "integer": 0, "number": 0.0, "boolean": False}.get(kind)
 
 
 class CompanyMappingYamlChecks(unittest.TestCase):
-    variants = [('prismhr', PrismHRClientMaster, 'client'),
-                ('isolved', IsolvedLegalModel, 'legal_company'),
-                ('ukg_ready', UKGReadyEinsResponseItemsItem, 'ein')]
+    variants = [('prismhr', PRISM, 'client'),
+                ('isolved', ISOLVED, 'legal_company'),
+                ('ukg_ready', UKG, 'ein')]
 
-    def engine(self, module, model):
+    def engine(self, module, schema):
         resource = files('normalization').joinpath(f'mappings/{module}/company.yaml')
-        return MappingEngine(load_mapping_config(Path(str(resource))), model, CanonicalCompany)
+        return MappingEngine(load_mapping_config(Path(str(resource))), schema, CanonicalCompany)
 
     def test_all_three_configs_validate_and_all_supplied_sections_serialize(self):
-        for module, model, kind in self.variants:
+        for module, schema, kind in self.variants:
             with self.subTest(module=module):
-                payload = synthetic(model)
+                payload = synthetic(schema)
                 payload['future_flag'] = False
-                result = self.engine(module, model).map(model.model_validate(payload),
-                                                       context={'source_record_type': kind})
+                result = self.engine(module, schema).map(payload, context={'source_record_type': kind})
                 self.assertEqual(result.source_record_type, kind)
                 self.assertEqual(result.source_record_id, 'synthetic' if module == 'prismhr' else '0')
                 self.assertIs(result.source_extras[module.replace('_', '-')]['future_flag'], False)
                 result.model_dump_json(exclude_unset=True)
 
     def test_prism_verified_names_identifiers_and_status_class_remain_distinct(self):
-        source = PrismHRClientMaster.model_validate({'id': '0007', 'legalName': 'Example Legal',
+        source = {'id': '0007', 'legalName': 'Example Legal',
             'clientName': 'Example Trade', 'federalIdNumber': '001234', 'naicsCode': '00120',
-            'statusClass': 'A', 'status': 'CUSTOM'})
-        result = self.engine('prismhr', PrismHRClientMaster).map(source, context={'source_record_type': 'client'})
+            'statusClass': 'A', 'status': 'CUSTOM'}
+        result = self.engine('prismhr', PRISM).map(source, context={'source_record_type': 'client'})
         self.assertEqual(result.source_record_id, '0007')
         self.assertEqual(result.legal_name, 'Example Legal')
         self.assertEqual(result.trade_name, 'Example Trade')
@@ -66,10 +65,10 @@ class CompanyMappingYamlChecks(unittest.TestCase):
         self.assertEqual(result.provider_fields['prismhr']['status'], 'CUSTOM')
 
     def test_isolved_parent_and_recursive_records_do_not_replace_root_company(self):
-        source = IsolvedLegalModel.model_validate({'id': 7, 'legalName': 'Root Legal',
+        source = {'id': 7, 'legalName': 'Root Legal',
             'client': {'id': 8, 'clientName': 'Parent Client', 'legalCompanies': [
-                {'id': 9, 'legalName': 'Nested Legal', 'future': False}]} })
-        result = self.engine('isolved', IsolvedLegalModel).map(source, context={'source_record_type': 'legal_company'})
+                {'id': 9, 'legalName': 'Nested Legal', 'future': False}]}}
+        result = self.engine('isolved', ISOLVED).map(source, context={'source_record_type': 'legal_company'})
         self.assertEqual(result.source_record_id, '7')
         self.assertEqual(result.legal_name, 'Root Legal')
         parent = result.provider_fields['isolved']['client']
@@ -81,9 +80,9 @@ class CompanyMappingYamlChecks(unittest.TestCase):
         self.assertIs(result.source_extras['isolved']['client']['legalCompanies'][0]['future'], False)
 
     def test_ukg_ein_fields_are_not_promoted_to_company_legal_or_federal_fields(self):
-        source = UKGReadyEinsResponseItemsItem.model_validate({'id': 7, 'ein_name': 'Example EIN',
-            'ein_tax_id': '001234', 'ein_currency_code': 'USD', 'ein_country_id': 'US'})
-        result = self.engine('ukg_ready', UKGReadyEinsResponseItemsItem).map(source, context={'source_record_type': 'ein'})
+        source = {'id': 7, 'ein_name': 'Example EIN',
+            'ein_tax_id': '001234', 'ein_currency_code': 'USD', 'ein_country_id': 'US'}
+        result = self.engine('ukg_ready', UKG).map(source, context={'source_record_type': 'ein'})
         self.assertEqual(result.source_record_id, '7')
         self.assertEqual(result.ukg_ein_name, 'Example EIN')
         self.assertEqual(result.ukg_ein_tax_id, '001234')

@@ -1,4 +1,4 @@
-"""Prism deposit mapping: validated envelope -> account YAML -> result -> CLI JSON."""
+"""PrismHR deposits: getEmployee accounts -> direct_deposit records linked to the employee."""
 import contextlib
 import copy
 import io
@@ -6,12 +6,11 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
-from unittest.mock import patch
 
+from bundle_helpers import PRISM, codes, run_one
 from normalization.__main__ import main
-from normalization.adapters import prismhr
-from normalization.canonical_models.canonical_model_direct_deposit import CanonicalDirectDepositResult
-from normalization.mapping_engine import MappingEngine
+
+EMPLOYEE = "/employee/v1/getEmployee"
 
 
 def response(accounts=None):
@@ -23,110 +22,92 @@ def response(accounts=None):
     }]}
 
 
-def account(method='F', amount=500):
-    return {'accountNum': '000123', 'transitNum': '001234567', 'accountType': 'S',
+def account(method='F', amount=500, number='000123'):
+    return {'accountNum': number, 'transitNum': '001234567', 'accountType': 'S',
             'method': method, 'amount': amount, 'status': 'D', 'bankName': 'Example'}
+
+
+def bundle(payload):
+    return {'provider': 'prismhr', 'responses': [
+        {'endpoint': EMPLOYEE, 'params': {**PRISM, 'employeeId': '007'}, 'body': payload}]}
 
 
 class PrismDirectDepositMappingChecks(unittest.TestCase):
     def test_maps_accounts_and_preserves_wrapper_setup_extras_and_input(self):
-        payload = response([account(), {**account('P', 10), 'future_account_flag': False}])
+        # Distinct account numbers: the account identifies the deposit record.
+        payload = response([account(), {**account('P', 10, '000124'), 'future_account_flag': False}])
         payload.update(infoMessage=['Informational'], updateMessage='Updated',
                        extension={'any': {'note': 'Preserved'}}, future_wrapper={'value': 0})
         payload['employee'][0]['future_employee'] = {'value': None}
         payload['employee'][0]['directDeposit']['future_setup'] = {'flag': False}
         before = copy.deepcopy(payload)
-        result = prismhr.normalize('direct_deposit', payload, {}, employee_id='007')
-        CanonicalDirectDepositResult.model_validate(result)
+        result = run_one('prismhr', EMPLOYEE, payload, **PRISM, employeeId='007')
         self.assertEqual(len(result['direct_deposits']), 2)
-        fixed, percent = result['direct_deposits']
+        fixed, percent = sorted(result['direct_deposits'], key=lambda r: r['account_number'])
         for record in [fixed, percent]:
             self.assertEqual(record['employee_id'], '007')
+            self.assertEqual(record['employee_ref'], 'prismhr:employee:001:007')
             self.assertIsNone(record['deposit_id'])
-            self.assertEqual(record['account_number'], '000123')
             self.assertEqual(record['routing_number'], '001234567')
             self.assertEqual(record['account_type'], 'savings')
+        self.assertEqual(fixed['id'], 'prismhr:direct_deposit:001:007:001234567:000123')
         self.assertEqual(fixed['allocation_amount'], 500.0)
         self.assertIsNone(percent['allocation_amount'])
         self.assertEqual(percent['provider_fields']['prismhr']['method_amount'], 10.0)
         self.assertEqual(percent['source_metadata']['original_values']['method'], 'P')
         self.assertIs(percent['source_extras']['prismhr']['future_account_flag'], False)
-        self.assertEqual(percent['source_metadata']['prismhr']['source_location'],
-                         {'employee_index': 0, 'ach_voucher_index': 1})
-        parent = result['provider_fields']['prismhr']['unmapped']['employee'][0]
-        self.assertEqual(parent['firstName'], 'Example')
-        setup = parent['directDeposit']
-        self.assertEqual(setup['achStatus'], 'A')
-        self.assertEqual(setup['voucherType'], 'RVS')
-        self.assertIs(setup['suppressAccountPrint'], False)
-        self.assertNotIn('achVoucher', setup)
-        outer_extras = result['source_extras']['prismhr']['employee'][0]
-        self.assertEqual(outer_extras['future_employee'], {'value': None})
-        self.assertIs(outer_extras['directDeposit']['future_setup']['flag'], False)
-        self.assertEqual(result['source_metadata']['prismhr']['response'],
+        self.assertEqual(percent['source_metadata']['prismhr']['sources'][0]['path'],
+                         'employee/0/directDeposit/achVoucher/1')
+        # Employee-level setup and parent fields now belong to the employee record.
+        employee = result['employees'][0]
+        self.assertEqual(employee['first_name'], 'Example')
+        setup = employee['provider_fields']['prismhr']['direct_deposit']
+        self.assertEqual(setup['ach_status'], 'A')
+        self.assertEqual(setup['voucher_type'], 'RVS')
+        self.assertIs(setup['suppress_account_print'], False)
+        self.assertNotIn('achVoucher', json.dumps(employee))
+        self.assertEqual(employee['source_extras']['prismhr']['future_employee'], {'value': None})
+        self.assertIs(employee['source_extras']['prismhr']['directDeposit']['future_setup']['flag'], False)
+        self.assertEqual(result['source_metadata']['prismhr']['responses'][0]['wrapper'],
                          {key: value for key, value in before.items() if key != 'employee'})
         self.assertEqual(payload, before)
         json.dumps(result, allow_nan=False)
 
-    def test_empty_records_preserve_distinct_setup_and_employee_inputs(self):
+    def test_missing_null_or_empty_accounts_produce_no_deposits(self):
         for supplied in [{}, {'employee': None}, {'employee': []},
                          {'employee': [{'id': '007'}]},
                          {'employee': [{'id': '007', 'directDeposit': None}]},
                          {'employee': response([])['employee']},
                          {'employee': response(None)['employee']}]:
-            payload = {'errorCode': '0', 'errorMessage': '', **supplied}
-            with self.subTest(supplied=supplied), patch.object(prismhr, 'MappingEngine') as engine:
-                result = prismhr.normalize_direct_deposits(payload, {}, employee_id='007')
+            with self.subTest(supplied=supplied):
+                result = run_one('prismhr', EMPLOYEE, {'errorCode': '0', 'errorMessage': '', **supplied},
+                                 **PRISM, employeeId='007')
                 self.assertEqual(result['direct_deposits'], [])
-                engine.assert_not_called()
-                remaining = result['provider_fields'].get('prismhr', {}).get('unmapped', {})
-                self.assertEqual('employee' in remaining, 'employee' in supplied)
-                if 'employee' in supplied:
-                    self.assertEqual(remaining['employee'], supplied['employee'])
+                self.assertEqual(len(result['employees']), len(supplied.get('employee') or []))
 
-    def test_context_is_required_and_conflicts_do_not_map(self):
-        for owner in [None, '', '   ', 7]:
-            with self.subTest(owner=owner), self.assertRaisesRegex(ValueError, 'nonblank employee_id'):
-                prismhr.normalize_direct_deposits(response([]), {}, employee_id=owner)
+    def test_employee_param_conflicting_with_response_stops_the_run(self):
         payload = response([account()])
         payload['employee'].append({'id': 'different', 'directDeposit': None})
-        with patch.object(prismhr, 'MappingEngine') as engine, self.assertRaisesRegex(ValueError, 'conflicts'):
-            prismhr.normalize_direct_deposits(payload, {}, employee_id='007')
-        engine.assert_not_called()
+        with self.assertRaisesRegex(ValueError, 'conflicts'):
+            run_one('prismhr', EMPLOYEE, payload, **PRISM, employeeId='007')
 
-    def test_one_source_validation_and_one_engine_for_all_accounts(self):
-        validate = prismhr.PrismHRDirectDepositResponse.model_validate
-        with patch.object(prismhr.PrismHRDirectDepositResponse, 'model_validate', wraps=validate) as validation, \
-             patch.object(prismhr.PrismHRAchVoucher, 'model_validate') as repeat_validation, \
-             patch.object(prismhr, 'MappingEngine', wraps=MappingEngine) as engine:
-            result = prismhr.normalize_direct_deposits(response([account(), account('P', 10)]), {}, employee_id='007')
-        self.assertEqual(validation.call_count, 1)
-        repeat_validation.assert_not_called()
-        self.assertEqual(engine.call_count, 1)
+    def test_each_account_is_one_record(self):
+        result = run_one('prismhr', EMPLOYEE, response([account(), account('P', 10, '000124')]),
+                         **PRISM, employeeId='007')
         self.assertEqual(len(result['direct_deposits']), 2)
-
-    def test_cli_requires_context_before_reading_input(self):
-        args = ['normalize', '--provider', 'prismhr', '--entity', 'direct_deposit',
-                '--input', 'missing.json', '--output', 'unused.json']
-        for extra in [[], ['--employee-id', ''], ['--employee-id', ' ']]:
-            with self.subTest(extra=extra), contextlib.redirect_stderr(io.StringIO()) as errors:
-                with self.assertRaises(SystemExit) as raised:
-                    main(args + extra)
-                self.assertEqual(raised.exception.code, 2)
-                self.assertIn('--employee-id', errors.getvalue())
+        self.assertNotIn('merge_conflict', codes(result))
 
     def test_cli_actual_mapping_and_no_overwrite(self):
         with TemporaryDirectory() as folder:
             source = Path(folder) / 'input.json'
             output = Path(folder) / 'output.json'
-            source.write_text(json.dumps(response([account('P', 10)])))
-            args = ['normalize', '--provider', 'prismhr', '--entity', 'direct_deposit',
-                    '--input', str(source), '--output', str(output), '--employee-id', '007']
+            source.write_text(json.dumps(bundle(response([account('P', 10)]))))
+            args = ['normalize', '--input', str(source), '--output', str(output)]
             with contextlib.redirect_stderr(io.StringIO()) as errors:
                 self.assertEqual(main(args), 0, errors.getvalue())
             original = output.read_text()
             result = json.loads(original)
-            self.assertEqual(result['employee_id'], '007')
+            self.assertEqual(result['direct_deposits'][0]['employee_id'], '007')
             self.assertEqual(result['direct_deposits'][0]['provider_fields']['prismhr']['method_amount'], 10.0)
             with contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(main(args), 1)
@@ -136,10 +117,15 @@ class PrismDirectDepositMappingChecks(unittest.TestCase):
         with TemporaryDirectory() as folder:
             source = Path(folder) / 'input.json'
             output = Path(folder) / 'output.json'
-            source.write_text(json.dumps(response([account()])))
+            data = bundle(response([account()]))
+            data['responses'][0]['params']['employeeId'] = 'different'
+            source.write_text(json.dumps(data))
             with contextlib.redirect_stderr(io.StringIO()) as errors:
-                code = main(['normalize', '--provider', 'prismhr', '--entity', 'direct_deposit',
-                             '--input', str(source), '--output', str(output), '--employee-id', 'different'])
+                code = main(['normalize', '--input', str(source), '--output', str(output)])
             self.assertEqual(code, 1)
             self.assertIn('conflicts', errors.getvalue())
             self.assertFalse(output.exists())
+
+
+if __name__ == '__main__':
+    unittest.main()

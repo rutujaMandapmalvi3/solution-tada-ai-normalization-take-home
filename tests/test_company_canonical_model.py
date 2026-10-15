@@ -2,10 +2,13 @@
 import json
 import unittest
 from pydantic import ValidationError
-from normalization.canonical_models.canonical_model_company import CanonicalCompany, CanonicalCompanyResult
+from normalization import contracts
+from normalization.canonical_models.canonical_document import CanonicalDocument
+from normalization.canonical_models.canonical_model_company import CanonicalCompany
 from normalization.mapping_config import MappingConfig
 from normalization.mapping_engine import MappingEngine
-from normalization.source_models.isolved.isolved_source_model_company import IsolvedLegalModel
+
+ISOLVED_LEGAL = contracts.response_schema("isolved", "/api/clients/{clientId}/legals").at("[]")
 
 
 class CompanyCanonicalChecks(unittest.TestCase):
@@ -29,8 +32,9 @@ class CompanyCanonicalChecks(unittest.TestCase):
             ukg_ein_name='Source EIN label', ukg_ein_tax_id='000123',
             provider_fields={'ukg-ready': {'ein_country_id': 'source-country'}},
             source_extras={'ukg-ready': {'future_flag': False}})
-        result = CanonicalCompanyResult(provider='ukg-ready', companies=[record])
-        output = json.loads(result.model_dump_json(exclude_unset=True))['companies'][0]
+        document = CanonicalDocument(provider='ukg-ready',
+                                     companies=[record.model_dump(mode='json', exclude_unset=True)])
+        output = json.loads(document.model_dump_json(exclude_unset=True))['companies'][0]
         self.assertNotIn('legal_name', output)
         self.assertNotIn('federal_tax_id', output)
         self.assertEqual(output['ukg_ein_tax_id'], '000123')
@@ -38,17 +42,20 @@ class CompanyCanonicalChecks(unittest.TestCase):
         self.assertEqual(output['source_record_type'], 'ein')
 
     def test_defaults_metadata_and_empty_result_preservation(self):
-        first = CanonicalCompanyResult(provider='prismhr', source_metadata={
+        # The per-entity result wrapper was retired; metadata now lives on each record
+        # and an empty run is an empty document collection.
+        base = dict(provider='prismhr', source_record_type='client', source_record_id='7')
+        first = CanonicalCompany(**base, source_metadata={
             'original_values': {'id': 7},
             'mapping_issues': [{'source_path': 'status', 'reason': 'Unknown meaning'}],
             'prismhr': {'response': {'errorCode': '0', 'extension': None}}})
-        second = CanonicalCompanyResult(provider='prismhr')
+        second = CanonicalCompany(**base)
         first.provider_fields['prismhr'] = {'settings': {'enabled': False}}
         self.assertEqual(second.provider_fields, {})
-        self.assertEqual(first.companies, [])
+        self.assertEqual(CanonicalDocument(provider='prismhr').companies, [])
         self.assertEqual(first.model_dump(mode='json')['source_metadata']['original_values'], {'id': 7})
         with self.assertRaises(ValidationError):
-            CanonicalCompanyResult(provider='prismhr', source_metadata={'mapping_issues': [{'reason': 'missing path'}]})
+            CanonicalCompany(**base, source_metadata={'mapping_issues': [{'reason': 'missing path'}]})
 
     def test_existing_engine_preserves_nested_client_and_unmatched_values(self):
         configuration = MappingConfig.model_validate({'version': 1, 'provider': 'isolved', 'entity': 'company', 'fields': [
@@ -56,10 +63,10 @@ class CompanyCanonicalChecks(unittest.TestCase):
             {'kind': 'field', 'source': 'source_record_type', 'source_scope': 'context', 'target': 'source_record_type'},
             {'kind': 'field', 'source': 'legalName', 'target': 'legal_name'},
         ]})
-        source = IsolvedLegalModel.model_validate({'id': 7, 'legalName': 'Example Legal',
+        source = {'id': 7, 'legalName': 'Example Legal',
             'client': {'id': 8, 'clientName': 'Parent name'}, 'allowRemoteWorkers': False,
-            'future': {'value': None}})
-        result = MappingEngine(configuration, IsolvedLegalModel, CanonicalCompany).map(
+            'future': {'value': None}}
+        result = MappingEngine(configuration, ISOLVED_LEGAL, CanonicalCompany).map(
             source, context={'source_record_type': 'legal_company'})
         self.assertEqual(result.source_record_id, '7')
         self.assertEqual(result.legal_name, 'Example Legal')

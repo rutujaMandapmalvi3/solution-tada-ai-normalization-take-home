@@ -1,5 +1,7 @@
 # Company mapper implementation
 
+> **Historical:** written before the contracts/bundle change. CLI flags, source models and per-entity outputs described here were replaced; see [DECISIONS.md](./DECISIONS.md) and [relationship_policies.md](./relationship_policies.md).
+
 All three company adapters are connected using existing identifier/date/number/label helpers. No new helper, engine behavior, source-model requirement or CLI option was added.
 
 ## Flow and record scope

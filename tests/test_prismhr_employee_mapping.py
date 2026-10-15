@@ -1,4 +1,4 @@
-"""Employee mapping integration: source validation -> YAML engine -> CLI JSON."""
+"""PrismHR employee route: contract validation -> YAML engine -> CLI JSON."""
 import contextlib
 import copy
 import io
@@ -6,14 +6,11 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
-from unittest.mock import patch
 
-from pydantic import ValidationError
-
+from bundle_helpers import run_one
 from normalization.__main__ import main
-from normalization.adapters import prismhr
-from normalization.mapping_engine import MappingEngine
-from normalization.source_models.prismhr.prismhr_source_model_employee import PrismHREmployee
+
+EMPLOYEE = "/employee/v1/getEmployee"
 
 
 def employee(identifier="0007"):
@@ -31,20 +28,26 @@ def response(*records):
     return {"errorCode": "0", "errorMessage": "", "employee": list(records)}
 
 
+def bundle(payload, client_id="00132"):
+    return {"provider": "prismhr", "responses": [
+        {"endpoint": EMPLOYEE, "params": {"clientId": client_id}, "body": payload}]}
+
+
 class PrismHREmployeeMappingChecks(unittest.TestCase):
-    def test_adapter_returns_json_ready_records_with_context_metadata_and_extras(self):
+    def test_records_are_json_ready_with_context_metadata_and_extras(self):
         payload = {**response(employee()), "infoMessage": ["Informational"],
                    "updateMessage": "Updated", "extension": {"any": {"note": "Retained"}},
                    "future_wrapper": {"value": 0}}
         before = copy.deepcopy(payload)
-        result = prismhr.normalize("employee", payload, {}, client_id="00132")
-        self.assertIsInstance(result, list)
-        self.assertEqual(len(result), 1)
-        output = result[0]
+        result = run_one("prismhr", EMPLOYEE, payload, clientId="00132")
+        self.assertEqual(len(result["employees"]), 1)
+        output = result["employees"][0]
         self.assertEqual(output["provider"], "prismhr")
+        self.assertEqual(output["id"], "prismhr:employee:00132:0007")
+        self.assertEqual(output["company_ref"], "prismhr:company:00132")
         self.assertEqual(output["employee_id"], "0007")
         self.assertEqual(output["prismhr_client_id"], "00132")
-        self.assertEqual(output["prismhr_employer_ids"], ["001"])
+        self.assertEqual(output["prismhr_employer_ids"], ["001"])  # live singular employerId renamed
         self.assertEqual(output["birth_date"], "2000-01-02")
         self.assertEqual(output["gender"], "female")
         self.assertEqual(output["marital_status"], "married")
@@ -54,68 +57,57 @@ class PrismHREmployeeMappingChecks(unittest.TestCase):
         self.assertIsNone(output["employment_type"])
         self.assertEqual(output["source_metadata"]["original_values"]["client.employeeType"], "FT")
         self.assertIs(output["source_extras"]["prismhr"]["person"]["future_flag"], False)
-        wrapper = output["source_metadata"]["prismhr"]["response"]
+        wrapper = result["source_metadata"]["prismhr"]["responses"][0]["wrapper"]
         self.assertEqual(wrapper, {key: value for key, value in payload.items() if key != "employee"})
-        self.assertNotIn("employee", wrapper)
         self.assertNotIn("termination_date", output)
         self.assertEqual(payload, before)
         json.dumps(result, allow_nan=False)
 
-    def test_one_engine_is_reused_and_each_employee_is_validated_once(self):
-        validate = PrismHREmployee.model_validate
-        with patch.object(prismhr, "MappingEngine", wraps=MappingEngine) as factory, \
-                patch.object(PrismHREmployee, "model_validate", wraps=validate) as validation:
-            outputs = prismhr.normalize_employees(response(employee("001"), employee("002")), {},
-                                                  client_id="00132")
-        self.assertEqual(factory.call_count, 1)
-        self.assertEqual(validation.call_count, 2)
-        self.assertEqual([record["employee_id"] for record in outputs], ["001", "002"])
-        outputs[0]["source_metadata"]["prismhr"]["response"]["errorMessage"] = "changed"
-        self.assertEqual(outputs[1]["source_metadata"]["prismhr"]["response"]["errorMessage"], "")
+    def test_each_employee_is_its_own_record(self):
+        result = run_one("prismhr", EMPLOYEE, response(employee("001"), employee("002")), clientId="00132")
+        self.assertEqual(sorted(record["employee_id"] for record in result["employees"]), ["001", "002"])
 
-    def test_missing_null_and_empty_employee_collections_return_empty_list(self):
+    def test_missing_null_and_empty_employee_collections_produce_no_records(self):
         for supplied in ({}, {"employee": None}, {"employee": []}):
-            with self.subTest(supplied=supplied), patch.object(prismhr, "MappingEngine") as factory:
-                output = prismhr.normalize_employees(
-                    {"errorCode": "0", "errorMessage": "", **supplied}, {}, client_id="00132")
-                self.assertEqual(output, [])
-                factory.assert_not_called()
+            with self.subTest(supplied=supplied):
+                result = run_one("prismhr", EMPLOYEE, {"errorCode": "0", "errorMessage": "", **supplied},
+                                 clientId="00132")
+                self.assertEqual(result["employees"], [])
 
-    def test_invalid_employee_input_is_rejected_before_mapping(self):
-        with patch.object(prismhr, "MappingEngine") as factory:
-            with self.assertRaises(ValidationError):
-                prismhr.normalize_employees(response(employee(), {}), {}, client_id="00132")
-            factory.assert_not_called()
+    def test_employee_without_id_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "cannot build employee id"):
+            run_one("prismhr", EMPLOYEE, response(employee(), {}), clientId="00132")
 
-    def test_cli_writes_the_actual_adapter_result_as_json(self):
+    def test_wrong_type_is_rejected_before_mapping(self):
+        bad = {**employee(), "firstName": 5}
+        with self.assertRaisesRegex(ValueError, "employee/0/firstName"):
+            run_one("prismhr", EMPLOYEE, response(bad), clientId="00132")
+
+    def test_cli_writes_the_actual_document_as_json(self):
         with TemporaryDirectory() as folder:
             source = Path(folder) / "input.json"
             output = Path(folder) / "output.json"
-            source.write_text(json.dumps(response(employee())))
+            source.write_text(json.dumps(bundle(response(employee()))))
             errors = io.StringIO()
             with contextlib.redirect_stderr(errors):
-                code = main(["normalize", "--provider", "prismhr", "--entity", "employee",
-                             "--input", str(source), "--output", str(output),
-                             "--client-id", "00132"])
+                code = main(["normalize", "--input", str(source), "--output", str(output)])
             self.assertEqual(code, 0, errors.getvalue())
             result = json.loads(output.read_text())
-            self.assertEqual(result[0]["employee_id"], "0007")
-            self.assertEqual(result[0]["birth_date"], "2000-01-02")
-            self.assertEqual(result[0]["gender"], "female")
+            self.assertEqual(result["employees"][0]["employee_id"], "0007")
+            self.assertEqual(result["employees"][0]["birth_date"], "2000-01-02")
+            self.assertEqual(result["employees"][0]["gender"], "female")
             self.assertTrue(output.read_text().endswith("\n"))
 
     def test_provider_failure_does_not_create_a_cli_output_file(self):
         with TemporaryDirectory() as folder:
             source = Path(folder) / "input.json"
             output = Path(folder) / "output.json"
-            source.write_text(json.dumps({"errorCode": "1", "errorMessage": "Provider failure"}))
+            source.write_text(json.dumps(bundle({"errorCode": "1", "errorMessage": "Provider failure"})))
             errors = io.StringIO()
             with contextlib.redirect_stderr(errors):
-                code = main(["normalize", "--provider", "prismhr", "--entity", "employee",
-                             "--input", str(source), "--output", str(output),
-                             "--client-id", "00132"])
+                code = main(["normalize", "--input", str(source), "--output", str(output)])
             self.assertEqual(code, 1, errors.getvalue())
-            self.assertIn("request failed", errors.getvalue())
+            self.assertIn("failed (errorCode=1)", errors.getvalue())
             self.assertFalse(output.exists())
 
 

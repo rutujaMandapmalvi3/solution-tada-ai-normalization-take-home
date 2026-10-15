@@ -7,12 +7,13 @@ import types
 from typing import Any, Union, get_args, get_origin
 import unittest
 
-from pydantic import BaseModel
 import yaml
 
+from normalization import contracts
 from normalization.canonical_models.canonical_model_employee import CanonicalEmployee
 from normalization.mapping_config import FieldMapping, ListMapping, MappingConfig
-from normalization.source_models.prismhr.prismhr_source_model_employee import PrismHREmployee
+
+PRISM_EMPLOYEE = contracts.response_schema("prismhr", "/employee/v1/getEmployee").at("employee[]")
 
 
 def unwrap(annotation):
@@ -23,7 +24,8 @@ def unwrap(annotation):
     return annotation
 
 
-def path_type(model, path):
+def output_type(model, path):
+    """Canonical (Pydantic) type at a target path; Any below dict-typed fields."""
     for segment in path.split("."):
         model = unwrap(model)
         if model is Any:
@@ -36,49 +38,44 @@ def path_type(model, path):
     return unwrap(model)
 
 
-def declared_paths(model, prefix=""):
-    model.model_rebuild()
+def contract_paths(schema, prefix="", seen=()):
+    """Every contract-declared source path ('[]' marks arrays), recursion-safe."""
     result = set()
-    for name, field in model.model_fields.items():
-        annotation = unwrap(field.annotation)
-        array = get_origin(annotation) is list
-        path = prefix + name + ("[]" if array else "")
+    if schema.is_open or id(schema.node) in seen:
+        return result
+    seen = seen + (id(schema.node),)
+    for name in schema.declared():
+        child = schema.child(name)
+        path = prefix + name + ("[]" if child.is_array else "")
         result.add(path)
-        nested = unwrap(get_args(annotation)[0]) if array else annotation
-        if isinstance(nested, type) and issubclass(nested, BaseModel):
-            result.update(declared_paths(nested, path + "."))
+        result |= contract_paths(child.items() if child.is_array else child, path + ".", seen)
     return result
 
 
-def collect_rules(rules, source_model, output_model, source_prefix="", target_prefix=""):
-    """Independently compare rule paths to actual source/output schemas."""
-    mappings = []
+def collect(rules, schema, output_model, source_prefix="", target_prefix=""):
+    """(source path, target path) pairs, checking source paths against the contract."""
+    pairs = []
     for rule in rules:
-        target_type = path_type(output_model, rule.target)
+        target_type = output_type(output_model, rule.target)
         target = target_prefix + rule.target
         if isinstance(rule, FieldMapping) and rule.source_scope == "context":
-            if rule.source != "client_id" or rule.target != "prismhr_client_id":
-                raise AssertionError("Unexpected request-context rule")
             continue
-        paths = rule.source if isinstance(rule.source, list) else [rule.source]
-        for path in paths:
-            annotation = path_type(source_model, path)
-            array = get_origin(annotation) is list
-            full_source = source_prefix + path + ("[]" if array else "")
-            mappings.append((full_source, target + ("[]" if array else "")))
+        for path in rule.source if isinstance(rule.source, list) else [rule.source]:
+            array = schema.at(path).is_array
+            pairs.append((source_prefix + path + ("[]" if array else ""), target + ("[]" if array else "")))
         if not isinstance(rule, FieldMapping):
-            annotation = path_type(source_model, rule.source)
+            source = schema.at(rule.source)
+            array = source.is_array
+            full = source_prefix + rule.source + ("[]" if array else "")
             if isinstance(rule, ListMapping):
-                if get_origin(annotation) is not list:
+                if not array:
                     raise AssertionError(f"Expected list source at {rule.source}")
-                annotation = unwrap(get_args(annotation)[0])
+                source = source.items()
                 if target_type is not Any:
                     target_type = unwrap(get_args(target_type)[0])
-            mappings.extend(collect_rules(
-                rule.fields, annotation, target_type,
-                full_source + ".", target + ("[]" if isinstance(rule, ListMapping) else "") + ".",
-            ))
-    return mappings
+            pairs.extend(collect(rule.fields, source, target_type, full + ".",
+                                 target + ("[]" if isinstance(rule, ListMapping) else "") + "."))
+    return pairs
 
 
 class PrismHREmployeeYamlChecks(unittest.TestCase):
@@ -88,9 +85,9 @@ class PrismHREmployeeYamlChecks(unittest.TestCase):
         cls.config = MappingConfig.model_validate(yaml.safe_load(cls.resource.read_text()))
 
     def test_every_current_employee_source_path_is_covered_once(self):
-        mappings = collect_rules(self.config.fields, PrismHREmployee, CanonicalEmployee)
+        mappings = collect(self.config.fields, PRISM_EMPLOYEE, CanonicalEmployee)
         counts = Counter(source for source, target in mappings)
-        self.assertEqual(set(counts), declared_paths(PrismHREmployee))
+        self.assertEqual(set(counts), contract_paths(PRISM_EMPLOYEE))
         self.assertEqual({key: value for key, value in counts.items() if value != 1}, {})
         self.assertEqual(len(counts), 385)
 
@@ -109,7 +106,7 @@ class PrismHREmployeeYamlChecks(unittest.TestCase):
             if target.startswith("prismhr."):
                 target = "provider_fields." + target
             expected[source] = target
-        actual = dict(collect_rules(self.config.fields, PrismHREmployee, CanonicalEmployee))
+        actual = dict(collect(self.config.fields, PRISM_EMPLOYEE, CanonicalEmployee))
         # Scalar-list field destinations have no [] in YAML paths; inventory uses [] as notation.
         actual = {source: (target if expected[source].endswith("[]")
                            else target.removesuffix("[]")) for source, target in actual.items()}

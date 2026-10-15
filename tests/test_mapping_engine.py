@@ -1,40 +1,33 @@
 """Execute the small YAML example and check preservation/failure behavior."""
+from copy import deepcopy
 from datetime import date
 from importlib.resources import files
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
 import unittest
 
 import yaml
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import ValidationError
 
+from normalization import contracts
 from normalization.canonical_models.canonical_model_employee import CanonicalEmployee
+from normalization.contracts import Schema
 from normalization.helpers.mapping import date_value, identifier
 from normalization.mapping_config import MappingConfig
 from normalization.mapping_engine import MappingEngine, load_mapping_config
-from normalization.source_models.prismhr.prismhr_source_model_employee import PrismHREmployee
 
-
-class Contact(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    name: str | None = None
-    note: str | None = None
-
-
-class Person(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    contacts: list[Contact] | None = None
-    nickname: str | None = None
-
-
-class Source(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    id: float | str | None
-    person: Person | None = None
-    details: dict[str, object] | None = None
-    link: str | None = Field(default=None, alias="_link")
+# Synthetic source schema (the engine reads contract schemas; this stands in for one).
+SOURCE = Schema({"type": "object", "properties": {
+    "id": {"type": ["number", "string", "null"]},
+    "person": {"type": ["object", "null"], "properties": {
+        "contacts": {"type": ["array", "null"], "items": {"type": "object", "properties": {
+            "name": {"type": "string"}, "note": {"type": "string"}}}},
+        "nickname": {"type": "string"}}},
+    "details": {"type": ["object", "null"]},
+    "_link": {"type": "string"},
+}}, {})
+PRISM_EMPLOYEE = contracts.response_schema("prismhr", "/employee/v1/getEmployee").at("employee[]")
 
 
 def field(source="id", target="employee_id", **kwargs):
@@ -48,22 +41,21 @@ def config(*rules, provider="prismhr"):
 
 
 def engine(*rules, provider="prismhr"):
-    return MappingEngine(config(*rules, provider=provider), Source, CanonicalEmployee)
+    return MappingEngine(config(*rules, provider=provider), SOURCE, CanonicalEmployee)
 
 
 class MappingEngineChecks(unittest.TestCase):
-    def test_real_yaml_to_canonical_employee_without_revalidating_or_mutating_source(self):
+    def test_real_yaml_to_canonical_employee_without_mutating_source(self):
         resource = files("normalization").joinpath("mappings/prismhr/employee.example.yaml")
-        mapper = MappingEngine(load_mapping_config(Path(str(resource))), PrismHREmployee, CanonicalEmployee)
-        source = PrismHREmployee.model_validate({
+        mapper = MappingEngine(load_mapping_config(Path(str(resource))), PRISM_EMPLOYEE, CanonicalEmployee)
+        source = {
             "id": "0007", "firstName": "Example", "lastName": "Employee",
             "person": {"birthDate": "2000-01-02T00:30:00+14:00",
                        "employerIds": ["001", "002"], "new_flag": False},
             "first_name": "must stay an extra", "future": {"amount": 0},
-        })
-        before = source.model_dump()
-        with patch.object(PrismHREmployee, "model_validate", side_effect=AssertionError("Repeated validation")):
-            employee = mapper.map(source, metadata={"infoMessage": ["Informational"], "extension": None})
+        }
+        before = deepcopy(source)
+        employee = mapper.map(source, metadata={"infoMessage": ["Informational"], "extension": None})
         self.assertEqual(employee.employee_id, "0007")
         self.assertEqual(employee.first_name, "Example")
         self.assertEqual(employee.birth_date, date(2000, 1, 2))
@@ -75,9 +67,9 @@ class MappingEngineChecks(unittest.TestCase):
                          "2000-01-02T00:30:00+14:00")
         self.assertEqual(employee.source_metadata.model_extra["prismhr"]["infoMessage"], ["Informational"])
         self.assertEqual(employee.model_dump(mode="json")["birth_date"], "2000-01-02")
-        self.assertEqual(source.model_dump(), before)
+        self.assertEqual(source, before)
         employee.source_extras["prismhr"]["future"]["amount"] = 999
-        self.assertEqual(source.model_extra["future"]["amount"], 0)
+        self.assertEqual(source["future"]["amount"], 0)
 
     def test_nested_objects_and_lists_preserve_unmapped_fields_and_extra_positions(self):
         mapper = engine(field(), {
@@ -86,11 +78,11 @@ class MappingEngineChecks(unittest.TestCase):
                 field("name", "display_name"),
             ]}],
         })
-        source = Source(id="1", person={"contacts": [
+        source = {"id": "1", "person": {"contacts": [
             {"name": "First", "note": "retained", "future": False},
             {"name": "Second", "note": None},
             {"name": "Third", "future": []},
-        ], "nickname": "kept"})
+        ], "nickname": "kept"}}
         employee = mapper.map(source)
         provider = employee.provider_fields["prismhr"]
         self.assertEqual(provider["profile"]["contacts"], [
@@ -106,30 +98,35 @@ class MappingEngineChecks(unittest.TestCase):
                                   "fields": [field("name", "name")]})
         for supplied, expected in (({}, "missing"), ({"contacts": None}, None), ({"contacts": []}, [])):
             with self.subTest(supplied=supplied):
-                output = mapper.map(Source(id="1", person=supplied)).model_dump(exclude_unset=True)
+                output = mapper.map({"id": "1", "person": supplied}).model_dump(exclude_unset=True)
                 provider = output.get("provider_fields", {}).get("prismhr", {})
                 if expected == "missing":
                     self.assertNotIn("contacts", provider)
                     self.assertEqual(provider["unmapped"]["person"], {})
                 else:
                     self.assertEqual(provider["contacts"], expected)
-        output = mapper.map(Source(id="1", person=None))
+        output = mapper.map({"id": "1", "person": None})
         self.assertIsNone(output.provider_fields["prismhr"]["unmapped"]["person"])
 
     def test_context_is_separate_from_record_and_engine_is_reusable(self):
         mapper = engine(field(), field("client_id", "prismhr_client_id", source_scope="context"))
-        first = mapper.map(Source(id="1"), context={"client_id": "00132"})
-        second = mapper.map(Source(id="2"))
+        first = mapper.map({"id": "1"}, context={"client_id": "00132"})
+        second = mapper.map({"id": "2"})
         self.assertEqual(first.prismhr_client_id, "00132")
         self.assertNotIn("prismhr_client_id", second.model_fields_set)
         self.assertEqual(second.source_metadata.original_values, {})
 
-    def test_aliases_and_unvalidated_dynamic_attributes_are_not_confused(self):
-        employee = engine(field(), field("_link", "work_email")).map(Source(id="1", _link="example"))
+    def test_json_names_are_read_and_unknown_paths_are_rejected(self):
+        # Paths are contract (JSON) names, e.g. "_link"; there is no alias resolution.
+        employee = engine(field(), field("_link", "work_email")).map({"id": "1", "_link": "example"})
         self.assertEqual(employee.work_email, "example")
-        for source in ("missing", "__class__", "person.missing", "person.contacts.name"):
+        for source in ("missing", "__class__", "person.missing", "link"):
             with self.subTest(source=source), self.assertRaises(ValueError):
                 engine(field(), field(source, "first_name"))
+
+    def test_preflight_rejects_field_path_through_a_list_without_brackets(self):
+        with self.assertRaises(ValueError):
+            engine(field(), field("person.contacts.name", "first_name"))
 
     def test_preflight_rejects_bad_targets_shapes_and_unimplemented_helpers(self):
         for rule in (
@@ -139,37 +136,42 @@ class MappingEngineChecks(unittest.TestCase):
             field(transform={"name": "pronouns"}),
             field(transform={"name": "date", "arguments": {"guess": True}}),
             field(["id", "id"], transform={"name": "identifier"}),
-            {"kind": "list", "source": "id", "target": "provider_fields.prismhr.items", "fields": [field()]},
             {"kind": "object", "source": "person", "target": "first_name", "fields": [field("nickname", "name")]},
         ):
             with self.subTest(rule=rule), self.assertRaises(ValueError):
                 engine(rule)
 
+    def test_preflight_rejects_list_rule_on_scalar_source(self):
+        with self.assertRaises(ValueError):
+            engine({"kind": "list", "source": "id", "target": "provider_fields.prismhr.items",
+                    "fields": [field()]})
+
     def test_invalid_dates_are_preserved_with_path_specific_issues(self):
         mapper = engine(field(), field("details.birthday", "birth_date", transform={"name": "date"}))
-        employee = mapper.map(Source(id="1", details={"birthday": "not-a-date", "keep": False}))
+        employee = mapper.map({"id": "1", "details": {"birthday": "not-a-date", "keep": False}})
         self.assertIsNone(employee.birth_date)
         self.assertEqual(employee.source_metadata.original_values["details.birthday"], "not-a-date")
         self.assertEqual(employee.source_metadata.mapping_issues[0].source_path, "details.birthday")
         self.assertIs(employee.provider_fields["prismhr"]["unmapped"]["details"]["keep"], False)
 
-    def test_required_output_and_validated_source_type_are_enforced(self):
+    def test_required_output_and_record_type_are_enforced(self):
         mapper = engine(field())
-        with self.assertRaises(TypeError):
-            mapper.map({"id": "1"})
+        for not_a_record in (["id", "1"], "1", None):
+            with self.subTest(source=not_a_record), self.assertRaises(TypeError):
+                mapper.map(not_a_record)
         with self.assertRaises(ValidationError):
-            engine(field("link", "first_name")).map(Source(id="1"))
+            engine(field("_link", "first_name")).map({"id": "1"})  # employee_id is required
         with self.assertRaises(ValidationError):
-            mapper.map(Source(id=123.0))  # No identifier transform: strict output catches the number.
-        converted = engine(field(transform={"name": "identifier"})).map(Source(id=123.0))
+            mapper.map({"id": 123.0})  # No identifier transform: strict output catches the number.
+        converted = engine(field(transform={"name": "identifier"})).map({"id": 123.0})
         self.assertEqual(converted.employee_id, "123")
         with self.assertRaisesRegex(ValueError, "id: Identifier"):
-            engine(field(transform={"name": "identifier"})).map(Source(id=1.5))
+            engine(field(transform={"name": "identifier"})).map({"id": 1.5})
 
     def test_provider_identity_comes_from_configuration_for_each_provider(self):
         for provider in ("prismhr", "isolved", "ukg-ready"):
             with self.subTest(provider=provider):
-                result = engine(field(), provider=provider).map(Source(id="1", extra_flag=False))
+                result = engine(field(), provider=provider).map({"id": "1", "extra_flag": False})
                 self.assertEqual(result.provider, provider)
                 self.assertIs(result.source_extras[provider]["extra_flag"], False)
 

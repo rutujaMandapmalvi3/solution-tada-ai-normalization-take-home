@@ -1,34 +1,28 @@
-"""Native-array deposit mapping and source preservation."""
+"""isolved deposits: native array mapping, employee link and source preservation."""
 import copy
 import json
 import unittest
-from unittest.mock import patch
-from normalization.adapters import isolved as adapter
-from normalization.mapping_engine import MappingEngine
+
+from bundle_helpers import ISOL, ISOL_EMPLOYEE, run_one
+
+DEPOSITS = ISOL_EMPLOYEE + "/directdeposits"
+
+
+def run(payload, **params):
+    return run_one('isolved', DEPOSITS, payload, **{**ISOL, 'employeeId': '007', **params})
 
 
 class DepositMappingChecks(unittest.TestCase):
-    def test_requires_owner_context(self):
-        for value in [None, '', '  ', 7]:
-            with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'nonblank employee_id'):
-                adapter.normalize('direct_deposit', [], {}, employee_id=value)
+    def test_requires_owner_param(self):
+        with self.assertRaisesRegex(ValueError, 'cannot build direct_deposit id'):
+            run_one('isolved', DEPOSITS, [{'id': 1}], **ISOL)
 
-    def test_empty_input_skips_engine_and_retains_result(self):
-        with patch.object(adapter, 'MappingEngine') as factory:
-            result = adapter.normalize('direct_deposit', [], {}, employee_id='007')
-        self.assertEqual(result['employee_id'], '007')
+    def test_empty_input_produces_no_records(self):
+        result = run([])
         self.assertEqual(result['direct_deposits'], [])
-        factory.assert_not_called()
 
-    def test_one_response_validation_and_engine_per_input(self):
-        validator = adapter.IsolvedEmployeeDirectDepositResponse.model_validate
-        with patch.object(adapter.IsolvedEmployeeDirectDepositResponse, 'model_validate', wraps=validator) as validation, \
-             patch.object(adapter.IsolvedEmployeeDirectDepositModel, 'model_validate') as again, \
-             patch.object(adapter, 'MappingEngine', wraps=MappingEngine) as factory:
-            result = adapter.normalize('direct_deposit', [{'id': 1}, {'id': 2}], {}, employee_id='007')
-        self.assertEqual(validation.call_count, 1)
-        again.assert_not_called()
-        self.assertEqual(factory.call_count, 1)
+    def test_each_account_is_one_record(self):
+        result = run([{'id': 1}, {'id': 2}])
         self.assertEqual(len(result['direct_deposits']), 2)
 
     def test_native_array_preserves_values_links_extras_and_input(self):
@@ -37,10 +31,12 @@ class DepositMappingChecks(unittest.TestCase):
                     'sequenceNumber': 0, 'status': 'Inactive', 'frequency': 'Every Pay',
                     'links': [{'href': '/synthetic/account', 'method': 'GET', 'future': False}],
                     'future': {'flag': False}},
-                   {'id': None, 'percent': 10.0, 'accountType': 'UNVERIFIED'}]
+                   {'id': 13, 'percent': 10.0, 'accountType': 'UNVERIFIED'}]
         before = copy.deepcopy(payload)
-        result = adapter.normalize('direct_deposit', payload, {}, employee_id='007')
-        first, second = result['direct_deposits']
+        result = run(payload)
+        first, second = sorted(result['direct_deposits'], key=lambda r: r['deposit_id'])
+        self.assertEqual(first['id'], 'isolved:direct_deposit:4000:1:007:12')
+        self.assertEqual(first['employee_ref'], 'isolved:employee:4000:1:007')
         self.assertEqual(first['deposit_id'], '12')
         self.assertEqual(first['account_number'], '000123')
         self.assertEqual(first['routing_number'], '001234567')
@@ -50,10 +46,18 @@ class DepositMappingChecks(unittest.TestCase):
         self.assertEqual(first['provider_fields']['isolved']['unmapped']['links'][0]['href'], '/synthetic/account')
         self.assertIs(first['source_extras']['isolved']['future']['flag'], False)
         self.assertIs(first['source_extras']['isolved']['links'][0]['future'], False)
-        self.assertIsNone(second['deposit_id'])
         self.assertEqual(second['allocation_percentage'], 10.0)
         self.assertEqual(second['source_metadata']['original_values']['accountType'], 'UNVERIFIED')
         self.assertEqual(first['employee_id'], '007')
-        self.assertNotIn('response', result.get('source_metadata', {}))
+        self.assertNotIn('wrapper', result['source_metadata']['isolved']['responses'][0])
         self.assertEqual(payload, before)
         json.dumps(result, allow_nan=False)
+
+    def test_account_without_id_stops_the_run(self):
+        # Policy: deposits need their own id; a null id is not replaced by an invented one.
+        with self.assertRaisesRegex(ValueError, 'cannot build direct_deposit id'):
+            run([{'id': None, 'percent': 10.0}])
+
+
+if __name__ == '__main__':
+    unittest.main()

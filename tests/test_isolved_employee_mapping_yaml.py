@@ -7,21 +7,32 @@ import types
 from typing import Any, Union, get_args, get_origin
 import unittest
 
-from pydantic import BaseModel
 import yaml
 
+from normalization import contracts
 from normalization.canonical_models.canonical_model_employee import CanonicalEmployee
 from normalization.mapping_config import FieldMapping, ListMapping, MappingConfig
-from normalization.source_models.isolved.isolved_source_model_employee import IsolvedEmployeeInput
+from normalization.mapping_engine import load_mapping_config
+
+LEGAL = "/api/clients/{clientId}/legals/{legalId}/employees"
+EMPLOYEE = contracts.response_schema("isolved", LEGAL + "/{id}")
+SALARIES = contracts.response_schema("isolved", LEGAL + "/{employeeId}/salaries").wrap("salary_history")
+
+
+def config(name):
+    return load_mapping_config(Path(str(files("normalization").joinpath(f"mappings/isolved/{name}.yaml"))))
 
 
 def unwrap(annotation):
     if get_origin(annotation) in (Union, types.UnionType):
-        return next(t for t in get_args(annotation) if t is not type(None))
+        values = [value for value in get_args(annotation) if value is not type(None)]
+        if len(values) == 1:
+            return values[0]
     return annotation
 
 
-def schema_type(model, path):
+def output_type(model, path):
+    """Canonical (Pydantic) type at a target path; Any below dict-typed fields."""
     for segment in path.split("."):
         model = unwrap(model)
         if model is Any:
@@ -34,41 +45,44 @@ def schema_type(model, path):
     return unwrap(model)
 
 
-def source_paths(model, prefix=""):
-    model.model_rebuild()
+def contract_paths(schema, prefix="", seen=()):
+    """Every contract-declared source path ('[]' marks arrays), recursion-safe."""
     result = set()
-    for name, field in model.model_fields.items():
-        annotation = unwrap(field.annotation)
-        array = get_origin(annotation) is list
-        path = prefix + name + ("[]" if array else "")
+    if schema.is_open or id(schema.node) in seen:
+        return result
+    seen = seen + (id(schema.node),)
+    for name in schema.declared():
+        child = schema.child(name)
+        path = prefix + name + ("[]" if child.is_array else "")
         result.add(path)
-        nested = unwrap(get_args(annotation)[0]) if array else annotation
-        if isinstance(nested, type) and issubclass(nested, BaseModel):
-            result.update(source_paths(nested, path + "."))
+        result |= contract_paths(child.items() if child.is_array else child, path + ".", seen)
     return result
 
 
-def collect(rules, source_model, output_type, source_prefix="", target_prefix=""):
-    result = []
+def collect(rules, schema, output_model, source_prefix="", target_prefix=""):
+    """(source path, target path) pairs, checking source paths against the contract."""
+    pairs = []
     for rule in rules:
-        target_type = schema_type(output_type, rule.target)
+        target_type = output_type(output_model, rule.target)
         target = target_prefix + rule.target
-        paths = rule.source if isinstance(rule.source, list) else [rule.source]
-        for path in paths:
-            annotation = schema_type(source_model, path)
-            array = get_origin(annotation) is list
-            full_source = source_prefix + path + ("[]" if array else "")
-            result.append((full_source, target + ("[]" if array else "")))
+        if isinstance(rule, FieldMapping) and rule.source_scope == "context":
+            continue
+        for path in rule.source if isinstance(rule.source, list) else [rule.source]:
+            array = schema.at(path).is_array
+            pairs.append((source_prefix + path + ("[]" if array else ""), target + ("[]" if array else "")))
         if not isinstance(rule, FieldMapping):
+            source = schema.at(rule.source)
+            array = source.is_array
+            full = source_prefix + rule.source + ("[]" if array else "")
             if isinstance(rule, ListMapping):
-                if get_origin(annotation) is not list:
-                    raise AssertionError("Expected list source")
-                annotation = unwrap(get_args(annotation)[0])
+                if not array:
+                    raise AssertionError(f"Expected list source at {rule.source}")
+                source = source.items()
                 if target_type is not Any:
                     target_type = unwrap(get_args(target_type)[0])
-            result.extend(collect(rule.fields, annotation, target_type, full_source + ".",
-                                  target + ("[]" if isinstance(rule, ListMapping) else "") + "."))
-    return result
+            pairs.extend(collect(rule.fields, source, target_type, full + ".",
+                                 target + ("[]" if isinstance(rule, ListMapping) else "") + "."))
+    return pairs
 
 
 def canonical_path(path):
@@ -79,13 +93,17 @@ def canonical_path(path):
 class IsolvedEmployeeYamlChecks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        resource = files("normalization").joinpath("mappings/isolved/employee.yaml")
-        cls.config = MappingConfig.model_validate(yaml.safe_load(resource.read_text()))
+        cls.config = config("employee")
+        cls.salaries = config("employee_salaries")  # salary history is its own endpoint now
+
+    def actual(self):
+        return (collect(self.config.fields, EMPLOYEE, CanonicalEmployee)
+                + collect(self.salaries.fields, SALARIES, CanonicalEmployee))
 
     def test_every_source_path_is_mapped_or_retained_by_the_existing_link_fallback(self):
-        actual = collect(self.config.fields, IsolvedEmployeeInput, CanonicalEmployee)
+        actual = self.actual()
         counts = Counter(source for source, _ in actual)
-        expected = source_paths(IsolvedEmployeeInput)
+        expected = contract_paths(EMPLOYEE) | contract_paths(SALARIES)
         preserved = {path for path in expected if "links[]" in path.split(".")}
         self.assertEqual(set(counts), expected - preserved)
         self.assertTrue(all(count == 1 for count in counts.values()))
@@ -109,7 +127,7 @@ class IsolvedEmployeeYamlChecks(unittest.TestCase):
             if target.startswith("isolved."):
                 target = "provider_fields." + target
             expected[source] = target
-        actual = dict(collect(self.config.fields, IsolvedEmployeeInput, CanonicalEmployee))
+        actual = dict(self.actual())
         actual = {source: target if expected[source].endswith("[]") else target.removesuffix("[]")
                   for source, target in actual.items()}
         self.assertEqual(actual, expected)

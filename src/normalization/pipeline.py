@@ -100,6 +100,29 @@ def _drop(record: dict, path: str) -> None:
         record.pop(last, None)
 
 
+def _wrapper(body: dict, record_paths: list[str]) -> dict:
+    """Body minus its record collections; every sibling field is kept.
+
+    Each records path is removed up to its outermost list or object that the
+    route maps ('employeeDeductions.deduction[]' removes only `deduction`;
+    'employee[].directDeposit.achVoucher[]' removes `employee`). A route on the
+    whole body ('') leaves no wrapper.
+    """
+    if any(path == "" for path in record_paths):
+        return {}
+    wrapper = deepcopy(body)
+    for path in record_paths:
+        segments = [s for s in path.split(".") if s]
+        cut = next((i for i, s in enumerate(segments) if s.endswith("[]")), len(segments) - 1)
+        *parents, last = [s.removesuffix("[]") for s in segments[:cut + 1]]
+        node = wrapper
+        for name in parents:
+            node = node.get(name) if isinstance(node, dict) else None
+        if isinstance(node, dict):
+            node.pop(last, None)
+    return wrapper
+
+
 # ---------------------------------------------------------------- merge
 def _merge(target: dict, incoming: dict, record_id: str, issues: list, prefix: str = "") -> None:
     """Fill missing fields, merge nested objects, join lists, report differing values."""
@@ -173,8 +196,7 @@ def normalize_bundle(bundle: Any) -> dict:
             continue
         meta = {"response": index, "endpoint": endpoint, "params": params}
         if isinstance(body, dict):
-            record_keys = {route["records"].split(".")[0].removesuffix("[]") for route in endpoint_routes}
-            wrapper = {k: v for k, v in body.items() if k not in record_keys} if "" not in record_keys else {}
+            wrapper = _wrapper(body, [route["records"] for route in endpoint_routes])
             if wrapper:
                 meta["wrapper"] = wrapper
         responses_meta.append(meta)

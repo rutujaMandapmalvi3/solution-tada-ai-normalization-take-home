@@ -1,10 +1,11 @@
-"""Deduction adapter selection, identity and source preservation."""
+"""PrismHR deduction route: selection, identity and source preservation."""
 import copy
 import json
 import unittest
-from unittest.mock import patch
-from normalization.adapters import prismhr as adapter
-from normalization.mapping_engine import MappingEngine
+
+from bundle_helpers import PRISM, run_one
+
+DEDUCTIONS = "/deductions/v1/getDeductions"
 
 
 class DeductionMappingChecks(unittest.TestCase):
@@ -16,8 +17,10 @@ class DeductionMappingChecks(unittest.TestCase):
                     'startDate': '2026-01-02', 'loanOrGarnishId': '0003', 'future': False}],
                 'future_section': {'flag': False}}}
         before = copy.deepcopy(payload)
-        result = adapter.normalize('deduction', payload, {}, employee_id='007')
+        result = run_one('prismhr', DEDUCTIONS, payload, **PRISM, employeeId='007')
         record = result['deductions'][0]
+        self.assertEqual(record['id'], 'prismhr:deduction:001:007:001')
+        self.assertEqual(record['employee_ref'], 'prismhr:employee:001:007')
         self.assertIsNone(record['deduction_id'])
         self.assertEqual(record['employee_id'], '007')
         self.assertEqual(record['deduction_code'], '001')
@@ -29,31 +32,34 @@ class DeductionMappingChecks(unittest.TestCase):
         self.assertEqual(fields['match_amount'], 0.0)
         self.assertEqual(fields['loan_or_garnish_id'], '0003')
         self.assertIs(record['source_extras']['prismhr']['future'], False)
-        self.assertIs(result['source_extras']['prismhr']['employeeDeductions']['future_section']['flag'], False)
-        self.assertEqual(result['source_metadata']['prismhr']['response'],
+        # Section siblings and wrapper fields are kept with the response metadata.
+        wrapper = result['source_metadata']['prismhr']['responses'][0]['wrapper']
+        self.assertIs(wrapper['employeeDeductions']['future_section']['flag'], False)
+        self.assertEqual({k: v for k, v in wrapper.items() if k != 'employeeDeductions'},
                          {k: v for k, v in before.items() if k != 'employeeDeductions'})
         self.assertEqual(payload, before)
         json.dumps(result, allow_nan=False)
 
-    def test_empty_sections_preserve_absence_null_empty_and_metadata(self):
+    def test_empty_sections_produce_no_records(self):
         for extra in [{}, {'employeeDeductions': None}, {'employeeDeductions': {}},
                       {'employeeDeductions': {'deduction': None}},
                       {'employeeDeductions': {'deduction': []}}]:
-            with self.subTest(extra=extra), patch.object(adapter, 'MappingEngine') as factory:
-                result = adapter.normalize('deduction', {'errorCode': '0', 'errorMessage': '', **extra}, {}, employee_id='007')
+            with self.subTest(extra=extra):
+                result = run_one('prismhr', DEDUCTIONS, {'errorCode': '0', 'errorMessage': '', **extra},
+                                 **PRISM, employeeId='007')
                 self.assertEqual(result['deductions'], [])
-                factory.assert_not_called()
-                remaining = result['provider_fields'].get('prismhr', {}).get('unmapped', {})
-                self.assertEqual(remaining, extra)
 
-    def test_source_validation_and_engine_are_not_repeated(self):
-        validate = adapter.PrismHRDeductionResponse.model_validate
-        with patch.object(adapter.PrismHRDeductionResponse, 'model_validate', wraps=validate) as validation, \
-             patch.object(adapter.PrismHREmployeeDeductionsDeduction, 'model_validate') as repeated, \
-             patch.object(adapter, 'MappingEngine', wraps=MappingEngine) as factory:
-            result = adapter.normalize('deduction', {'errorCode': '0', 'errorMessage': '',
-                'employeeDeductions': {'deduction': [{}, {}]}}, {}, employee_id='007')
-        self.assertEqual(validation.call_count, 1)
-        repeated.assert_not_called()
-        self.assertEqual(factory.call_count, 1)
+    def test_each_deduction_becomes_one_record(self):
+        result = run_one('prismhr', DEDUCTIONS, {'errorCode': '0', 'errorMessage': '',
+                         'employeeDeductions': {'deduction': [{'deductionCode': 'A'}, {'deductionCode': 'B'}]}},
+                         **PRISM, employeeId='007')
         self.assertEqual(len(result['deductions']), 2)
+
+    def test_employee_param_is_required(self):
+        with self.assertRaisesRegex(ValueError, 'cannot build deduction id'):
+            run_one('prismhr', DEDUCTIONS, {'errorCode': '0', 'employeeDeductions': {
+                'deduction': [{'deductionCode': 'A'}]}}, **PRISM)
+
+
+if __name__ == '__main__':
+    unittest.main()

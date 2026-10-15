@@ -1,5 +1,7 @@
 # Payroll mapper implementation
 
+> **Historical:** written before the contracts/bundle change. CLI flags, source models and per-entity outputs described here were replaced; see [DECISIONS.md](./DECISIONS.md) and [relationship_policies.md](./relationship_policies.md).
+
 ## Flow
 
 CLI JSON → provider normalize_payroll → existing source validation → shared adapters/_payroll_mapping.py → role-specific YAML + MappingEngine → canonical payroll records → CanonicalPayrollResult → Python dictionary → CLI JSON.

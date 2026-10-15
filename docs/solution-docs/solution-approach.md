@@ -1,5 +1,7 @@
 # Solution Approach
 
+> **Historical:** written before the contracts/bundle change. CLI flags, source models and per-entity outputs described here were replaced; see [DECISIONS.md](./DECISIONS.md) and [relationship_policies.md](./relationship_policies.md).
+
 This is a local, file-based normalization pipeline for PrismHR, isolved, and UKG Ready. Keep the starter repository's provider modules and shared `normalize(entity, response, reference)` function interface. No abstract target, adapter classes, or result contract from the removed `base.py` are part of this approach.
 
 ## Stack and boundaries

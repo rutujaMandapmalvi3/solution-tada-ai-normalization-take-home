@@ -6,8 +6,11 @@ import unittest
 from normalization.canonical_models.canonical_model_employee import CanonicalEmployee
 from normalization.helpers.mapping import label
 from normalization.mapping_config import MappingConfig
+from normalization import contracts
 from normalization.mapping_engine import MappingEngine, load_mapping_config
-from normalization.source_models.isolved.isolved_source_model_employee import IsolvedEmployeeInput
+
+# isolved employee record schema from the primary Swagger snapshot (replaces the source model).
+EMPLOYEE_SCHEMA = contracts.response_schema("isolved", "/api/clients/{clientId}/legals/{legalId}/employees/{id}")
 
 
 class IsolvedRehireMappingChecks(unittest.TestCase):
@@ -20,17 +23,16 @@ class IsolvedRehireMappingChecks(unittest.TestCase):
         config = MappingConfig.model_validate({
             "version": 1, "provider": "isolved", "entity": "employee", "fields": rules,
         })
-        engine = MappingEngine(config, IsolvedEmployeeInput, CanonicalEmployee)
+        engine = MappingEngine(config, EMPLOYEE_SCHEMA, CanonicalEmployee)
         for supplied, expected in ((True, "eligible"), (False, "ineligible"), (None, None)):
             with self.subTest(supplied=supplied):
-                employee = IsolvedEmployeeInput.model_validate({"id": 7, "eligibleForRehire": supplied})
-                result = engine.map(employee)
+                result = engine.map({"id": 7, "eligibleForRehire": supplied})
                 self.assertEqual(result.employee_id, "7")
                 self.assertEqual(result.eligible_for_rehire, expected)
                 self.assertIs(result.source_metadata.original_values["eligibleForRehire"], supplied)
                 self.assertEqual(result.source_metadata.mapping_issues, [])
                 self.assertEqual(result.model_dump(mode="json")["eligible_for_rehire"], expected)
-        missing = engine.map(IsolvedEmployeeInput.model_validate({"id": 7}))
+        missing = engine.map({"id": 7})
         self.assertNotIn("eligible_for_rehire", missing.model_fields_set)
         self.assertNotIn("eligibleForRehire", missing.source_metadata.original_values)
 

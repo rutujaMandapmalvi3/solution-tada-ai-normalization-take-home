@@ -1,10 +1,11 @@
-"""Company adapter integration with source-scoped identity and preserved context."""
+"""PrismHR company route: source-scoped identity, preserved wrapper and extras."""
 import copy
 import json
 import unittest
-from unittest.mock import patch
-from normalization.adapters import prismhr as adapter
-from normalization.mapping_engine import MappingEngine
+
+from bundle_helpers import PRISM, only, run_one
+
+CLIENT_MASTER = "/clientMaster/v1/getClientMaster"
 
 
 class CompanyMappingChecks(unittest.TestCase):
@@ -14,8 +15,9 @@ class CompanyMappingChecks(unittest.TestCase):
                    'clientName': 'Trade', 'federalIdNumber': '001234', 'statusClass': 'A',
                    'status': 'CUSTOM', 'future': {'flag': False}}}
         before = copy.deepcopy(payload)
-        result = adapter.normalize('company', payload, {})
-        record = result['companies'][0]
+        result = run_one('prismhr', CLIENT_MASTER, payload, clientId='0007')
+        record = only(result, 'companies')
+        self.assertEqual(record['id'], 'prismhr:company:0007')
         self.assertEqual(record['source_record_id'], '0007')
         self.assertEqual(record['source_record_type'], 'client')
         self.assertEqual(record['legal_name'], 'Legal')
@@ -24,25 +26,25 @@ class CompanyMappingChecks(unittest.TestCase):
         self.assertEqual(record['provider_fields']['prismhr']['status_class'], 'active')
         self.assertEqual(record['provider_fields']['prismhr']['status'], 'CUSTOM')
         self.assertIs(record['source_extras']['prismhr']['future']['flag'], False)
-        self.assertEqual(result['source_metadata']['prismhr']['response'],
+        # Wrapper fields now live with the response in document metadata.
+        self.assertEqual(result['source_metadata']['prismhr']['responses'][0]['wrapper'],
                          {k: v for k, v in before.items() if k != 'clientMaster'})
         self.assertEqual(payload, before)
         json.dumps(result, allow_nan=False)
 
-    def test_empty_company_retains_wrapper_and_does_not_create_engine(self):
+    def test_empty_company_retains_wrapper(self):
         for extra in [{}, {'clientMaster': None}]:
-            with self.subTest(extra=extra), patch.object(adapter, 'MappingEngine') as engine:
-                result = adapter.normalize('company', {'errorCode': '0', 'errorMessage': '',
-                    'extension': {'any': {'note': 'Retained'}}, **extra}, {})
+            with self.subTest(extra=extra):
+                result = run_one('prismhr', CLIENT_MASTER, {'errorCode': '0', 'errorMessage': '',
+                                 'extension': {'any': {'note': 'Retained'}}, **extra}, **PRISM)
                 self.assertEqual(result['companies'], [])
-                self.assertEqual(result['source_metadata']['prismhr']['response']['extension'],
+                self.assertEqual(result['source_metadata']['prismhr']['responses'][0]['wrapper']['extension'],
                                  {'any': {'note': 'Retained'}})
-                engine.assert_not_called()
 
-    def test_validates_once_and_does_not_repeat_client_source_validation(self):
-        validate = adapter.PrismHRGetClientMasterResponse.model_validate
-        with patch.object(adapter.PrismHRGetClientMasterResponse, 'model_validate', wraps=validate) as validation, \
-             patch.object(adapter.PrismHRClientMaster, 'model_validate') as repeated:
-            adapter.normalize('company', {'errorCode': '0', 'errorMessage': '', 'clientMaster': {'id': '7'}}, {})
-        self.assertEqual(validation.call_count, 1)
-        repeated.assert_not_called()
+    def test_client_id_param_conflicting_with_record_stops_the_run(self):
+        with self.assertRaisesRegex(ValueError, 'conflicts'):
+            run_one('prismhr', CLIENT_MASTER, {'errorCode': '0', 'clientMaster': {'id': '7'}}, clientId='8')
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -12,6 +12,7 @@ Sources (README-approved reference pack):
 
 Validation policy:
 - null means "not supplied": a type error on a null value is ignored.
+- integral floats (7.0) count as integers.
 - a non-null value of the wrong type stops the run (ValueError with its path).
 - "required" is not enforced: the contracts mark nearly every field required,
   but real and synthetic responses omit most of them. Only record ids are
@@ -26,7 +27,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from jsonschema import Draft4Validator
+from jsonschema import Draft4Validator, validators
 from referencing import Registry
 from referencing.jsonschema import DRAFT4
 
@@ -83,6 +84,16 @@ LIVE_FIELDS = {
 }
 
 
+# Draft 4 treats 7.0 as "not an integer"; later drafts and the identifier
+# helper accept integral floats, and so did the previous source models.
+_TYPES = Draft4Validator.TYPE_CHECKER.redefine(
+    "integer",
+    lambda checker, value: Draft4Validator.TYPE_CHECKER.is_type(value, "integer")
+    or (isinstance(value, float) and value.is_integer()),
+)
+Validator = validators.extend(Draft4Validator, type_checker=_TYPES)
+
+
 class Schema:
     """A contract schema node with local $ref and allOf resolved on access.
 
@@ -129,9 +140,17 @@ class Schema:
         return {p[len(prefix):] for p in self.live
                 if p.startswith(prefix) and "." not in p[len(prefix):] and "[" not in p[len(prefix):]}
 
+    def _types(self) -> set:
+        kind = self.node.get("type")
+        return set(kind) if isinstance(kind, list) else ({kind} if kind else set())
+
     @property
     def is_open(self) -> bool:
-        return not self.node.get("properties")
+        """An untyped or object node without listed properties accepts any field."""
+        if self.node.get("properties") or self.is_array:
+            return False
+        types = self._types() - {"null"}
+        return not types or "object" in types
 
     @property
     def is_array(self) -> bool:
@@ -146,6 +165,9 @@ class Schema:
         if name in self.wrapped:
             return self.wrapped[name]
         path = f"{self.path}.{name}" if self.path else name
+        if self.is_array or (not self.is_open and not self.node.get("properties")):
+            # Lists need '[]' (or a list rule); scalars have no fields.
+            raise KeyError(name)
         if self.is_open:
             return self._sub({}, path)
         properties = self.node["properties"]
@@ -227,17 +249,17 @@ def _live(provider: str, endpoint: str) -> frozenset:
 
 
 @lru_cache(maxsize=None)
-def _validator(provider: str, endpoint: str) -> Draft4Validator:
+def _validator(provider: str, endpoint: str):
     if provider == "ukg-ready":
         schema = dict(response_schema(provider, endpoint).root)
         schema.pop("$id", None)
         schema.pop("$schema", None)
-        return Draft4Validator(schema)
+        return Validator(schema)
     response_schema(provider, endpoint)  # raises a clear error for unknown endpoints
     _, registry = _spec(provider)
     pointer = f"#/paths/{_escape(endpoint)}/get/responses/200"
     pointer += "/content/application~1json/schema" if provider == "prismhr" else "/schema"
-    return Draft4Validator({"$ref": f"urn:{provider}{pointer}"}, registry=registry)
+    return Validator({"$ref": f"urn:{provider}{pointer}"}, registry=registry)
 
 
 def _rename(provider: str, node: Any, parent: str | None = None) -> Any:

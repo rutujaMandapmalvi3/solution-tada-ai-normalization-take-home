@@ -1,41 +1,37 @@
 """Label, number and ZIP conversions, including the complete PrismHR YAML."""
 from datetime import date
 from importlib.resources import files
-import inspect
 from pathlib import Path
-import types
-from typing import Any, Union, get_args, get_origin
 import unittest
 
-from pydantic import BaseModel, ConfigDict
-
+from normalization import contracts
 from normalization.canonical_models.canonical_model_employee import CanonicalEmployee
+from normalization.contracts import Schema
 from normalization.helpers.mapping import label, number, postal_code
 from normalization.mapping_config import MappingConfig
 from normalization.mapping_engine import MappingEngine, load_mapping_config
-from normalization.source_models.prismhr.prismhr_source_model_employee import PrismHREmployee
+
+SOURCE = Schema({"type": "object", "properties": {
+    "id": {"type": "string"}, "details": {"type": ["object", "null"]}}}, {})
+PRISM_EMPLOYEE = contracts.response_schema("prismhr", "/employee/v1/getEmployee").at("employee[]")
 
 
-class Source(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    id: str
-    details: dict[str, Any] | None = None
-
-
-# Populate every nested source section with synthetic values, never customer data.
-def supplied_model(model):
-    model.model_rebuild()
-    def supplied_type(annotation):
-        if get_origin(annotation) in (Union, types.UnionType):
-            return supplied_type(next(t for t in get_args(annotation) if t is not type(None)))
-        if get_origin(annotation) is list:
-            return [supplied_type(get_args(annotation)[0])]
-        if get_origin(annotation) is dict:
+def synthetic(schema, seen=()):
+    """Synthetic record covering every contract-declared field (no customer data)."""
+    node = schema.node
+    kind = node.get("type")
+    if isinstance(kind, list):
+        kind = next((k for k in kind if k != "null"), None)
+    if kind == "array" or (kind is None and "items" in node):
+        return [synthetic(schema.items(), seen)]
+    if kind == "object" or (kind is None and "properties" in node):
+        if schema.is_open:
             return {"synthetic": False}
-        if inspect.isclass(annotation) and issubclass(annotation, BaseModel):
-            return supplied_model(annotation)
-        return {str: "synthetic", bool: False, int: 0, float: 0.0, Any: None}[annotation]
-    return {key: supplied_type(field.annotation) for key, field in model.model_fields.items()}
+        if id(node) in seen:  # recursive reference: keep only its identity
+            return {"id": synthetic(schema.child("id"), seen)} if "id" in schema.declared() else {}
+        seen = seen + (id(node),)
+        return {name: synthetic(schema.child(name), seen) for name in sorted(schema.declared())}
+    return {"string": "synthetic", "integer": 0, "number": 0.0, "boolean": False}.get(kind)
 
 
 class ConversionChecks(unittest.TestCase):
@@ -83,8 +79,8 @@ class ConversionChecks(unittest.TestCase):
 
     def test_complete_yaml_maps_real_types_readable_labels_provenance_and_extras(self):
         path = files("normalization").joinpath("mappings/prismhr/employee.yaml")
-        engine = MappingEngine(load_mapping_config(Path(str(path))), PrismHREmployee, CanonicalEmployee)
-        source = PrismHREmployee.model_validate({
+        engine = MappingEngine(load_mapping_config(Path(str(path))), PRISM_EMPLOYEE, CanonicalEmployee)
+        source = {
             "id": "0007", "firstName": "Example",
             "person": {"gender": "X", "maritalStatus": "M", "birthDate": "2000-01-02",
                        "future_flag": False},
@@ -94,7 +90,7 @@ class ConversionChecks(unittest.TestCase):
             "compensation": {"hourlyPay": "25.50", "salary": "2500", "payMethod": "S",
                              "hourlyPayPeriod": "B", "standardHours": "0",
                              "payRate2": "bad-number"},
-        })
+        }
         result = engine.map(source, context={"client_id": "00132"})
         self.assertEqual(result.employee_id, "0007")
         self.assertEqual(result.prismhr_client_id, "00132")
@@ -120,8 +116,8 @@ class ConversionChecks(unittest.TestCase):
 
     def test_complete_yaml_executes_all_nested_sections_and_serializes(self):
         path = files("normalization").joinpath("mappings/prismhr/employee.yaml")
-        engine = MappingEngine(load_mapping_config(Path(str(path))), PrismHREmployee, CanonicalEmployee)
-        source = PrismHREmployee.model_validate(supplied_model(PrismHREmployee))
+        engine = MappingEngine(load_mapping_config(Path(str(path))), PRISM_EMPLOYEE, CanonicalEmployee)
+        source = synthetic(PRISM_EMPLOYEE)
         result = engine.map(source, context={"client_id": "00132"})
         self.assertIn("auto_policies", result.provider_fields["prismhr"]["person"])
         self.assertIn("scheduled_deduction", result.provider_fields["prismhr"])
@@ -136,12 +132,12 @@ class ConversionChecks(unittest.TestCase):
                  "target": "postal_code", "transform": {"name": "postal_code"}},
             ],
         })
-        engine = MappingEngine(config, Source, CanonicalEmployee)
+        engine = MappingEngine(config, SOURCE, CanonicalEmployee)
         for details, expected, present in (({}, None, False), ({"zip": None}, None, True),
                                            ({"zip": ""}, "", True), ({"zip": "02108"}, "02108", True),
                                            ({"suffix": "0123"}, None, True)):
             with self.subTest(details=details):
-                result = engine.map(Source(id="1", details=details))
+                result = engine.map({"id": "1", "details": details})
                 self.assertEqual(result.postal_code, expected)
                 self.assertEqual("postal_code" in result.model_fields_set, present)
                 originals = result.source_metadata.original_values
@@ -164,7 +160,7 @@ class ConversionChecks(unittest.TestCase):
                          "transform": {"name": name, "arguments": arguments}},
                     ],
                 })
-                MappingEngine(config, Source, CanonicalEmployee)
+                MappingEngine(config, SOURCE, CanonicalEmployee)
 
 
 if __name__ == "__main__":

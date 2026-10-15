@@ -1,21 +1,22 @@
-"""Company adapter integration with source-scoped identity and preserved context."""
+"""isolved company route: legals list -> legal-company records with source-scoped identity."""
 import copy
 import json
 import unittest
-from unittest.mock import patch
-from normalization.adapters import isolved as adapter
-from normalization.mapping_engine import MappingEngine
+
+from bundle_helpers import ISOL_LEGALS, only, run_one
 
 
 class CompanyMappingChecks(unittest.TestCase):
     def test_legal_root_parent_and_nested_records_keep_separate_identity(self):
-        payload = {'id': 7, 'legalName': 'Root Legal', 'dbaName': 'Trade', 'federalEIN': '001234',
-                   'client': {'id': 8, 'clientName': 'Parent', 'legalCompanies': [
-                       {'id': 9, 'legalName': 'Nested', 'future': False}]},
-                   'links': [{'href': '/synthetic/legal', 'method': 'GET'}], 'future': {'flag': False}}
+        legal = {'id': 7, 'legalName': 'Root Legal', 'dbaName': 'Trade', 'federalEIN': '001234',
+                 'client': {'id': 8, 'clientName': 'Parent', 'legalCompanies': [
+                     {'id': 9, 'legalName': 'Nested', 'future': False}]},
+                 'links': [{'href': '/synthetic/legal', 'method': 'GET'}], 'future': {'flag': False}}
+        payload = [legal]
         before = copy.deepcopy(payload)
-        result = adapter.normalize('company', payload, {})
-        record = result['companies'][0]
+        result = run_one('isolved', ISOL_LEGALS, payload, clientId='4000')
+        record = only(result, 'companies')
+        self.assertEqual(record['id'], 'isolved:company:4000:7')
         self.assertEqual(record['source_record_id'], '7')
         self.assertEqual(record['source_record_type'], 'legal_company')
         self.assertEqual(record['legal_name'], 'Root Legal')
@@ -27,16 +28,20 @@ class CompanyMappingChecks(unittest.TestCase):
         self.assertEqual(record['provider_fields']['isolved']['unmapped']['links'][0]['href'], '/synthetic/legal')
         self.assertIs(record['source_extras']['isolved']['future']['flag'], False)
         self.assertEqual(payload, before)
-        self.assertNotIn('response', result['source_metadata'])
+        # A list body has no wrapper fields to keep.
+        self.assertNotIn('wrapper', result['source_metadata']['isolved']['responses'][0])
         json.dumps(result, allow_nan=False)
 
-    def test_nullable_source_identity_remains_null_without_new_identity(self):
-        result = adapter.normalize('company', {'id': None, 'legalName': None}, {})
-        self.assertIsNone(result['companies'][0]['source_record_id'])
-        self.assertIsNone(result['companies'][0]['legal_name'])
+    def test_null_source_identity_stops_the_run_instead_of_inventing_one(self):
+        # Policy: a record key that is missing has no fallback for companies.
+        with self.assertRaisesRegex(ValueError, 'cannot build company id'):
+            run_one('isolved', ISOL_LEGALS, [{'id': None, 'legalName': None}], clientId='4000')
 
-    def test_native_legal_record_is_validated_once(self):
-        validate = adapter.IsolvedLegalModel.model_validate
-        with patch.object(adapter.IsolvedLegalModel, 'model_validate', wraps=validate) as validation:
-            adapter.normalize('company', {'id': 7}, {})
-        self.assertEqual(validation.call_count, 1)
+    def test_null_business_values_stay_null(self):
+        record = only(run_one('isolved', ISOL_LEGALS, [{'id': 7, 'legalName': None}], clientId='4000'),
+                      'companies')
+        self.assertIsNone(record['legal_name'])
+
+
+if __name__ == '__main__':
+    unittest.main()

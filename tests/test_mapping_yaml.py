@@ -4,9 +4,11 @@ import unittest
 
 import yaml
 
+from normalization import contracts
 from normalization.canonical_models.canonical_model_employee import CanonicalEmployee
 from normalization.mapping_config import MappingConfig
-from normalization.source_models.prismhr.prismhr_source_model_employee import PrismHREmployee
+
+PRISM_EMPLOYEE = contracts.response_schema("prismhr", "/employee/v1/getEmployee").at("employee[]")
 
 
 class MappingYamlChecks(unittest.TestCase):
@@ -16,17 +18,17 @@ class MappingYamlChecks(unittest.TestCase):
         self.assertEqual((configuration.provider, configuration.entity), ("prismhr", "employee"))
         self.assertEqual(len(configuration.fields), 4)
 
-        source = PrismHREmployee.model_validate({
+        source = {
             "id": "0007", "firstName": "Example",
             "person": {"birthDate": "2000-01-02", "employerIds": ["001", "002"]},
-        })
+        }
         values = {}
         for rule in configuration.fields:
-            # Check real source/canonical names, without implementing the engine.
-            value = source
+            # Check real contract/canonical names, without implementing the engine.
+            value, schema = source, PRISM_EMPLOYEE
             for segment in rule.source.split("."):
-                self.assertIn(segment, type(value).model_fields)
-                value = getattr(value, segment)
+                self.assertIn(segment, schema.declared())
+                schema, value = schema.child(segment), value[segment]
             self.assertIn(rule.target, CanonicalEmployee.model_fields)
             values[rule.target] = value
         self.assertEqual(values["employee_id"], "0007")

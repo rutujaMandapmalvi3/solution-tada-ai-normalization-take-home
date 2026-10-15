@@ -1,5 +1,7 @@
 # PrismHR direct-deposit mapper: implementation reference
 
+> **Historical:** written before the contracts/bundle change. CLI flags, source models and per-entity outputs described here were replaced; see [DECISIONS.md](./DECISIONS.md) and [relationship_policies.md](./relationship_policies.md).
+
 This describes the implemented connection, not an additional design proposal.
 
 ## Files and flow
