@@ -4,8 +4,10 @@
 """isolved routes (primary Swagger snapshot paths).
 
 Owner scope = clientId:legalId (a client holds several legal companies).
-See prismhr.py for the route keys.
+See route.py for the route keys.
 """
+
+from .route import Route
 
 LEGALS = "/api/clients/{clientId}/legals"
 EMPLOYEE = LEGALS + "/{legalId}/employees/{employeeId}"
@@ -23,7 +25,7 @@ _RUN = {
     "refs": {"company_ref": COMPANY},
 }
 
-ROUTES = {
+ROUTES: dict[str, list[Route]] = {
     LEGALS: [{
         "type": "company", "records": "[]", "yaml": "company",
         "context": {"source_record_type": "legal_company"},

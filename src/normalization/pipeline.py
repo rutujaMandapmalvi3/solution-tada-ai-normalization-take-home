@@ -1,7 +1,4 @@
 # Bundle pipeline. Input: a provider bundle {provider, responses: [{endpoint, params, body}]}. Output: one canonical document dict.
-# Bundle pipeline: one input file with many captured provider responses in,
-# one canonical document out. Implements docs/solution-docs/relationship_policies.md:
-# every record gets a canonical id, children get refs, records sharing an id merge.
 """Normalize a provider bundle into one canonical document.
 
 Bundle format:
@@ -11,6 +8,7 @@ Bundle format:
 Per response: contracts.prepare -> contracts.validate -> the provider adapter's
 routes for that endpoint -> MappingEngine per record -> id/ref stamping.
 Then: merge by id -> canonical re-validation -> link check -> document.
+Ids, refs and merges follow docs/solution-docs/relationship_policies.md.
 """
 from __future__ import annotations
 
@@ -23,6 +21,7 @@ from typing import Any
 
 from . import contracts
 from .adapters import ADAPTERS
+from .adapters.route import Route
 from .canonical_models.canonical_document import COLLECTIONS, MODELS, CanonicalDocument
 from .helpers.mapping import identifier
 from .mapping_config import load_mapping_config
@@ -40,8 +39,8 @@ def _get_nested_value(value: Any, dotted_path: str) -> Any:
     return value
 
 
-# Fills {params|record|parent.x} placeholders; None if any value is missing.
-# template - text format of record id, template_values is given in case we need supply values
+# Fills the {params|record|parent.x} placeholders of a template (id, ref, check, context)
+# from template_values; None if any value is missing.
 def render(template: str, template_values: dict) -> str | None:
     """Fill {params.x} / {record.x} / {parent.x}; None when any value is missing."""
     missing = False
@@ -61,7 +60,7 @@ def render(template: str, template_values: dict) -> str | None:
 
 
 # Renders templates in order and returns the first one that succeeds.
-def _render_first(templates, template_values):
+def _render_first(templates: str | list[str], template_values: dict) -> str | None:
     for template in templates if isinstance(templates, list) else [templates]:
         value = render(template, template_values)
         if value is not None:
@@ -70,7 +69,7 @@ def _render_first(templates, template_values):
 
 
 # Builds a route's engine context from templates and literal values.
-def _mapper_context(route: dict, template_values: dict) -> dict:
+def _mapper_context(route: Route, template_values: dict) -> dict:
     """Route context: templates are rendered, literals (including None) pass through."""
     return {name: render(value, template_values) if isinstance(value, str) and "{" in value else value
             for name, value in (route.get("context") or {}).items()}
@@ -136,13 +135,10 @@ def _response_wrapper(body: dict, records_paths: list[str]) -> dict:
 
 
 # ---------------------------------------------------------------- merge
-# Merges a record into the existing one with the same id, reporting conflicts.
-# inputs - existing: The record already saved in records, which gets updated in place
-# incoming: The new record with the same id (canonical_record)
-# record_id: That shared id, used only in conflict messages
-# issues: The run's issue list, where merge_conflict warnings are added
-# path_prefix: Used internally when it calls itself for nested dicts ("provider_fields."); empty on the first call
-def _merge_records(existing: dict, incoming: dict, record_id: str, issues: list, path_prefix: str = "") -> None:
+# Merges `incoming` into `existing` (the saved record with the same id), in place.
+# record_id and issues are for merge_conflict warnings; path_prefix (e.g. "provider_fields.")
+# is set only on the recursive calls for nested objects.
+def _merge_records(existing: dict, incoming: dict, record_id: str, issues: list[dict], path_prefix: str = "") -> None:
     """Fill missing fields, merge nested objects, join lists, report differing values."""
     for field_name, incoming_value in incoming.items():
         field_path = path_prefix + field_name
@@ -165,10 +161,10 @@ class _MapperCache:
     def __init__(self, provider: str):
         self.provider = provider
         self.directory = "ukg_ready" if provider == "ukg-ready" else provider
-        self.cache = {}
+        self.cache: dict[tuple, MappingEngine] = {}
 
     # Returns the engine for a route and endpoint, building it once.
-    def get_mapper(self, route: dict, endpoint: str) -> MappingEngine:
+    def get_mapper(self, route: Route, endpoint: str) -> MappingEngine:
         cache_key = (route["yaml"], endpoint, route["records"], route.get("wrap"))
         if cache_key not in self.cache:
             # A route may read its records with another endpoint's record schema
@@ -182,9 +178,8 @@ class _MapperCache:
             resource = files("normalization").joinpath(f"mappings/{self.directory}/{route['yaml']}.yaml")
             with as_file(resource) as yaml_path:
                 config = load_mapping_config(yaml_path)
-                # config = py object containing all YAML settings.
-                # Its fields contains the mapping-rule objects that check_rules() validates against the source schema and output model.
-                # MODELS[route["type"]] -> canonical employee type from canonical_document.py
+            # The engine checks the YAML rules against the schema and the canonical model
+            # (MODELS[route["type"]], e.g. CanonicalEmployee) once, when it is built.
             self.cache[cache_key] = MappingEngine(config, schema, MODELS[route["type"]])
         return self.cache[cache_key]
 
@@ -193,13 +188,13 @@ class _MapperCache:
 class _RunState:
     """Everything collected while one bundle is normalized."""
     provider: str
-    routes: dict
+    routes: dict[str, list[Route]]                                        # endpoint -> its routes
     mapper_cache: _MapperCache
-    records_by_id: dict = field(default_factory=dict)          # canonical id -> (record type, record)
-    issues: list = field(default_factory=list)
-    response_summaries: list = field(default_factory=list)     # endpoint, params, wrapper per response
-    unrouted_responses: list = field(default_factory=list)
-    filtered_records: list = field(default_factory=list)
+    records_by_id: dict[str, tuple[str, dict]] = field(default_factory=dict)  # canonical id -> (record type, record)
+    issues: list[dict] = field(default_factory=list)
+    response_summaries: list[dict] = field(default_factory=list)            # endpoint, params, wrapper per response
+    unrouted_responses: list[dict] = field(default_factory=list)            # valid responses no route maps
+    filtered_records: list[dict] = field(default_factory=list)              # records a `where` filter rejected
 
 
 @dataclass(frozen=True)
@@ -214,8 +209,7 @@ class _ResponseInfo:
 # Runs prepare, validate, route, map, stamp, merge, re-validate and link check.
 def normalize_bundle(bundle: Any) -> dict:
     run = _start_run(bundle)
-    # Loops over responses in the bundle dictionary, preserving their order from the input JSON file.
-    # assigns them ids sequentially - 0, 1, 2...
+    # Responses run in bundle order; index (0, 1, 2...) identifies each in issues and sources.
     for index, response in enumerate(bundle["responses"]):
         _normalize_response(run, index, response)
     records_by_type = _revalidate_records(run)
@@ -230,7 +224,7 @@ def _start_run(bundle: Any) -> _RunState:
     if not isinstance(bundle.get("responses"), list):
         raise ValueError("Bundle must contain a 'responses' list")
     provider = bundle["provider"]
-    #selects adaptor
+    # The provider's adapter supplies the route table.
     return _RunState(provider=provider, routes=ADAPTERS[provider].ROUTES, mapper_cache=_MapperCache(provider))
 
 
@@ -238,18 +232,16 @@ def _start_run(bundle: Any) -> _RunState:
 def _normalize_response(run: _RunState, index: int, response: Any) -> None:
     if not isinstance(response, dict) or not isinstance(response.get("endpoint"), str):
         raise ValueError(f"Response {index}: needs an 'endpoint' string")
-    # check endpoints and params
     endpoint = response["endpoint"]
     params = response.get("params") or {}
     if not isinstance(params, dict):
         raise ValueError(f"Response {index} ({endpoint}): 'params' must be an object")
-    #call contracts.prepare()
+    # Status and provider error checks, live renames.
     body = contracts.prepare(run.provider, response)
-    #complete field-to-filed validation including types,values, lenght, ranges, etc
+    # Schema validation: a wrong type stops the run; other drift (enum, length...) becomes warnings.
     run.issues += [{**warning, "response": index} for warning in contracts.validate(run.provider, endpoint, body)]
 
-    # reads routs from adaptor
-    # output: Employee-endpoint routes
+    # One route per record type the endpoint holds (e.g. employee and direct deposit).
     routes_for_endpoint = run.routes.get(endpoint)
     if not routes_for_endpoint:
         # Valid contract response with no canonical record type (e.g. UKG
@@ -258,46 +250,43 @@ def _normalize_response(run: _RunState, index: int, response: Any) -> None:
         return
     response_summary = {"response": index, "endpoint": endpoint, "params": params}
     if isinstance(body, dict):
-        #separates the wrapper from the actual response
+        # The body's non-record fields (the wrapper) are kept in source_metadata.
         wrapper = _response_wrapper(body, [route["records"] for route in routes_for_endpoint])
         if wrapper:
             response_summary["wrapper"] = wrapper
-    #stored parts of the body that are not records
     run.response_summaries.append(response_summary)
 
     response_info = _ResponseInfo(index=index, endpoint=endpoint, params=params)
     for route in routes_for_endpoint:
         mapper = run.mapper_cache.get_mapper(route, endpoint)
-        # mapping starts
         for record, parent, json_path in _find_records(route, body):
             _normalize_record(run, route, mapper, response_info, record, parent, json_path)
 
 
 # Yields the records a route maps: the whole body for a wrapped section, else each item on its records path.
-def _find_records(route: dict, body: Any):
-    # A wrapped section (e.g. the salaries list) is one record as a whole.
-    # _iter_records is an iterator yielding employee record, parent and source path -
-    # reason: preserves nested fields
+def _find_records(route: Route, body: Any):
+    # A wrapped section (e.g. the salaries list) is one record as a whole; otherwise
+    # _iter_records yields each record with its parent record and JSON path.
     if route.get("wrap"):
         return [(body, None, ())]
     return _iter_records(body, route["records"])
 
 
 # Runs the record steps in order: filter, owner check, fill id, id key, map, id/refs, save or merge.
-def _normalize_record(run: _RunState, route: dict, mapper: MappingEngine, response_info: _ResponseInfo,
+def _normalize_record(run: _RunState, route: Route, mapper: MappingEngine, response_info: _ResponseInfo,
                       record: dict, parent: Any, json_path: tuple) -> None:
-    # where - process only selected records
+    # e.g. "employee/0": where the record sits in the body, used in messages and sources.
     record_path = "/".join(str(part) for part in json_path) or "<body>"
-    # contains - params(From the current response’s params), record(Yielded by _iter_records()) and parent(Yielded by _iter_records())
+    # What templates can read: the response params, the record and its parent record.
     template_values = {"params": response_info.params, "record": record, "parent": parent}
     if not _matches_route_filter(route, record):
-        #sets aside the values that are unrelated to the entity data type
+        # Records of another type are kept in provider_fields, never dropped.
         run.filtered_records.append({"response": response_info.index, "endpoint": response_info.endpoint,
                                      "path": record_path, "reason": f"not a {route['type']} record",
                                      "record": record})
         return
     _ensure_owner_matches(route, template_values, response_info, record_path)
-    record = _fill_missing_record_id(route, record, template_values)
+    record = _fill_missing_source_fields(route, record, template_values)
     template_values["record"] = record
     id_key = _build_id_key(route, template_values, response_info, record_path)
     canonical_record = _map_to_canonical(route, mapper, record, template_values, response_info, record_path)
@@ -306,17 +295,15 @@ def _normalize_record(run: _RunState, route: dict, mapper: MappingEngine, respon
 
 
 # True when the record passes the route's `where` filter (or the route has none).
-def _matches_route_filter(route: dict, record: dict) -> bool:
-    #_get_nested_value() reads a field from a record(output of _iter_records()), including nested fields
+def _matches_route_filter(route: Route, record: dict) -> bool:
     return all(_get_nested_value(record, field_path) == expected
                for field_path, expected in (route.get("where") or {}).items())
 
 
 # Stops the run when a params owner id disagrees with the owner id in the body.
-def _ensure_owner_matches(route: dict, template_values: dict, response_info: _ResponseInfo,
+def _ensure_owner_matches(route: Route, template_values: dict, response_info: _ResponseInfo,
                           record_path: str) -> None:
-    # composite key building starts
-    # check example - "check": [("{record.id}", "{params.clientId}")]
+    # e.g. "check": [("{record.id}", "{params.clientId}")]
     for body_template, params_template in route.get("check") or []:
         body_owner = render(body_template, template_values)
         params_owner = render(params_template, template_values)
@@ -326,7 +313,7 @@ def _ensure_owner_matches(route: dict, template_values: dict, response_info: _Re
 
 
 # Fills fields the record lacks (e.g. its own id) from params, as the route's `fill_record` says.
-def _fill_missing_record_id(route: dict, record: dict, template_values: dict) -> dict:
+def _fill_missing_source_fields(route: Route, record: dict, template_values: dict) -> dict:
     # Policy rule 5: a single-record response without its own id takes
     # it from params (e.g. UKG statement detail -> pay_statement_id).
     filled_fields = {field_name: render(template, template_values)
@@ -338,7 +325,7 @@ def _fill_missing_record_id(route: dict, record: dict, template_values: dict) ->
 
 
 # Renders the route's id template into the record's id key; stops the run when a value is missing.
-def _build_id_key(route: dict, template_values: dict, response_info: _ResponseInfo, record_path: str) -> str:
+def _build_id_key(route: Route, template_values: dict, response_info: _ResponseInfo, record_path: str) -> str:
     id_key = _render_first(route["id"], template_values)
     if id_key is None:
         raise ValueError(f"{response_info.endpoint} {record_path}: cannot build {route['type']} id from "
@@ -347,14 +334,14 @@ def _build_id_key(route: dict, template_values: dict, response_info: _ResponseIn
 
 
 # Maps a copy of the record through the route's YAML and returns the canonical record as a dict.
-def _map_to_canonical(route: dict, mapper: MappingEngine, record: dict, template_values: dict,
+def _map_to_canonical(route: Route, mapper: MappingEngine, record: dict, template_values: dict,
                       response_info: _ResponseInfo, record_path: str) -> dict:
     source = deepcopy(record)
     for ignore_path in route.get("ignore") or []:
         _remove_nested_field(source, ignore_path)
     if route.get("wrap"):
         source = {route["wrap"]: source}
-    #source - deepcopy, context - extra values that aren't in the body, metadata - error response, endpoint, path where the record is found
+    # context: route values the YAML reads with source_scope: context; metadata: where the record came from.
     canonical_model = mapper.map(source, context=_mapper_context(route, template_values), metadata={
         "sources": [{"response": response_info.index, "endpoint": response_info.endpoint, "path": record_path}]})
     canonical_record = canonical_model.model_dump(mode="json", exclude_unset=True)
@@ -365,7 +352,7 @@ def _map_to_canonical(route: dict, mapper: MappingEngine, record: dict, template
 
 
 # Adds the canonical id and the refs to the record; a ref with a missing value becomes a warning.
-def _attach_id_and_refs(run: _RunState, route: dict, canonical_record: dict, id_key: str,
+def _attach_id_and_refs(run: _RunState, route: Route, canonical_record: dict, id_key: str,
                         template_values: dict) -> str:
     record_id = f"{run.provider}:{route['type']}:{id_key}"
     canonical_record["id"] = record_id
@@ -381,8 +368,6 @@ def _attach_id_and_refs(run: _RunState, route: dict, canonical_record: dict, id_
 
 # Saves a record under its id, or merges it into the record already saved under that id.
 def _save_or_merge_record(run: _RunState, record_type: str, record_id: str, canonical_record: dict) -> None:
-    # checks if the id exists in records(meaning if the python dict for it exists or not)
-    # if yes, dont save it in the records dict again, instead merge it, if no - save it
     if record_id in run.records_by_id:
         _merge_records(run.records_by_id[record_id][1], canonical_record, record_id, run.issues)
     else:
@@ -391,7 +376,7 @@ def _save_or_merge_record(run: _RunState, record_type: str, record_id: str, cano
 
 # ---------------------------------------------------------------- output
 # Re-validates every saved record against its canonical model and groups the records by collection.
-def _revalidate_records(run: _RunState) -> dict:
+def _revalidate_records(run: _RunState) -> dict[str, list[dict]]:
     # Merged records are validated again: fragments must still form a valid record.
     # JSON round trip, because the strict models accept dates only as JSON strings.
     records_by_type = {collection_name: [] for collection_name in COLLECTIONS.values()}
@@ -402,7 +387,7 @@ def _revalidate_records(run: _RunState) -> dict:
 
 
 # Assembles the canonical document from the grouped records and everything the run kept.
-def _build_output_document(run: _RunState, records_by_type: dict) -> dict:
+def _build_output_document(run: _RunState, records_by_type: dict[str, list[dict]]) -> dict:
     provider_fields = {}
     if run.unrouted_responses:
         provider_fields["unrouted_responses"] = run.unrouted_responses
@@ -418,7 +403,7 @@ def _build_output_document(run: _RunState, records_by_type: dict) -> dict:
 
 
 # Adds a dangling_link issue for every ref whose target id is not in this bundle.
-def _report_dangling_refs(run: _RunState, records_by_type: dict) -> None:
+def _report_dangling_refs(run: _RunState, records_by_type: dict[str, list[dict]]) -> None:
     known_ids = set(run.records_by_id)
     for records in records_by_type.values():
         for canonical_record in records:

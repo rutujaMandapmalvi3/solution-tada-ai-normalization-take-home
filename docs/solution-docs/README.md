@@ -166,8 +166,10 @@ Nothing supplied is dropped:
 | `__main__.py` | CLI: file I/O, readiness check, exit codes | bundle file → output file |
 | `pipeline.py` | Orchestrator: runs every step for each response; merges and checks links | bundle dict → document dict |
 | `contracts.py` | Validates bodies against the provider contracts; live renames | response → prepared body, warnings |
-| `adapters/<provider>.py` | Route tables (data only): endpoint → record type, records path, YAML, id/ref templates | – |
-| `mapping_engine.py` + `mappings/` + `helpers/` | Declarative YAML mapping with preflight and conversion helpers | source record → canonical record |
+| `adapters/<provider>.py`, `adapters/route.py` | Route tables (data only): endpoint → record type, records path, YAML, id/ref templates; `Route` documents the keys | – |
+| `mapping_config.py` | Loads a YAML mapping file and validates its rule structure | YAML file → `MappingConfig` |
+| `mapping_validation.py` | Checks rule paths and helpers against the contract and canonical model before mapping | rules → ok or error |
+| `mapping_engine.py` + `mappings/` + `helpers/` | Runs the rules and preserves unmapped/undeclared fields | source record → canonical record |
 | `canonical_models/` | Strict output models and the document model | data → validated records |
 | `references.py` | Reference-pack readiness checks | provider → issues |
 
@@ -175,8 +177,9 @@ Nothing supplied is dropped:
 
 ```
 src/normalization/
-  __main__.py  pipeline.py  contracts.py  mapping_engine.py  mapping_config.py  references.py
-  adapters/            prismhr.py  isolved.py  ukg_ready.py
+  __main__.py  pipeline.py  contracts.py  references.py
+  mapping_config.py  mapping_validation.py  mapping_engine.py
+  adapters/            route.py  prismhr.py  isolved.py  ukg_ready.py
   mappings/<provider>/ *.yaml
   canonical_models/    *.py
   helpers/             mapping.py

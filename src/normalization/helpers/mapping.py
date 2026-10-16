@@ -51,7 +51,6 @@ def date_value(value: Any) -> Conversion:
     return Conversion(None, "Invalid ISO date/datetime; original value retained")
 
 
-# Converts numeric text into a finite number without changing units or basis.
 # Converts a numeric value to a number, or returns an issue.
 def number(value: Any) -> Conversion:
     if value is None:
@@ -74,7 +73,6 @@ def number(value: Any) -> Conversion:
     return Conversion(None, "Nonfinite or invalid number; original value retained")
 
 
-# Returns a number only when its source selector matches the configured value.
 # Returns the number only when the selector equals the configured value.
 def conditional_number(value: Any, selector: Any, *, equals: str) -> Conversion:
     """Select a verified numeric meaning; other values are preserved by mapping rules."""
@@ -83,7 +81,6 @@ def conditional_number(value: Any, selector: Any, *, equals: str) -> Conversion:
     return Conversion(None)
 
 
-# Replaces a known code or readable label using only the supplied dictionary.
 # Translates a code through the YAML label table; unknown codes give an issue.
 def label(value: Any, *, labels: dict[str, str]) -> Conversion:
     if value is None:
@@ -106,7 +103,6 @@ def label(value: Any, *, labels: dict[str, str]) -> Conversion:
     return Conversion(None, "Unmapped label/code; original value retained")
 
 
-# Combines ZIP and suffix as text without duplicating or guessing an extension.
 # Combines ZIP and ZIP+4 suffix as text, flagging conflicts.
 def postal_code(zipcode: Any, suffix: Any) -> Conversion:
     if zipcode is not None and not isinstance(zipcode, str):
@@ -125,7 +121,6 @@ def postal_code(zipcode: Any, suffix: Any) -> Conversion:
     return Conversion(zipcode + "-" + suffix)
 
 
-# Combines two pronoun fields without letting conflicting values overwrite each other.
 # Resolves one pronoun value from two fields, flagging conflicts.
 def pronouns(first: Any, second: Any) -> Conversion:
     if any(value is not None and not isinstance(value, str) for value in (first, second)):
@@ -140,7 +135,6 @@ def pronouns(first: Any, second: Any) -> Conversion:
     return Conversion(first if first is not None else second)
 
 
-# Resolves two identifier aliases without choosing between conflicting values.
 # Resolves two alias id fields to one value; null plus issue when they differ.
 def identifier_alias(first: Any, second: Any) -> Conversion:
     left, right = identifier(first).value, identifier(second).value
@@ -151,7 +145,6 @@ def identifier_alias(first: Any, second: Any) -> Conversion:
     return Conversion(None, "Conflicting identifier aliases; both originals retained")
 
 
-# Checks helper arguments before mapping any source records.
 # Checks that a YAML transform names a known helper with valid arguments.
 def validate_helper(name: str, source_count: int, arguments: dict[str, Any]) -> None:
     if name not in HELPERS:

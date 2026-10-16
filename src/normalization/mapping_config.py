@@ -146,11 +146,10 @@ ListMapping.model_rebuild()
 MappingConfig.model_rebuild()
 
 
-# Converts a YAML object into a Python dictionary.
+# YAML loader that rejects duplicate keys instead of keeping the last one.
 class _UniqueKeyLoader(yaml.SafeLoader):
     """Do not silently discard an earlier YAML rule/key."""
 
-    # Converts a YAML object into a dictionary and rejects duplicate keys.
     # Builds a YAML mapping and rejects duplicate keys.
     def construct_mapping(self, node, deep=False):
         self.flatten_mapping(node)
@@ -167,7 +166,6 @@ class _UniqueKeyLoader(yaml.SafeLoader):
         return super().construct_mapping(node, deep=deep)
 
 
-# Reads the YAML file and checks that its mapping rules are valid.
 # Reads a YAML mapping file and validates it as a MappingConfig.
 def load_mapping_config(path: str | pathlib.Path) -> MappingConfig:
     """Safely parse YAML, reject duplicate keys, then validate rule structure."""

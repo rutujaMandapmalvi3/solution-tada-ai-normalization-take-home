@@ -6,8 +6,10 @@
 Owner scope = cid. The company is the cid itself; EIN lookup items are separate
 company records linked to it. Both pay-statement path placeholders are named
 {id}, so bundles pass them as params payroll_id and pay_statement_id.
-See prismhr.py for the route keys.
+See route.py for the route keys.
 """
+
+from .route import Route
 
 COMPANIES = "/v2/companies/{cid}"
 COMPANY = ("company", "{params.cid}")
@@ -24,7 +26,7 @@ _STATEMENT_REFS = {
     "payroll_run_ref": ("payroll_run", "{params.cid}:{params.payroll_id}"),
 }
 
-ROUTES = {
+ROUTES: dict[str, list[Route]] = {
     COMPANIES + "/lookup/eins": [
         {
             "type": "company", "records": "", "yaml": "company_root", "ignore": ["items"],

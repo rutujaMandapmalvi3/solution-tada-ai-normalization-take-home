@@ -16,7 +16,6 @@ from .helpers.mapping import validate_helper
 from .mapping_config import FieldMapping, ListMapping
 
 
-# Gets the underlying type from an optional type, such as str from str or None.
 # Unwraps Optional[X] to X.
 def _optional_type(annotation):
     if get_origin(annotation) in (Union, types.UnionType):
@@ -26,13 +25,11 @@ def _optional_type(annotation):
     return annotation
 
 
-# Checks whether a type is a Pydantic model.
 # True when an annotation is a Pydantic model class.
 def _is_model(annotation):
     return isinstance(annotation, type) and issubclass(annotation, BaseModel)
 
 
-# Checks a nested canonical (target) path and finds the type of its final value.
 # Returns the canonical model type at a target path; raises on unknown fields.
 def _path_type(annotation, path):
     for segment in path.split("."):
@@ -52,7 +49,6 @@ def _path_type(annotation, path):
     return _optional_type(annotation)
 
 
-# Checks a source path against the contract schema of the source record.
 # Returns the contract schema at a source path; raises on unknown fields.
 def _source_path(schema: Schema, path: str) -> Schema:
     try:
@@ -61,7 +57,6 @@ def _source_path(schema: Schema, path: str) -> Schema:
         raise ValueError(f"Source path {path!r}: field {exc.args[0]!r} is not in the contract schema") from None
 
 
-# Checks field paths, nested rule types and available helpers before mapping.
 # Checks every rule's source path, target path and helper before any mapping.
 def check_rules(rules, source_schema, target_type, provider, root=False):
     for rule in rules:

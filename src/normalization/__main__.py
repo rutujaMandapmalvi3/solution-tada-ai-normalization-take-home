@@ -26,7 +26,6 @@ _REFERENCE_WARNINGS = {
 }
 
 
-# Attach reference provenance to the document without replacing pipeline metadata.
 # Records reference-pack warnings once in the document's source_metadata.
 def _add_reference_warnings(document, provider, reference, issues):
     document.setdefault("source_metadata", {}).setdefault(provider, {})["reference_pack"] = {
@@ -59,10 +58,8 @@ def main(argv=None):
         print(json.dumps(issues, indent=2))
         return 2 if any(issues.values()) else 0
     try:
-        # Open the bundle and deserialize JSON into Python dictionaries and lists.
+        # Deserialize the bundle: JSON text -> nested Python dicts, lists and scalars.
         with args.input.open(encoding="utf-8") as stream:
-            # Input: The stream containing JSON text.
-            # Output: A Python dictionary containing nested dictionaries, lists and scalar values.
             bundle = json.load(stream)
         provider = bundle.get("provider") if isinstance(bundle, dict) else None
         if provider not in ADAPTERS:

@@ -23,7 +23,6 @@ from .mapping_validation import check_rules
 _MISSING = object()
 
 
-# Reads a value from a nested path and reports when it was not supplied.
 # Reads a dotted path from a record, reporting values that are not supplied.
 def _read_path(record, dotted_path):
     value = record
@@ -41,7 +40,6 @@ def _read_path(record, dotted_path):
     return value, tuple(resolved_path)
 
 
-# Copies a supplied source value into an independent plain structure.
 # Returns an independent copy of a source value.
 def _copy_value(value):
     return deepcopy(value)
@@ -57,7 +55,6 @@ def _declared(schema, key):
     return schema is None or schema.is_open or key in schema.declared()
 
 
-# Collects contract-declared source fields that the mapping rules have not used.
 # Collects declared source fields that no rule consumed, keeping their nesting.
 def _collect_unmapped(value, consumed_paths, schema=None, path=()):
     """Retain declared, unconsumed fields in original nesting (schema None = all declared)."""
@@ -82,7 +79,6 @@ def _collect_unmapped(value, consumed_paths, schema=None, path=()):
     return deepcopy(value)
 
 
-# Collects source fields the contract does not declare, keeping nesting and list positions.
 # Collects source fields the contract does not declare, keeping their nesting.
 def _collect_undeclared(value, schema=None):
     """Undeclared fields per the contract schema; open schemas declare everything."""
@@ -108,7 +104,6 @@ def _collect_undeclared(value, schema=None):
     return _MISSING
 
 
-# Writes a value at an output path without overwriting an existing value.
 # Writes a value at a dotted output path, refusing to overwrite.
 def _write_path(output, dotted_path, value):
     segments = dotted_path.split(".")
@@ -125,10 +120,10 @@ def _write_path(output, dotted_path, value):
 @dataclass
 class _MappingState:
     """What one map() call collects while its rules run."""
-    context: dict                                                 # values rules read with source_scope: context
-    consumed_paths: set = field(default_factory=set)              # source paths a rule used
-    original_values: dict = field(default_factory=dict)           # source value before each transform
-    issues: list = field(default_factory=list)                    # helper conversion issues
+    context: dict[str, Any]                                       # values rules read with source_scope: context
+    consumed_paths: set[tuple] = field(default_factory=set)       # source paths a rule used
+    original_values: dict[str, Any] = field(default_factory=dict) # source value before each transform
+    issues: list[dict] = field(default_factory=list)              # helper conversion issues
 
 
 class MappingEngine:
@@ -138,7 +133,6 @@ class MappingEngine:
     and undeclared fields at source_extras.<provider>, both with source nesting.
     """
 
-    # Sets up the engine and checks the rules against the source schema and output model.
     # Stores the rules, source schema and output model, then preflights the rules.
     def __init__(self, config: MappingConfig, source_schema: Schema,
                  output_model: type[BaseModel]):
@@ -148,7 +142,6 @@ class MappingEngine:
         self.output_model.model_rebuild()
         check_rules(self.config.fields, source_schema, output_model, self.config.provider, root=True)
 
-    # Maps one validated source record (a dict) and returns a validated canonical object.
     # Maps one record: applies rules, adds unmapped/extras/metadata, validates the output.
     def map(self, source: dict, *, context: dict[str, Any] | None = None,
             metadata: dict[str, Any] | None = None) -> BaseModel:
