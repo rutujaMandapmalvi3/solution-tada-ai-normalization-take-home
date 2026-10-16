@@ -39,6 +39,7 @@ def _lookup(value: Any, path: str) -> Any:
 
 
 # Fills {params|record|parent.x} placeholders; None if any value is missing.
+# template - text format of record id, scope is given in case we need supply values
 def render(template: str, scope: dict) -> str | None:
     """Fill {params.x} / {record.x} / {parent.x}; None when any value is missing."""
     missing = False
@@ -179,6 +180,9 @@ class _Engines:
             resource = files("normalization").joinpath(f"mappings/{self.directory}/{route['yaml']}.yaml")
             with as_file(resource) as path:
                 config = load_mapping_config(path)
+                # config = py object containing all YAML settings. 
+                # Its fields contains the mapping-rule objects that _preflight() validates against the source schema and output model.
+                # MODELS[route["type"]] -> canonical employee type from canonical_document.py
             self.cache[key] = MappingEngine(config, schema, MODELS[route["type"]])
         return self.cache[key]
 
@@ -190,6 +194,7 @@ def normalize_bundle(bundle: Any) -> dict:
     if not isinstance(bundle.get("responses"), list):
         raise ValueError("Bundle must contain a 'responses' list")
     provider = bundle["provider"]
+    #selects adaptor
     routes = ADAPTERS[provider].ROUTES
     engines = _Engines(provider)
 
@@ -197,16 +202,23 @@ def normalize_bundle(bundle: Any) -> dict:
     issues: list[dict] = []
     responses_meta, unrouted, filtered = [], [], []
 
+    # Loops over responses in the bundle dictionary, preserving their order from the input JSON file.
+    # assigns them ids sequentially - 0, 1, 2...
     for index, response in enumerate(bundle["responses"]):
         if not isinstance(response, dict) or not isinstance(response.get("endpoint"), str):
             raise ValueError(f"Response {index}: needs an 'endpoint' string")
+        # check endpoints and params
         endpoint = response["endpoint"]
         params = response.get("params") or {}
         if not isinstance(params, dict):
             raise ValueError(f"Response {index} ({endpoint}): 'params' must be an object")
+        #call contracts.prepare()
         body = contracts.prepare(provider, response)
+        #complete field-to-filed validation including types,values, lenght, ranges, etc
         issues += [{**warning, "response": index} for warning in contracts.validate(provider, endpoint, body)]
 
+        # reads routs from adaptor
+        # output: Employee-endpoint routes
         endpoint_routes = routes.get(endpoint)
         if not endpoint_routes:
             # Valid contract response with no canonical record type (e.g. UKG
@@ -215,6 +227,7 @@ def normalize_bundle(bundle: Any) -> dict:
             continue
         meta = {"response": index, "endpoint": endpoint, "params": params}
         if isinstance(body, dict):
+            #separates the wrapper from the actual response 
             wrapper = _wrapper(body, [route["records"] for route in endpoint_routes])
             if wrapper:
                 meta["wrapper"] = wrapper
@@ -224,15 +237,23 @@ def normalize_bundle(bundle: Any) -> dict:
         for route in endpoint_routes:
             engine = engines.get(route, endpoint)
             # A wrapped section (e.g. the salaries list) is one record as a whole.
+            # iterate is an iterator yielding employee record, parent and source path -
+            # reason: preserves nested fields
             found = [(body, None, ())] if route.get("wrap") else iterate(body, route["records"])
+            # mapping starts
             for record, parent, json_path in found:
+                # where - process only selected records
                 where = "/".join(str(part) for part in json_path) or "<body>"
+                # contains - params(From the current response’s params), record(Yielded by iterate()) and parent(Yielded by iterate())
                 scope = {"params": params, "record": record, "parent": parent}
+                #_lookup() reads a field from a record(output of iterate()), including nested fields
                 if any(_lookup(record, path) != expected for path, expected in (route.get("where") or {}).items()):
                     #sets aside the values that are unrelated to the entity data type
                     filtered.append({"response": index, "endpoint": endpoint, "path": where,
                                      "reason": f"not a {route['type']} record", "record": record})
                     continue
+                # composite key building starts
+                # check example - "check": [("{record.id}", "{params.clientId}")]
                 for left, right in route.get("check") or []:
                     a, b = render(left, scope), render(right, scope)
                     if a is not None and b is not None and a != b:

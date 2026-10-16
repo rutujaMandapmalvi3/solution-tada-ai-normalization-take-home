@@ -61,6 +61,8 @@ def main(argv=None):
     try:
         # Open the bundle and deserialize JSON into Python dictionaries and lists.
         with args.input.open(encoding="utf-8") as stream:
+            # Input: The stream containing JSON text.
+            # Output: A Python dictionary containing nested dictionaries, lists and scalar values.
             bundle = json.load(stream)
         provider = bundle.get("provider") if isinstance(bundle, dict) else None
         if provider not in ADAPTERS:

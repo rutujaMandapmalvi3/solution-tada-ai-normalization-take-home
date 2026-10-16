@@ -259,6 +259,7 @@ def response_schema(provider: str, endpoint: str) -> Schema:
     if response is None:
         raise ValueError(f"No {provider} GET 200 response for endpoint {endpoint!r}")
     node = response["content"]["application/json"]["schema"] if provider == "prismhr" else response["schema"]
+    # returns a Schema object wrapping the endpoint’s response schema
     return Schema(node, spec, live=_live(provider, endpoint))
 
 
@@ -279,6 +280,7 @@ def _validator(provider: str, endpoint: str):
     _, registry = _spec(provider)
     pointer = f"#/paths/{_escape(endpoint)}/get/responses/200"
     pointer += "/content/application~1json/schema" if provider == "prismhr" else "/schema"
+    # returns JSON Schema validator object
     return Validator({"$ref": f"urn:{provider}{pointer}"}, registry=registry)
 
 
@@ -297,10 +299,11 @@ def _rename(provider: str, node: Any, parent: str | None = None) -> Any:
         return renamed
     if isinstance(node, list):
         return [_rename(provider, item, parent) for item in node]
+    #returns prepared object
     return node
 
 
-# Checks HTTP status and provider error code, then applies live renames; returns the body.
+# 1. Checks HTTP status and provider error code, then applies live renames; returns the body.
 def prepare(provider: str, response: dict) -> Any:
     """Checks that must happen before schema validation; returns the body to validate.
 
