@@ -9,7 +9,7 @@ from normalization import contracts
 from normalization.adapters import ADAPTERS
 from normalization.canonical_models.canonical_document import CanonicalDocument
 from normalization.helpers.mapping import identifier_alias, validate_helper
-from normalization.pipeline import _Engines
+from normalization.pipeline import _MapperCache
 
 BATCHES = "/payroll/v1/getBatchListByDate"
 VOUCHERS = "/payroll/v1/getPayrollVoucherForBatch"
@@ -135,7 +135,7 @@ PAYROLL_ROUTES = [(provider, endpoint, route)
 @pytest.mark.parametrize("provider,endpoint,route", PAYROLL_ROUTES,
                          ids=[f"{p}:{r['yaml']}:{e.rsplit('/', 1)[-1]}" for p, e, r in PAYROLL_ROUTES])
 def test_all_payroll_yaml_paths_preflight_and_cover_every_declared_field(provider, endpoint, route):
-    engine = _Engines(provider).get(route, endpoint)  # preflight against the contract schema
+    engine = _MapperCache(provider).get_mapper(route, endpoint)  # preflight against the contract schema
     paths = {path.split(".")[0] for rule in engine.config.fields
              for path in (rule.source if isinstance(rule.source, list) else [rule.source])}
     declared = contracts.response_schema(provider, endpoint).at(route["records"]).declared()
