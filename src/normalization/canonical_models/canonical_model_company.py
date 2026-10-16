@@ -62,18 +62,3 @@ class CanonicalCompany(BaseModel):
     provider_fields: Dict[str, Any] = Field(default_factory=dict)
     source_metadata: CompanySourceMetadata = Field(default_factory=CompanySourceMetadata)
     source_extras: Dict[str, Any] = Field(default_factory=dict)
-
-
-class CanonicalCompanyResult(BaseModel):
-    """Company-related records plus preserved wrapper and supplemental data.
-
-    This output schema does not change adapter return formats by itself.
-    """
-
-    model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
-
-    provider: Provider
-    companies: List[CanonicalCompany] = Field(default_factory=list)
-    provider_fields: Dict[str, Any] = Field(default_factory=dict)
-    source_metadata: CompanySourceMetadata = Field(default_factory=CompanySourceMetadata)
-    source_extras: Dict[str, Any] = Field(default_factory=dict)

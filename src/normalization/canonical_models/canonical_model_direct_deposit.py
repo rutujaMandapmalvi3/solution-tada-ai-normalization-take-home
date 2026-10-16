@@ -63,21 +63,3 @@ class CanonicalDirectDeposit(BaseModel):
     provider_fields: Dict[str, Any] = Field(default_factory=dict)
     source_metadata: DirectDepositSourceMetadata = Field(default_factory=DirectDepositSourceMetadata)
     source_extras: Dict[str, Any] = Field(default_factory=dict)
-
-
-class CanonicalDirectDepositResult(BaseModel):
-    """Records plus preserved data even when no canonical records are supplied.
-
-    The adapter may assemble this container without inventing a record merely
-    to hold supplements, settings, unexpected items or response metadata.
-    This schema does not change the current adapter return format by itself.
-    """
-
-    model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
-
-    provider: Provider
-    employee_id: Optional[str] = None
-    direct_deposits: List[CanonicalDirectDeposit] = Field(default_factory=list)
-    provider_fields: Dict[str, Any] = Field(default_factory=dict)
-    source_metadata: DirectDepositSourceMetadata = Field(default_factory=DirectDepositSourceMetadata)
-    source_extras: Dict[str, Any] = Field(default_factory=dict)
