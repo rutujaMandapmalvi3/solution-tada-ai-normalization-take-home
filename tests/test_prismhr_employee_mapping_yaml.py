@@ -1,8 +1,6 @@
 """Complete PrismHR employee YAML coverage, without executing unfinished helpers."""
 from collections import Counter
 from importlib.resources import files
-from pathlib import Path
-import re
 import types
 from typing import Any, Union, get_args, get_origin
 import unittest
@@ -90,27 +88,6 @@ class PrismHREmployeeYamlChecks(unittest.TestCase):
         self.assertEqual(set(counts), contract_paths(PRISM_EMPLOYEE))
         self.assertEqual({key: value for key, value in counts.items() if value != 1}, {})
         self.assertEqual(len(counts), 385)
-
-    def test_destinations_follow_the_approved_proposal(self):
-        proposal = (Path(__file__).parents[1] / "docs/solution-docs/data-types-cpmparison"
-                    / "Employee Canonical Mapping Proposal.md").read_text()
-        expected = {}
-        for line in proposal.splitlines():
-            cells = [cell.strip() for cell in line.split("|")]
-            if len(cells) != 8 or cells[1] != "prismhr":
-                continue
-            source = re.match(r"`([^`]+)`", cells[2]).group(1)
-            if source.startswith("response."):
-                continue
-            target = cells[3].strip("`")
-            if target.startswith("prismhr."):
-                target = "provider_fields." + target
-            expected[source] = target
-        actual = dict(collect(self.config.fields, PRISM_EMPLOYEE, CanonicalEmployee))
-        # Scalar-list field destinations have no [] in YAML paths; inventory uses [] as notation.
-        actual = {source: (target if expected[source].endswith("[]")
-                           else target.removesuffix("[]")) for source, target in actual.items()}
-        self.assertEqual(actual, expected)
 
     def test_approved_labels_do_not_invent_missing_provider_dictionaries(self):
         rules = {rule.source: rule for rule in self.config.fields

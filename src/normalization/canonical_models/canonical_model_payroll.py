@@ -22,7 +22,7 @@ class PayrollSourceMetadata(BaseModel):
 class PayrollRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
     provider: Provider
-    # Canonical identity and links (docs/solution-docs/relationship_policies.md).
+    # Canonical identity and links (docs/solution-docs/DECISIONS.md section 4).
     id: str | None = None
     company_ref: str | None = None
     provider_fields: dict[str, Any] = Field(default_factory=dict)

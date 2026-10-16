@@ -1,6 +1,6 @@
 # isolved route table. Input: none (static data). Output: ROUTES, endpoint -> how its records are mapped, identified and linked.
 # isolved adapter: which contract endpoint feeds which canonical record, and how
-# ids/refs are built (docs/solution-docs/relationship_policies.md, Tables 1-2).
+# ids/refs are built (docs/solution-docs/DECISIONS.md section 4, Tables 1-2).
 """isolved routes (primary Swagger snapshot paths).
 
 Owner scope = clientId:legalId (a client holds several legal companies).

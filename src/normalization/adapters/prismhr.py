@@ -1,6 +1,6 @@
 # PrismHR route table. Input: none (static data). Output: ROUTES, endpoint -> how its records are mapped, identified and linked.
 # PrismHR adapter: which contract endpoint feeds which canonical record, and how
-# ids/refs are built (docs/solution-docs/relationship_policies.md, Tables 1-2).
+# ids/refs are built (docs/solution-docs/DECISIONS.md section 4, Tables 1-2).
 """PrismHR routes.
 
 Route keys are described in route.py. Placeholders: {params.x} request params,

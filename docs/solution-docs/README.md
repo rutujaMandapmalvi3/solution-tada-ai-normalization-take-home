@@ -8,8 +8,7 @@ This tool normalizes company, employee, direct deposit, deduction and payroll da
   deductions, paychecks) are linked and checked in the same run.
 
 - Assignment: [root README](../../README.md)
-- Decisions, assumptions and gaps: [DECISIONS.md](./DECISIONS.md)
-- Record ids, links and merge rules: [relationship_policies.md](./relationship_policies.md)
+- Decisions, assumptions and gaps, including record ids, links and merge rules: [DECISIONS.md](./DECISIONS.md)
 
 ## Problem statement
 
@@ -42,16 +41,12 @@ Fields and codes were matched using three sources:
 - the lookup references;
 - the saved live samples.
 
-Per-field evidence is in the mapping proposals: [employee](./data-types-cpmparison/Employee%20Canonical%20Mapping%20Proposal.md),
-[direct deposit](./data-types-cpmparison/Direct%20Deposit%20Canonical%20Mapping%20Proposal.md),
-[deduction](./data-types-cpmparison/Deduction%20Canonical%20Mapping%20Proposal.md),
-[company](./data-types-cpmparison/Company%20Canonical%20Mapping%20Proposal.md),
-[payroll](./data-types-cpmparison/Payroll%20Canonical%20Mapping%20Proposal.md).
+The resulting mapping choices are summarised in [DECISIONS.md](./DECISIONS.md#6-entity-mapping-choices).
 
 ### 3. Canonical model
 - **Six record types** (strict Pydantic models in `src/normalization/canonical_models/`): company, employee, direct deposit, deduction, payroll run and paycheck.
 - **One document per run** holds the six record lists, plus `provider_fields`, `source_metadata` and `issues`.
-- **Ids and links:** every record gets a canonical id, `provider:record_type:owner_scope[:employee_key]:record_key`. Child records carry refs (`company_ref`, `employee_ref`, `payroll_run_ref`) that hold the parent's id. See [relationship_policies.md](./relationship_policies.md).
+- **Ids and links:** every record gets a canonical id, `provider:record_type:owner_scope[:employee_key]:record_key`. Child records carry refs (`company_ref`, `employee_ref`, `payroll_run_ref`) that hold the parent's id. See [DECISIONS.md → Identity and relationships](./DECISIONS.md#4-identity-and-relationships).
 
 ### 4. Fixtures
 - **Bundles:** `scripts/generate_fixtures.py` (seed 42) writes three synthetic bundles, `tests/fixtures/<provider>.bundle.json`. Each is one connected company, and every response is checked against its contract before writing.
@@ -81,7 +76,7 @@ Test suites by layer:
 - fixture generator;
 - reference integrity.
 
-Run with `pytest`. Latest run: 218 tests passed.
+Run with `pytest`. Latest run: 216 tests passed.
 
 ### 7. Write path (optional extension)
 Not built.
@@ -186,7 +181,7 @@ src/normalization/
 contracts/             provider specs and lookup references (unchanged reference pack)
 scripts/               generate_fixtures.py
 tests/                 test suites;  tests/fixtures/ bundles + expected outputs
-docs/solution-docs/    README (this file), DECISIONS.md, relationship_policies.md, proposals
+docs/solution-docs/    README (this file), DECISIONS.md
 ```
 
 ## Limitations
@@ -202,8 +197,5 @@ The full list is in [DECISIONS.md → Gaps](./DECISIONS.md#gaps).
 
 ## Documentation
 
-- [DECISIONS.md](./DECISIONS.md): decisions, assumptions and gaps, with reasons.
-- [relationship_policies.md](./relationship_policies.md): id and ref templates, what happens when values are missing, and merge rules.
-- [cli_input_decisions.md](./cli_input_decisions.md): why the CLI takes only `--input` and `--output`.
+- [DECISIONS.md](./DECISIONS.md): decisions, assumptions and gaps, with reasons, including the id and ref templates, missing-value behaviour, merge rules and the CLI input design.
 - [tests/fixtures/README.md](../../tests/fixtures/README.md): fixtures and how to regenerate them.
-- Mapping proposals: [docs/solution-docs/data-types-cpmparison/](./data-types-cpmparison/).

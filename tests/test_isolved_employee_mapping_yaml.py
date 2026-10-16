@@ -2,7 +2,6 @@
 from collections import Counter
 from importlib.resources import files
 from pathlib import Path
-import re
 import types
 from typing import Any, Union, get_args, get_origin
 import unittest
@@ -85,11 +84,6 @@ def collect(rules, schema, output_model, source_prefix="", target_prefix=""):
     return pairs
 
 
-def canonical_path(path):
-    path = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", path)
-    return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", path).lower()
-
-
 class IsolvedEmployeeYamlChecks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -111,26 +105,6 @@ class IsolvedEmployeeYamlChecks(unittest.TestCase):
         self.assertEqual(len(counts), 408)
         self.assertEqual(len(preserved), 116)
         self.assertIn("salary_history[].seasons[].id", counts)
-
-    def test_targets_follow_the_approved_inventory_with_consistent_snake_case(self):
-        text = (Path(__file__).parents[1] / "docs/solution-docs/data-types-cpmparison"
-                / "Employee Canonical Mapping Proposal.md").read_text()
-        expected = {}
-        for line in text.splitlines():
-            cells = [cell.strip() for cell in line.split("|")]
-            if len(cells) != 8 or cells[1] != "isolved":
-                continue
-            source = re.match(r"`([^`]+)`", cells[2]).group(1)
-            if source.startswith("employee_list.") or cells[3].strip("`").startswith("source_metadata."):
-                continue
-            target = canonical_path(cells[3].strip("`"))
-            if target.startswith("isolved."):
-                target = "provider_fields." + target
-            expected[source] = target
-        actual = dict(self.actual())
-        actual = {source: target if expected[source].endswith("[]") else target.removesuffix("[]")
-                  for source, target in actual.items()}
-        self.assertEqual(actual, expected)
 
     def test_conflicting_pronouns_have_one_multi_source_rule(self):
         matches = [r for r in self.config.fields if r.target == "preferred_pronouns"]

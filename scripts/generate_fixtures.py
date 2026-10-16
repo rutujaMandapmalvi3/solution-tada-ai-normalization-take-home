@@ -184,7 +184,7 @@ def build_cases(seed: int = DEFAULT_SEED) -> dict:
 
 
 # Owner ids used in params, shared by every response of a provider so the
-# bundle forms one connected company (relationship_policies.md).
+# bundle forms one connected company (DECISIONS.md section 4).
 PRISM = {"clientId": "001"}
 ISOL = {"clientId": "4000", "legalId": "1"}
 UKG = {"cid": "001"}

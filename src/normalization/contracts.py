@@ -17,7 +17,7 @@ Validation policy:
 - a non-null value of the wrong type stops the run (ValueError with its path).
 - "required" is not enforced: the contracts mark nearly every field required,
   but real and synthetic responses omit most of them. Only record ids are
-  required, and the id templates enforce those (relationship_policies.md).
+  required, and the id templates enforce those (DECISIONS.md section 4).
 - every other violation (undocumented field, length, range, enum) is contract
   drift: returned as a warning, mapping continues.
 """

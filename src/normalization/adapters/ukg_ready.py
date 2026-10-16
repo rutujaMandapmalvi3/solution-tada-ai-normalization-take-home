@@ -1,6 +1,6 @@
 # UKG Ready route table. Input: none (static data). Output: ROUTES, endpoint -> how its records are mapped, identified and linked.
 # UKG Ready adapter: which documented endpoint feeds which canonical record, and
-# how ids/refs are built (docs/solution-docs/relationship_policies.md, Tables 1-2).
+# how ids/refs are built (docs/solution-docs/DECISIONS.md section 4, Tables 1-2).
 """UKG Ready routes (paths of the cached reference pages).
 
 Owner scope = cid. The company is the cid itself; EIN lookup items are separate

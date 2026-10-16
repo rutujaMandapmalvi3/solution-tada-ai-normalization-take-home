@@ -1,9 +1,7 @@
 # Decisions, assumptions and gaps
 
 This log describes the system as it is implemented. Each decision has its reason.
-Record ids, refs and merge rules are specified in full in
-[relationship_policies.md](./relationship_policies.md). Per-field mapping evidence
-is in the proposals listed at the end.
+Record ids, refs and merge rules are specified in full in section 4 (Tables 1–3).
 
 Data flow:
 
@@ -64,7 +62,7 @@ bundle file → read + deserialize (CLI) → readiness check
 
 | Decision | Why |
 |---|---|
-| Every record gets `id = provider:record_type:owner_scope[:employee_key]:record_key` (Table 1 in relationship_policies.md). | One unambiguous key across providers and record types. Source ids repeat across owners (e.g. PrismHR employee ids per client), and some records have no source id. |
+| Every record gets `id = provider:record_type:owner_scope[:employee_key]:record_key` (Table 1 below). | One unambiguous key across providers and record types. Source ids repeat across owners (e.g. PrismHR employee ids per client), and some records have no source id. |
 | **Owner scope:** PrismHR `clientId`, isolved `clientId:legalId`, UKG `cid`. It always comes from `params`. | That is the level at which provider ids are unique, and bodies rarely carry it. |
 | The record key is the provider's own id. When a response is about one record and has no id, the key comes from `params` (route key `fill_record`, e.g. UKG statement detail → `pay_statement_id`). When the provider has no id at all, the smallest stable natural key is used:<ul><li>PrismHR deposit: routing + account number;</li><li>PrismHR deduction: deduction code.</li></ul> | A key must identify the record and stay the same when its settings change. That is why amounts and methods are never part of a key. |
 | Refs are foreign keys holding another record's id, built from values in the same response, with the parent's own template. Nothing is looked up.<ul><li>`company_ref` is on every non-company record and on UKG EIN records.</li><li>`employee_ref` is on deposits, deductions and paychecks.</li><li>`payroll_run_ref` is on paychecks where the run id is available.</li></ul> | A link is then a plain equality check that works the same way for every provider. |
@@ -74,6 +72,45 @@ bundle file → read + deserialize (CLI) → readiness check
 | The UKG company is the `cid` (`source_record_type: company`), built from the EIN lookup response. EIN items stay separate `ein` company records with `company_ref` pointing to it. | UKG has no company-profile endpoint. Employees belong to a `cid`, not to an EIN. |
 | A `params` owner id that disagrees with the owner id in the body stops the run. Checked for: PrismHR client master and employees/deposits, isolved employee detail and deductions, UKG employee detail. | The source is never silently overwritten. |
 | **When values are missing:**<ul><li>a missing id part stops the run, naming the template;</li><li>a missing ref part leaves the ref empty and adds a `missing_ref` warning;</li><li>a ref whose target is not in the bundle adds a `dangling_link` info issue.</li></ul> | An id is required for merging; a missing link is information. Partial bundles are normal. |
+
+In the tables, **P** is the response's request `params`, **R** the record itself, and
+**Par** the enclosing record (e.g. the PrismHR employee around a deposit). Ids are
+computed independently in each response, so the same real-world record gets the same
+id everywhere; that equality is what connects responses.
+
+**Table 1: record ids**
+
+| Entity | PrismHR | isolved | UKG Ready |
+|---|---|---|---|
+| company | `prismhr:company:{P.clientId}` | `isolved:company:{P.clientId}:{R.id}` (R.id = legal id) | `ukg-ready:company:{P.cid}`; EIN: `ukg-ready:company:{P.cid}:ein:{R.id}` |
+| employee | `prismhr:employee:{P.clientId}:{R.id}` | `isolved:employee:{P.clientId}:{P.legalId}:{R.id}`; salaries: `…:{P.employeeId}` | `ukg-ready:employee:{P.cid}:{R.id}`; pay-info and compensation: `…:{P.aid}` |
+| direct_deposit | `prismhr:direct_deposit:{P.clientId}:{Par.id}:{R.transitNum}:{R.accountNum}` | `isolved:direct_deposit:{P.clientId}:{P.legalId}:{P.employeeId}:{R.id}` | `ukg-ready:direct_deposit:{P.cid}:{P.aid}:{R.id}` |
+| deduction | `prismhr:deduction:{P.clientId}:{P.employeeId}:{R.deductionCode}` | `isolved:deduction:{P.clientId}:{P.legalId}:{P.employeeId}:{R.id}` | `ukg-ready:deduction:{P.cid}:{P.aid}:{R.id}` |
+| payroll_run | `prismhr:payroll_run:{P.clientId}:{R.batchId}` | `isolved:payroll_run:{P.clientId}:{P.legalId}:{P.paygroupId}:{R.id}` | `ukg-ready:payroll_run:{P.cid}:{R.id}` |
+| paycheck | `prismhr:paycheck:{P.clientId}:{R.voucherId}` | `isolved:paycheck:{P.clientId}:{P.legalId}:{R.id}` | `ukg-ready:paycheck:{P.cid}:{R.id}`; detail without id: `…:{P.pay_statement_id}` |
+
+**Table 2: refs** (the key part; the full ref is `provider:record_type:` + the parent's key from Table 1)
+
+| Ref | PrismHR | isolved | UKG Ready |
+|---|---|---|---|
+| company_ref | `{P.clientId}` | `{P.clientId}:{P.legalId}` | `{P.cid}` |
+| employee_ref (deposit) | `{Par.id}` | `{P.employeeId}` | `{P.aid}` |
+| employee_ref (deduction) | `{P.employeeId}` | `{P.employeeId}` | `{P.aid}` |
+| employee_ref (paycheck) | `{R.employeeId}` | `{R.employeeId}` | `{R.employee.account_id}` |
+| payroll_run_ref (paycheck) | `{R.batchId}` | none: checks carry no run id | `{P.payroll_id}` |
+
+**Table 3: when values are missing or disagree**
+
+| Situation | Behaviour |
+|---|---|
+| Owner-scope param missing from **P** (e.g. no `clientId`) | No id can be built. The run stops with an error naming the response, the template and the missing value. |
+| Record key missing from **R** (e.g. an employee without `id`) | The fallback in Table 1 is used if there is one (UKG pay-statement detail → `P.pay_statement_id`). Otherwise the run stops with the same error. |
+| No provider id by design (PrismHR deposit, PrismHR deduction) | The natural key in Table 1 is used. If any of its fields is missing, the run stops with the same error. |
+| Two different records produce the same id | They are merged. Differing values keep the first one and add a `merge_conflict` issue. If this happens for real, the key needs another stable field (e.g. PrismHR `voucherTypeOverride`). |
+| A value needed for a ref is missing (e.g. a paycheck without `employeeId`) | The ref stays empty, a `missing_ref` warning is added, and the record is still output. |
+| A ref by design has no source (isolved `payroll_run_ref`) | The ref stays empty, with no issue. This is a known gap. |
+| A ref points to a record not in the bundle | The record is kept and a `dangling_link` info issue is added. A partial bundle is normal. |
+| A **P** owner id disagrees with the body (e.g. `P.employeeId` ≠ the body's employee id) | The run stops with an error. The source is never silently overwritten. |
 
 ## 5. Canonical output
 
@@ -107,7 +144,7 @@ bundle file → read + deserialize (CLI) → readiness check
 
 | Decision | Why |
 |---|---|
-| `normalize --input <bundle> --output <file>`. The provider comes from the bundle. | One source of truth for the provider. |
+| `normalize --input <bundle> --output <file>`. The provider comes from the bundle's `provider` field; there are no `--provider` or `--entity` flags, because record types come from each endpoint's routes. | One source of truth for the provider, and one run normalizes every entity in the bundle, so records merge and links are checked together. |
 | The output is written only to the given path, in create-only mode. An existing file stops the run (exit 1) and stays untouched. The parent folder must exist. No file is written when the run stops. | Never overwrite results; no partial output. |
 | Exit codes:<ul><li>0 = document written, even with issues;</li><li>1 = unusable input (unreadable file, bad bundle shape, provider failure, wrong type, unknown endpoint, missing id, owner conflict);</li><li>2 = unreadable or mismatched reference pack.</li></ul> | Callers can tell "processed with notes" from "nothing usable". |
 | Reference-pack metadata gaps are printed as warnings and recorded once in `source_metadata.<p>.reference_pack`. These gaps are the unverified isolved/UKG distribution permission and the missing UKG OpenAPI artifact. `check-inputs` still reports them and exits 2. | The README approves using the pack, and these gaps cannot be fixed in code. They stay visible without blocking normalization. |
@@ -118,7 +155,7 @@ bundle file → read + deserialize (CLI) → readiness check
 |---|---|
 | Fixtures are three generated bundles, `tests/fixtures/<provider>.bundle.json`, each one connected synthetic company. They are produced by `scripts/generate_fixtures.py` with seed 42 and checked with the same contract layer before writing. | Ids, refs and merges are exercised end to end, and the generator reproduces the bundles byte for byte. |
 | The reviewed `<provider>.expected.json` files are compared in full by `test_bundle_cli.py`. Tests never regenerate them. | Any change to the output must be reviewed deliberately. |
-| Test suites by layer:<ul><li>contracts;</li><li>engine and YAML preflight;</li><li>per-provider field mapping;</li><li>relationships (Table 1 ids, Table 2 refs, merges, missing values);</li><li>CLI;</li><li>generator;</li><li>reference integrity.</li></ul>Latest full run: 218 tests, 3,337 subtests passed. | Each layer's rules are tested where they live. |
+| Test suites by layer:<ul><li>contracts;</li><li>engine and YAML preflight;</li><li>per-provider field mapping;</li><li>relationships (Table 1 ids, Table 2 refs, merges, missing values);</li><li>CLI;</li><li>generator;</li><li>reference integrity.</li></ul>Latest full run: 216 tests, 3,337 subtests passed. | Each layer's rules are tested where they live. |
 
 ## Assumptions
 
@@ -177,12 +214,6 @@ bundle file → read + deserialize (CLI) → readiness check
 - **Live capture:** a capture step that fetches and paginates provider APIs into bundles (not built).
 - **Write path:** writing canonical data back to a provider (not built).
 
-## Detailed evidence
+## See also
 
-- [Relationship policies: ids, refs, merge](./relationship_policies.md)
-- [Employee proposal](./data-types-cpmparison/Employee%20Canonical%20Mapping%20Proposal.md) and [code review](./data-types-cpmparison/Employee%20Code%20Mapping%20Review.md)
-- [Direct-deposit proposal](./data-types-cpmparison/Direct%20Deposit%20Canonical%20Mapping%20Proposal.md)
-- [Deduction proposal](./data-types-cpmparison/Deduction%20Canonical%20Mapping%20Proposal.md)
-- [Company proposal](./data-types-cpmparison/Company%20Canonical%20Mapping%20Proposal.md)
-- [Payroll proposal](./data-types-cpmparison/Payroll%20Canonical%20Mapping%20Proposal.md)
 - [Synthetic fixture guide](../../tests/fixtures/README.md)

@@ -23,7 +23,7 @@ problems are listed in its `issues`.
 
 The bundles exercise, per provider:
 - every record type;
-- ids and refs from relationship_policies.md;
+- ids and refs from DECISIONS.md section 4;
 - merges (isolved employee + salaries; UKG employee + pay-info + compensation;
   UKG statement header + detail);
 - a filtered isolved pay item and unrouted UKG catalog/benefits responses.
