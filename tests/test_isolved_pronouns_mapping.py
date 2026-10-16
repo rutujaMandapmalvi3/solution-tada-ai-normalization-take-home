@@ -6,7 +6,8 @@ import unittest
 from normalization import contracts
 from normalization.canonical_models.canonical_model_employee import CanonicalEmployee
 from normalization.helpers.mapping import pronouns, validate_helper
-from normalization.mapping_engine import MappingEngine, load_mapping_config
+from normalization.mapping_config import load_mapping_config
+from normalization.mapping_engine import MappingEngine
 
 DETAIL = "/api/clients/{clientId}/legals/{legalId}/employees/{id}"
 SALARIES = "/api/clients/{clientId}/legals/{legalId}/employees/{employeeId}/salaries"

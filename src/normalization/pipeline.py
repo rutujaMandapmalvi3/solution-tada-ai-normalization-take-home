@@ -25,7 +25,8 @@ from . import contracts
 from .adapters import ADAPTERS
 from .canonical_models.canonical_document import COLLECTIONS, MODELS, CanonicalDocument
 from .helpers.mapping import identifier
-from .mapping_engine import MappingEngine, load_mapping_config
+from .mapping_config import load_mapping_config
+from .mapping_engine import MappingEngine
 
 _PLACEHOLDER = re.compile(r"\{(params|record|parent)\.([^}]+)\}")
 _REFS = ("company_ref", "employee_ref", "payroll_run_ref")
@@ -182,7 +183,7 @@ class _MapperCache:
             with as_file(resource) as yaml_path:
                 config = load_mapping_config(yaml_path)
                 # config = py object containing all YAML settings.
-                # Its fields contains the mapping-rule objects that _check_rules() validates against the source schema and output model.
+                # Its fields contains the mapping-rule objects that check_rules() validates against the source schema and output model.
                 # MODELS[route["type"]] -> canonical employee type from canonical_document.py
             self.cache[cache_key] = MappingEngine(config, schema, MODELS[route["type"]])
         return self.cache[cache_key]

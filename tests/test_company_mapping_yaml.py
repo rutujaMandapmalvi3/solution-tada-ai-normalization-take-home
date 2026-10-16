@@ -5,7 +5,8 @@ import unittest
 
 from normalization import contracts
 from normalization.canonical_models.canonical_model_company import CanonicalCompany
-from normalization.mapping_engine import MappingEngine, load_mapping_config
+from normalization.mapping_config import load_mapping_config
+from normalization.mapping_engine import MappingEngine
 
 # Company record schemas from the contracts, as the adapters route them.
 PRISM = contracts.response_schema("prismhr", "/clientMaster/v1/getClientMaster").at("clientMaster")

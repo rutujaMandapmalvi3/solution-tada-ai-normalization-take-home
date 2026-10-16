@@ -1,16 +1,19 @@
 # YAML mapping-rule models. Input: a parsed YAML mapping file (dict). Output: a validated MappingConfig of field/object/list rules.
 """Pydantic schema for mapping configuration loaded from YAML.
 
-This module validates configuration only. It neither loads YAML nor executes
-mappings. Source/target paths are relative to the current record or nested item;
-list traversal is explicit through ListMapping, never inferred from a path.
-Helpers will be resolved from a fixed registry by the future mapping engine.
+This module loads YAML mapping files and validates their structure; it does not
+execute mappings. Source/target paths are relative to the current record or nested
+item; list traversal is explicit through ListMapping, never inferred from a path.
+Helper names are resolved from the fixed registry in helpers/mapping.py.
 """
 from __future__ import annotations
 
+import pathlib
 from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, model_validator
+import yaml
+from yaml.constructor import ConstructorError
 
 
 # Hyphenated keys support provider aliases such as _links.country-fields.
@@ -141,3 +144,33 @@ class MappingConfig(ConfigModel):
 ObjectMapping.model_rebuild()
 ListMapping.model_rebuild()
 MappingConfig.model_rebuild()
+
+
+# Converts a YAML object into a Python dictionary.
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Do not silently discard an earlier YAML rule/key."""
+
+    # Converts a YAML object into a dictionary and rejects duplicate keys.
+    # Builds a YAML mapping and rejects duplicate keys.
+    def construct_mapping(self, node, deep=False):
+        self.flatten_mapping(node)
+        seen = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            try:
+                duplicate = key in seen
+                seen.add(key)
+            except TypeError as exc:
+                raise ConstructorError(None, None, "Mapping keys must be scalar", key_node.start_mark) from exc
+            if duplicate:
+                raise ConstructorError(None, None, f"Duplicate YAML key: {key!r}", key_node.start_mark)
+        return super().construct_mapping(node, deep=deep)
+
+
+# Reads the YAML file and checks that its mapping rules are valid.
+# Reads a YAML mapping file and validates it as a MappingConfig.
+def load_mapping_config(path: str | pathlib.Path) -> MappingConfig:
+    """Safely parse YAML, reject duplicate keys, then validate rule structure."""
+    with pathlib.Path(path).open(encoding="utf-8") as stream:
+        payload = yaml.load(stream, Loader=_UniqueKeyLoader)
+    return MappingConfig.model_validate(payload)

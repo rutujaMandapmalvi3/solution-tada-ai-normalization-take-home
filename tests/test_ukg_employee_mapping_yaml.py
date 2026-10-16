@@ -8,7 +8,8 @@ from bundle_helpers import UKG, UKG_CO, only, response, run
 from normalization import contracts
 from normalization.canonical_models.canonical_model_employee import CanonicalEmployee
 from normalization.mapping_config import FieldMapping, ListMapping
-from normalization.mapping_engine import MappingEngine, load_mapping_config
+from normalization.mapping_config import load_mapping_config
+from normalization.mapping_engine import MappingEngine
 
 DETAIL = UKG_CO + "/employees/{aid}"
 # (YAML file, record schema as the adapter routes it)

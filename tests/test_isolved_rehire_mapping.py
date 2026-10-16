@@ -7,7 +7,8 @@ from normalization.canonical_models.canonical_model_employee import CanonicalEmp
 from normalization.helpers.mapping import label
 from normalization.mapping_config import MappingConfig
 from normalization import contracts
-from normalization.mapping_engine import MappingEngine, load_mapping_config
+from normalization.mapping_config import load_mapping_config
+from normalization.mapping_engine import MappingEngine
 
 # isolved employee record schema from the primary Swagger snapshot (replaces the source model).
 EMPLOYEE_SCHEMA = contracts.response_schema("isolved", "/api/clients/{clientId}/legals/{legalId}/employees/{id}")

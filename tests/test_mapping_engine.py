@@ -15,7 +15,8 @@ from normalization.canonical_models.canonical_model_employee import CanonicalEmp
 from normalization.contracts import Schema
 from normalization.helpers.mapping import date_value, identifier
 from normalization.mapping_config import MappingConfig
-from normalization.mapping_engine import MappingEngine, load_mapping_config
+from normalization.mapping_config import load_mapping_config
+from normalization.mapping_engine import MappingEngine
 
 # Synthetic source schema (the engine reads contract schemas; this stands in for one).
 SOURCE = Schema({"type": "object", "properties": {

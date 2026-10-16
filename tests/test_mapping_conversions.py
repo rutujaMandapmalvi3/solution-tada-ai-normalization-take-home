@@ -9,7 +9,8 @@ from normalization.canonical_models.canonical_model_employee import CanonicalEmp
 from normalization.contracts import Schema
 from normalization.helpers.mapping import label, number, postal_code
 from normalization.mapping_config import MappingConfig
-from normalization.mapping_engine import MappingEngine, load_mapping_config
+from normalization.mapping_config import load_mapping_config
+from normalization.mapping_engine import MappingEngine
 
 SOURCE = Schema({"type": "object", "properties": {
     "id": {"type": "string"}, "details": {"type": ["object", "null"]}}}, {})

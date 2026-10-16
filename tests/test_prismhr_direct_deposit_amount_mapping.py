@@ -7,7 +7,8 @@ from pathlib import Path
 from normalization import contracts
 from normalization.canonical_models.canonical_model_direct_deposit import CanonicalDirectDeposit
 from normalization.helpers.mapping import conditional_number, validate_helper
-from normalization.mapping_engine import MappingEngine, load_mapping_config
+from normalization.mapping_config import load_mapping_config
+from normalization.mapping_engine import MappingEngine
 
 # The ACH account record schema from the PrismHR contract (replaces the source model).
 ACH_VOUCHER = contracts.response_schema("prismhr", "/employee/v1/getEmployee").at(

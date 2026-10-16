@@ -10,96 +10,17 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
-from pathlib import Path
-import types
-from typing import Any, Union, get_args, get_origin
+from typing import Any
 
 from pydantic import BaseModel
 
 from .contracts import Schema
-import yaml
-from yaml.constructor import ConstructorError
-
-from .helpers.mapping import HELPERS, validate_helper
-from .mapping_config import FieldMapping, ListMapping, MappingConfig, MappingRule
+from .helpers.mapping import HELPERS
+from .mapping_config import FieldMapping, ListMapping, MappingConfig
+from .mapping_validation import check_rules
 
 
 _MISSING = object()
-
-
-# Converts a YAML object into a Python dictionary.
-class _UniqueKeyLoader(yaml.SafeLoader):
-    """Do not silently discard an earlier YAML rule/key."""
-
-    # Converts a YAML object into a dictionary and rejects duplicate keys.
-    # Builds a YAML mapping and rejects duplicate keys.
-    def construct_mapping(self, node, deep=False):
-        self.flatten_mapping(node)
-        seen = set()
-        for key_node, _ in node.value:
-            key = self.construct_object(key_node, deep=deep)
-            try:
-                duplicate = key in seen
-                seen.add(key)
-            except TypeError as exc:
-                raise ConstructorError(None, None, "Mapping keys must be scalar", key_node.start_mark) from exc
-            if duplicate:
-                raise ConstructorError(None, None, f"Duplicate YAML key: {key!r}", key_node.start_mark)
-        return super().construct_mapping(node, deep=deep)
-
-
-# Reads the YAML file and checks that its mapping rules are valid.
-# Reads a YAML mapping file and validates it as a MappingConfig.
-def load_mapping_config(path: str | Path) -> MappingConfig:
-    """Safely parse YAML, reject duplicate keys, then validate rule structure."""
-    with Path(path).open(encoding="utf-8") as stream:
-        payload = yaml.load(stream, Loader=_UniqueKeyLoader)
-    return MappingConfig.model_validate(payload)
-
-
-# Gets the underlying type from an optional type, such as str from str or None.
-# Unwraps Optional[X] to X.
-def _optional_type(annotation):
-    if get_origin(annotation) in (Union, types.UnionType):
-        choices = [t for t in get_args(annotation) if t is not type(None)]
-        if len(choices) == 1:
-            return choices[0]
-    return annotation
-
-
-# Checks whether a type is a Pydantic model.
-# True when an annotation is a Pydantic model class.
-def _is_model(annotation):
-    return isinstance(annotation, type) and issubclass(annotation, BaseModel)
-
-
-# Checks a nested canonical (target) path and finds the type of its final value.
-# Returns the canonical model type at a target path; raises on unknown fields.
-def _path_type(annotation, path):
-    for segment in path.split("."):
-        annotation = _optional_type(annotation)
-        if annotation is Any:
-            return Any
-        if _is_model(annotation):
-            annotation.model_rebuild()
-            if segment not in annotation.model_fields:
-                raise ValueError(f"Unknown declared field {segment!r} on {annotation.__name__}")
-            annotation = annotation.model_fields[segment].annotation
-        elif get_origin(annotation) is dict:
-            args = get_args(annotation)
-            annotation = args[1] if args else Any
-        else:
-            raise ValueError(f"Cannot traverse {path!r}: use explicit object/list rules")
-    return _optional_type(annotation)
-
-
-# Checks a source path against the contract schema of the source record.
-# Returns the contract schema at a source path; raises on unknown fields.
-def _source_path(schema: Schema, path: str) -> Schema:
-    try:
-        return schema.at(path)
-    except KeyError as exc:
-        raise ValueError(f"Source path {path!r}: field {exc.args[0]!r} is not in the contract schema") from None
 
 
 # Reads a value from a nested path and reports when it was not supplied.
@@ -225,39 +146,7 @@ class MappingEngine:
         self.source_schema = source_schema
         self.output_model = output_model
         self.output_model.model_rebuild()
-        self._check_rules(self.config.fields, source_schema, output_model, root=True)
-
-    # Checks field paths, nested rule types and available helpers before mapping.
-    # Checks every rule's source path, target path and helper before any mapping.
-    def _check_rules(self, rules, source_schema, target_type, root=False):
-        for rule in rules:
-            if root and rule.target.split(".")[0] in ("provider", "source_metadata", "source_extras"):
-                raise ValueError(f"Engine-owned target cannot be mapped: {rule.target!r}")
-            reserved = f"provider_fields.{self.config.provider}.unmapped"
-            if root and (rule.target == reserved or rule.target.startswith(reserved + ".")):
-                raise ValueError(f"Reserved preservation target: {rule.target!r}")
-            target_annotation = _path_type(target_type, rule.target)
-            if isinstance(rule, FieldMapping):
-                source_paths = rule.source if isinstance(rule.source, list) else [rule.source]
-                if rule.source_scope == "record":
-                    for source_path in source_paths:
-                        _source_path(source_schema, source_path)
-                if rule.transform is not None:
-                    validate_helper(rule.transform.name, len(source_paths), rule.transform.arguments)
-                continue
-            nested_schema = _source_path(source_schema, rule.source)
-            if isinstance(rule, ListMapping):
-                if not nested_schema.is_array and not nested_schema.is_open:
-                    raise ValueError(f"List rule requires a list source: {rule.source!r}")
-                nested_schema = nested_schema.items()
-                if target_annotation is not Any:
-                    if get_origin(target_annotation) is not list:
-                        raise ValueError(f"List rule requires a list target: {rule.target!r}")
-                    target_annotation = get_args(target_annotation)[0]
-            if (target_annotation is not Any and not _is_model(target_annotation)
-                    and get_origin(target_annotation) is not dict):
-                raise ValueError("Object/list item rules require an object-shaped target")
-            self._check_rules(rule.fields, nested_schema, target_annotation)
+        check_rules(self.config.fields, source_schema, output_model, self.config.provider, root=True)
 
     # Maps one validated source record (a dict) and returns a validated canonical object.
     # Maps one record: applies rules, adds unmapped/extras/metadata, validates the output.

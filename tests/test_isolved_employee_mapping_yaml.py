@@ -12,7 +12,7 @@ import yaml
 from normalization import contracts
 from normalization.canonical_models.canonical_model_employee import CanonicalEmployee
 from normalization.mapping_config import FieldMapping, ListMapping, MappingConfig
-from normalization.mapping_engine import load_mapping_config
+from normalization.mapping_config import load_mapping_config
 
 LEGAL = "/api/clients/{clientId}/legals/{legalId}/employees"
 EMPLOYEE = contracts.response_schema("isolved", LEGAL + "/{id}")
