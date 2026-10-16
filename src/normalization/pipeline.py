@@ -217,7 +217,9 @@ def normalize_bundle(bundle: Any) -> dict:
     # assigns them ids sequentially - 0, 1, 2...
     for index, response in enumerate(bundle["responses"]):
         _normalize_response(run, index, response)
-    return _build_output_document(run)
+    records_by_type = _revalidate_records(run)
+    _report_dangling_refs(run, records_by_type)
+    return _build_output_document(run, records_by_type)
 
 
 # Checks the bundle shape and returns an empty run for its provider.
@@ -387,17 +389,19 @@ def _save_or_merge_record(run: _RunState, record_type: str, record_id: str, cano
 
 
 # ---------------------------------------------------------------- output
-# Re-validates every record, reports dangling refs and assembles the canonical document.
-def _build_output_document(run: _RunState) -> dict:
+# Re-validates every saved record against its canonical model and groups the records by collection.
+def _revalidate_records(run: _RunState) -> dict:
     # Merged records are validated again: fragments must still form a valid record.
     # JSON round trip, because the strict models accept dates only as JSON strings.
     records_by_type = {collection_name: [] for collection_name in COLLECTIONS.values()}
     for record_type, canonical_record in run.records_by_id.values():
         canonical_model = MODELS[record_type].model_validate_json(json.dumps(canonical_record))
         records_by_type[COLLECTIONS[record_type]].append(canonical_model.model_dump(mode="json", exclude_unset=True))
+    return records_by_type
 
-    _report_dangling_refs(run, records_by_type)
 
+# Assembles the canonical document from the grouped records and everything the run kept.
+def _build_output_document(run: _RunState, records_by_type: dict) -> dict:
     provider_fields = {}
     if run.unrouted_responses:
         provider_fields["unrouted_responses"] = run.unrouted_responses
