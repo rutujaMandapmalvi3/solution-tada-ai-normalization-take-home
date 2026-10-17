@@ -6,7 +6,7 @@
 # response.employee is the wrapper's record collection, not a second employee field.
 # Nested unknown fields are preserved by the engine, not enumerated here.
 #
-# This is the complete rule file used by PrismHR normalize_employees().
+# The shared mapping engine uses these rules for PrismHR employees.
 # The engine supports the identifier, date, label, number and postal_code helpers
 # used here; the adapter supplies validated employees and wrapper metadata.
 # Labels use only documented meanings or explicitly accepted user assumptions:

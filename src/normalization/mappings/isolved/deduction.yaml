@@ -1,6 +1,6 @@
 # isolved deduction: one validated IsolvedEmployeePayItemModel per engine.map() call.
 # This file maps records, not wrappers; the adapter validates/unwraps the response.
-# Connected through normalize_deductions; existing helpers and engine are reused.
+# The shared mapping engine uses these rules for isolved deductions.
 # Record links retain source nesting in provider_fields.isolved.unmapped.
 # Undeclared fields retain nesting in source_extras.isolved; wrappers/context
 # and parent settings belong to result metadata/provider fields, not fake records.

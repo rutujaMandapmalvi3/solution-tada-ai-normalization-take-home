@@ -1,6 +1,6 @@
 # prismhr deduction: one validated PrismHREmployeeDeductionsDeduction per engine.map() call.
 # This file maps records, not wrappers; the adapter validates/unwraps the response.
-# Connected through normalize_deductions; existing helpers and engine are reused.
+# The shared mapping engine uses these rules for PrismHR deductions.
 # Record links retain source nesting in provider_fields.prismhr.unmapped.
 # Undeclared fields retain nesting in source_extras.prismhr; wrappers/context
 # and parent settings belong to result metadata/provider fields, not fake records.

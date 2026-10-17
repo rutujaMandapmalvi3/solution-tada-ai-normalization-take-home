@@ -8,7 +8,7 @@ Bundle format:
 Per response: contracts.prepare -> contracts.validate -> the provider adapter's
 routes for that endpoint -> MappingEngine per record -> id/ref stamping.
 Then: merge by id -> canonical re-validation -> link check -> document.
-Ids, refs and merges follow docs/solution-docs/DECISIONS.md section 4.
+Ids, refs and merges follow docs/DECISIONS.md section 4.
 """
 from __future__ import annotations
 

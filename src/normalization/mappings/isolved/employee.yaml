@@ -5,7 +5,7 @@
 # salary_history belongs to this employee; this file does not join a standalone
 # salary-history response to an employee or infer ownership from array position.
 #
-# This rule file is used by isolved normalize_employees().
+# The shared mapping engine uses these rules for isolved employees.
 # The engine supports both the pronouns helper and Boolean label inputs.
 # eligibleForRehire is a Boolean: label uses the explicit string keys
 # "true"/"false" below to produce eligible/ineligible, not guess Boolean meanings.

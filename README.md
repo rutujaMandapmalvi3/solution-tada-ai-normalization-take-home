@@ -1,133 +1,447 @@
-# Tada AI · Data Normalization Take-Home
+# Tada AI · Data Normalization: Solution
 
-> **Solution:** setup, usage and approach are in [docs/solution-docs/README.md](docs/solution-docs/README.md); decisions and assumptions are in [docs/solution-docs/DECISIONS.md](docs/solution-docs/DECISIONS.md).
+I built a local Python tool that turns saved **PrismHR, isolved and UKG Ready**
+responses into one shared format for companies, employees, direct deposits,
+deductions and payroll. It keeps the meaning of provider data and the links between
+related entries.
 
-Build a local platform that normalizes company, employee, direct deposit,
-deduction, and payroll data from
-**PrismHR, isolved, and UKG Ready** into a consistent model. Discover the provider
-mappings, design your own canonical schemas and enums, generate synthetic test
-data, and implement transformations that preserve the meaning of the source data.
-Use any programming language or stack.
-You can use AI as much as you want throughout this project.
+- [Decisions, assumptions and gaps](./docs/DECISIONS.md)
 
-## Data to normalize
+## 1. My approach
 
-Normalize these four data types across **PrismHR, isolved, and UKG Ready**:
+### 1. Understand the problem
 
-| Data type | What to cover |
-| --- | --- |
-| **Employee data** | The complete employee data available from each provider, including profile/contact information, employment status and dates, job and organization details, and compensation. Cover all available employee fields, rather than only a small summary. |
-| **Direct deposits** | Employee direct-deposit setup, including account types, deposit allocations, amounts or percentages, priority, and status/effective dates where available. |
-| **Deductions** | Employee deduction setup and deductions recorded in payroll, including provider codes/types, amounts or percentages, and applicable rules or dates where available. |
-| **Payroll data** | Payroll runs/periods and employee paycheck records, including earnings, hours, gross/net pay, taxes, deductions, and benefit contributions where available. |
+I read the assignment and explored the repository. I found it followed the adapter
+design pattern and chose to keep it because it makes adding more providers easier.
 
-Keep the company and employee relationships so these records can be linked in
-your normalized model. If a provider does not expose a field or data type, document
-that gap and your assumptions or decisions in the Markdown explanation described
-under Submission.
+### 2. Investigate the data
 
-## Reference materials
+I identified the APIs needed for each data type and tried them in Postman. I
+compared live responses with the contracts and found differences such as changed
+field names, missing values and unavailable data. I used PrismHR OpenAPI, the primary
+isolved Swagger snapshot, UKG's extracted schemas and the supplied lookup references.
 
-| Provider | Source specifications | Lookup reference |
-| --- | --- | --- |
-| PrismHR | [OpenAPI 3.0.1, API 2025.09](contracts/prismhr/openapi/prismhr-2025.09.openapi.json) | [Documented codes and meanings](contracts/prismhr/lookup-reference.json) |
-| isolved | [Primary Swagger 2.0, API version 6](contracts/isolved/openapi/isolved-v6.swagger.json); [alternate snapshot](contracts/isolved/openapi/isolved-v6.alternate.swagger.json) for comparison | [Documented enum values](contracts/isolved/lookup-reference.json) |
-| UKG Ready | [Cached reference pages](contracts/ukg-ready/reference-docs/index.html) and [extracted JSON schemas](contracts/ukg-ready/reference-schemas.json) | [Documented enum values](contracts/ukg-ready/lookup-reference.json) |
+### 3. Design the shared format
 
-UKG Ready's material is cached HTML documentation and an extracted schema bundle,
-**not an official Swagger/OpenAPI contract**. Read the pages for endpoint bindings,
-parameters, response statuses, XML schemas, and opaque schema blocks. Use isolved's
-primary snapshot consistently; do not mix schemas between its two snapshots.
-The reference versions have not been verified against the latest live APIs.
+Before coding, I created Markdown tables comparing each provider's fields for each
+entity. Where meanings matched, I chose a shared name and data type. I also chose
+date formats, common labels, conversion rules and how to preserve unmatched fields.
 
-The lookup files contain actual, cited source values. They are partial references;
-undocumented meanings remain unknown, and tenant-configured lookup values are not
-supplied. Discover the mappings and define your own canonical enums. Documented
-sample payloads are retained as illustrative source examples; generate and validate
-your own fixtures rather than treating those samples as exhaustive contracts.
+### 4. Choose the implementation
 
-**Reference status:** this repository is public. PrismHR's artifact license is
-retained, and the organizer has approved sharing this reference pack with candidates.
-The organizer provides the handoff, scope, deadline, and timezone. Use the
-organizer-approved sharing channel.
+I considered two options:
 
-Source history and evidence remain in the [reference audit](docs/REFERENCE_AUDIT.md),
-[isolved manifest](contracts/isolved/SOURCE_MANIFEST.json), and
-[UKG manifest](contracts/ukg-ready/SOURCE_MANIFEST.json). Attribution/modification
-notices and PrismHR's license stay alongside the specifications.
+1. **Process one provider and entity at a time**, selected through CLI options.
+2. **Process related responses together in one bundle**, using provider routes,
+   YAML rules and a shared engine.
 
-## Access live demo data
+With the first option, connecting information from separate runs and extending the
+processing flow would require more coordination and code changes. I chose the
+second option to handle relationships in one run and keep provider-specific
+changes in routes and mapping rules.
 
-You can inspect live demo responses from all three providers to understand their
-data and validate mapping assumptions. The organizer supplies the **API key
-privately**; it is not included in this repository.
+In the chosen design, the CLI reads and deserializes the input file. The program
+checks each response against its provider contract. The adapter's routes locate
+entries inside that response body and select the YAML file. YAML defines the field
+changes, and one shared engine applies them.
 
-Send `POST https://tada-demo-provider-signin.onrender.com/signin` with an
-`X-API-Key` header and a JSON body containing `tenant`:
+### 5. Build the processing flow
 
-```sh
-curl -X POST 'https://tada-demo-provider-signin.onrender.com/signin' \
-  -H "X-API-Key: $DEMO_SIGNIN_API_KEY" \
-  -H 'Content-Type: application/json' \
-  -d '{"tenant":"ukg"}'
+The input bundle contains a provider name and saved responses. The output is one
+JSON document with six lists of entries: companies, employees, deposits, deductions,
+payroll runs and paychecks, plus metadata and issues. “Canonical” means this shared
+output format.
+
+```text
+Read input
+    ↓
+Parse JSON
+    ↓
+Validate
+    ↓
+Map fields
+    ↓
+Add IDs and links
+    ↓
+Merge
+    ↓
+Revalidate
+    ↓
+Check links
+    ↓
+Write output
 ```
 
-Set `DEMO_SIGNIN_API_KEY` locally to the key provided by the organizer. Change
-`tenant` to `prism`, `isol`, or `ukg` to select the corresponding demo account.
+### 6. Verify and document
 
-| Tenant | Authentication returned | Demo identifiers returned |
-| --- | --- | --- |
-| `prism` | `auth.sessionId`; use it in the provider's `sessionId` header | `context.companies[].client_id` |
-| `isol` | `auth.access_token` and the refresh token when issued; use `Authorization: Bearer <access_token>` | `context.companies[].client_id` and `legal_id` |
-| `ukg` | `auth.access_token`; use `Authorization: Bearer <access_token>` | `context.companies[].company_id` |
+I checked the complete CLI flow by running normalization and manually comparing
+its output with expected results. I documented decisions, assumptions and remaining
+gaps. The test data and automated checks are described below.
 
-Each response also includes the provider's `base_url`, `tenant_id`, token expiry
-when supplied, and `usage.header_name` / `usage.header_prefix`. Use the returned
-authentication and identifiers with the provider endpoints in the reference
-materials. Retrieve company names, employees, and payroll records through those
-provider APIs; company names and employee/payroll records are not returned by
-the sign-in endpoint. Prism client IDs and isolved client/legal-entity IDs identify
-the seeded demo companies available for exploration.
+## 2. How I built it
 
-Call `/signin` again when authentication expires. A refresh token is returned
-only if the provider issues one; Prism uses a session ID. The hosted service may
-take longer on its first request after inactivity. See the
-[sign-in service README](https://github.com/Niwant/demo-provider-signin) for the
-response fields and error behavior.
+### Tech stack
 
-Live access is optional for discovery. Keep fixture generation and submitted
-tests deterministic and able to run locally without credentials or live services.
-Use the demo accounts for inspection, and keep returned tokens and any downloaded
-records out of Git and your submission.
+Python **3.11+**, Pydantic for output models, jsonschema and referencing for provider
+validation, PyYAML for mapping instructions, and pytest for automated tests.
 
-## Submission
+### Code structure
 
-Submit a link to your own repository containing everything needed to run your
-solution locally. Include:
+| Part | Purpose |
+|---|---|
+| `src/normalization/__main__.py` | **CLI entry point** - Read input, check reference readiness, run the pipeline and write output. |
+| `pipeline.py` | **Orchestrator** - Process responses, connect and combine entries, and build the document. |
+| `contracts.py` | **Provider schema and field validator** - Read provider definitions, prepare responses and validate input. |
+| `adapters/` | **Provider route definitions** - Define each endpoint's entries, mapping file, IDs and links. |
+| `mapping_config.py` | **YAML loader and configuration validator** - Load YAML and check the instruction structure. |
+| `mapping_validation.py` | **Mapping-rule validator** - Check that instructions use valid field paths and helpers. |
+| `mapping_engine.py` | **Main mapper** - Execute instructions and preserve remaining data. |
+| `helpers/mapping.py` | **Value conversion helpers** - Convert individual values. |
+| `canonical_models/` | **Output models and validators** - Define and validate the shared output types. |
+| `references.py` | **Reference-pack readiness checker** - Check whether the supplied reference pack is usable. |
 
-- A README explaining your approach, how you built it, and the steps to set up
-  and run it.
-- A Markdown file documenting your assumptions and decisions, with an explanation
-  of why you made them.
+All source paths after the first row are inside `src/normalization/`.
+Provider definitions are in `contracts/`; mapping rules are in
+`src/normalization/mappings/<provider>/`.
 
-If something fails, or data seems incorrect, inconsistent, or different from
-what you expected, you are free to make your own assumptions and decisions.
-Clearly document the issue, what you assumed or decided, and your reasoning in
-that Markdown file. Be prepared to explain those choices.
+### Supported endpoints
 
-## Optional extension: write canonical data to a provider
+| Entity | PrismHR | isolved (`…` = `/api/clients/{clientId}/legals`) | UKG Ready (`…` = `/v2/companies/{cid}`) |
+|---|---|---|---|
+| Company | `/clientMaster/v1/getClientMaster` | `…` (legal-company list) | `…/lookup/eins` (the cid company + its EINs) |
+| Employee | `/employee/v1/getEmployee` | `…/{legalId}/employees`, `…/{legalId}/employees/{id}`, `…/employees/{employeeId}/salaries` | `…/employees`, `…/employees/{aid}`, `…/employees/{aid}/pay-info`, `…/employees/{aid}/compensation/history` |
+| Direct deposit | `/employee/v1/getEmployee` (`DirectDeposit` option) | `…/employees/{employeeId}/directdeposits` | `…/employees/{aid}/direct-deposits` |
+| Deduction | `/deductions/v1/getDeductions` | `…/employees/{employeeId}/payItems` (Deduction items) | `…/employees/{aid}/deductions` |
+| Payroll run | `/payroll/v1/getBatchListByDate` | `…/{legalId}/paygroupId/{paygroupId}/payrollRunHistory[/byDate]` | `…/payrolls` |
+| Paycheck | `/payroll/v1/getPayrollVoucherForBatch` | `…/{legalId}/payGroups/{payGroupId}/checks` | `…/payrolls/{id}/pay-statements`, `…/payrolls/{id}/pay-statements/{id}` |
 
-If you want to take the project further, add a write path that accepts canonical
-employee data and a destination tenant, such as UKG Ready or PrismHR. Map the
-canonical data into that provider's format and use its API to create or update
-the employee in the selected destination tenant. Explain which operations and
-fields you support, how you handle provider differences, and any assumptions
-or limitations. You can demonstrate the mapping with a dry run or use a demo
-tenant for the write.
+### How one response is processed: happy path
 
-This is an open-ended project. You can build an end-to-end system or application,
-covering provider data access, normalization into your canonical model, and,
-if you choose, writing canonical employee data to a destination tenant. Choose
-your own design, architecture, interfaces, and implementation approach. Build
-it in the way you think works best, and explain your decisions in your Markdown
-file.
+The supplied PrismHR fixture includes company `001` and employee `007`. Here are
+excerpts showing how the employee's name and pay reach the output.
+
+**1. Read the employee response.** The endpoint is `/employee/v1/getEmployee`;
+`params.clientId` is `"001"`. Its body contains:
+
+```json
+{
+  "errorCode": "0",
+  "employee": [{
+    "id": "007",
+    "firstName": "Alex",
+    "compensation": {"hourlyPay": "25.50"}
+  }]
+}
+```
+
+**2. Select the employee route.** After contract validation, the adapter supplies
+these settings, among others:
+
+```python
+{
+    "type": "employee",
+    "records": "employee[]",
+    "yaml": "employee",
+    "id": "{params.clientId}:{record.id}",
+    "refs": {"company_ref": ("company", "{params.clientId}")}
+}
+```
+
+`employee[]` selects each employee from the body. `yaml: employee` selects
+`mappings/prismhr/employee.yaml`.
+
+**3. Apply the YAML rules.** These two rules copy the name and convert pay text to
+a number:
+
+```yaml
+- kind: field
+  source: firstName
+  target: first_name
+- kind: field
+  source: compensation.hourlyPay
+  target: hourly_rate
+  transform:
+    name: number
+```
+
+The shared engine executes these rules alongside the file's other rules. The
+pipeline adds the ID and company link, then saves the employee:
+
+```json
+{
+  "id": "prismhr:employee:001:007",
+  "company_ref": "prismhr:company:001",
+  "employee_id": "007",
+  "first_name": "Alex",
+  "hourly_rate": 25.5
+}
+```
+
+This is an output excerpt. Original inputs for fields using conversion helpers are kept in
+`source_metadata.original_values`, whether conversion succeeds or fails, for later comparison in the output file. The company link resolves because the fixture
+includes that company.
+
+The output also includes:
+
+- `provider_fields`: provider-specific and unmapped data, plus filtered or unrouted inputs.
+- `source_extras`: entry fields not declared by the provider schema.
+- `source_metadata`: input locations, original converted values, conversion issues and reference warnings.
+- `issues`: contract differences, merge conflicts and missing or unresolved links.
+
+### Validation rules
+
+Wrong non-null types stop processing. Missing fields and nulls are allowed, but
+enough information to build IDs is still required. Other reported contract
+differences become `contract_drift` warnings. Canonical output is checked separately
+against its strict model.
+
+### Build confidence with synthetic data
+
+1. **Generate inputs:** I used the seeded generator to create one synthetic bundle
+   per provider, covering all six output lists. The bundles include related employee
+   sections.
+2. **Prepare expected outputs:** I created separate expected JSON files for those
+   specific bundles. The fixture generator does not create these expected files.
+3. **Check the expected answers:** I reviewed them against the input values, provider
+   definitions and mapping rules—not just the mapper's output. I checked IDs, links,
+   conversions, combined information, preserved data and warnings.
+4. **Compare actual results:** I ran normalization through the CLI and compared its
+   output with the expected files using automated tests.
+
+The test suite also includes unit tests for helpers and models, integration tests
+for connected pipeline steps, and end-to-end tests from file input through CLI
+`main()` to output JSON. The CLI tests call `main()` directly rather than starting
+a separate terminal process. Test and regeneration commands are in section 5.
+
+## 3. Setup
+
+Requirements: **Python 3.11 or newer**. Run all commands from the repository root,
+which contains `pyproject.toml`.
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+```
+
+Dependencies are declared in `pyproject.toml`: Pydantic, PyYAML, jsonschema and
+referencing; pytest is included by the `dev` extra.
+
+Keep the repository's `contracts/` folder in place: the program reads it at runtime.
+
+## 4. Run the solution
+
+### Normalize a supplied fixture
+
+Create the output folder first. Choose an output filename that does not exist:
+
+```sh
+mkdir -p out
+python -m normalization normalize \
+  --input tests/fixtures/prismhr.bundle.json \
+  --output out/prismhr.json
+```
+
+The same command accepts the other fixtures:
+
+```sh
+python -m normalization normalize --input tests/fixtures/isolved.bundle.json --output out/isolved.json
+python -m normalization normalize --input tests/fixtures/ukg-ready.bundle.json --output out/ukg-ready.json
+```
+
+The installed `normalization` command is equivalent to `python -m normalization`.
+An existing output file is never overwritten. Use a new filename when rerunning;
+the parent folder must already exist.
+
+### Understand the input
+
+A bundle has this structure; this example shows one employee response:
+
+```json
+{
+  "provider": "prismhr",
+  "responses": [
+    {
+      "endpoint": "/employee/v1/getEmployee",
+      "params": {"clientId": "001", "employeeId": "007"},
+      "body": {
+        "errorCode": "0",
+        "employee": [{
+          "id": "007",
+          "firstName": "Alex",
+          "compensation": {"hourlyPay": "25.50"}
+        }]
+      }
+    }
+  ]
+}
+```
+
+| Input | Meaning |
+|---|---|
+| `provider` | `prismhr`, `isolved` or `ukg-ready`. |
+| `responses` | Saved responses to process in order. |
+| `endpoint` | The exact contract path; selects the schema and routes. |
+| `params` | Request values identifying the company, employee or payroll. |
+| `body` | The returned provider data. |
+| `status` | Optional HTTP status, defaulting to 200. |
+
+### Understand the output
+
+The input above produces this complete output document:
+
+```json
+{
+  "provider": "prismhr",
+  "companies": [],
+  "employees": [
+    {
+      "provider": "prismhr",
+      "id": "prismhr:employee:001:007",
+      "company_ref": "prismhr:company:001",
+      "employee_id": "007",
+      "first_name": "Alex",
+      "hourly_rate": 25.5,
+      "prismhr_client_id": "001",
+      "provider_fields": {
+        "prismhr": {
+          "compensation": {}
+        }
+      },
+      "source_metadata": {
+        "original_values": {
+          "id": "007",
+          "compensation.hourlyPay": "25.50",
+          "context.client_id": "001"
+        },
+        "prismhr": {
+          "sources": [
+            {
+              "response": 0,
+              "endpoint": "/employee/v1/getEmployee",
+              "path": "employee/0"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "direct_deposits": [],
+  "deductions": [],
+  "payroll_runs": [],
+  "paychecks": [],
+  "provider_fields": {},
+  "source_metadata": {
+    "prismhr": {
+      "responses": [
+        {
+          "response": 0,
+          "endpoint": "/employee/v1/getEmployee",
+          "params": {
+            "clientId": "001",
+            "employeeId": "007"
+          },
+          "wrapper": {
+            "errorCode": "0"
+          }
+        }
+      ]
+    }
+  },
+  "issues": [
+    {
+      "severity": "info",
+      "code": "dangling_link",
+      "record_id": "prismhr:employee:001:007",
+      "path": "company_ref",
+      "message": "prismhr:company:001 is not in this bundle."
+    }
+  ]
+}
+```
+
+The original `"25.50"` is kept in `source_metadata.original_values` inside the
+employee. The `dangling_link` info issue means the employee's company is not
+included in this small input. The supplied full fixture includes that company.
+
+| Output | Meaning |
+|---|---|
+| `provider` | Which provider the bundle belongs to. |
+| `companies`, `employees`, `direct_deposits`, `deductions`, `payroll_runs`, `paychecks` | The six entry lists, including empty lists. |
+| `provider_fields` | Provider-specific data, filtered entries and responses with no mapping route. Also appears inside entries for their own provider details and unused known fields. |
+| `source_metadata` | Response information; entries also keep their input locations, original converted values and conversion issues here. |
+| `source_extras` | Unexpected fields inside individual entries. |
+| `issues` | Document warnings about contract differences, conflicting values and missing links. |
+
+### Other commands and exit codes
+
+List the providers supported by the tool:
+
+```sh
+python -m normalization list-providers
+```
+
+Check each provider's reference pack and report missing or unverified metadata:
+
+```sh
+python -m normalization check-inputs
+```
+
+| Exit code | Meaning |
+|---|---|
+| `0` | Output was written; it may still contain warnings. |
+| `1` | An input, processing or output-file error stopped the run. |
+| `2` | A blocking reference-pack problem stopped normalization. `check-inputs` also returns 2 when it reports metadata gaps. |
+
+The code is not printed automatically. Run `echo $?` immediately after a command
+to see it. isolved and UKG normalization can print known reference metadata
+warnings and still succeed; those warnings are saved in the output.
+
+Processing and serialization finish before the file is created. A storage error
+while writing can still leave an incomplete new file.
+
+## 5. Run tests and regenerate fixtures
+
+```sh
+pytest
+```
+
+Tests cover successful mappings, selected edge cases and errors: missing/null
+values, conversion failures, incorrect types, conflicting IDs, merge behavior,
+missing links and attempts to overwrite output. They also check YAML rules,
+provider references, the generator and end-to-end CLI output. They do not cover
+every possible edge case.
+
+Fixture files in `tests/fixtures/`:
+
+| File | Purpose |
+|---|---|
+| `<provider>.bundle.json` | Generated synthetic input. |
+| `<provider>.expected.json` | Reviewed expected output used by end-to-end tests. |
+| `generation_manifest.json` | Seed and checksums for the generator, contracts and bundles. |
+
+To regenerate bundles with the default seed, 42:
+
+```sh
+python scripts/generate_fixtures.py
+```
+
+This rewrites bundles and the manifest, not expected outputs. Each response is
+checked through the contract layer before writing. The default seed reproduces
+the committed bundles. Review output changes before updating any expected file.
+
+To generate another set without changing committed fixtures:
+
+```sh
+python scripts/generate_fixtures.py --seed 43 --output-dir out/fixtures-43
+```
+
+## 6. Scope, assumptions and limitations
+
+The implemented path reads saved responses and writes local JSON. It does not
+fetch API pages or create/update employees in provider systems; the optional
+write-back extension is not built.
+
+The reasons for mapping choices, assumptions and known gaps are in
+[DECISIONS.md](./docs/DECISIONS.md). These include missing business checks, repeated
+list items when inputs repeat, and links that cannot be built from direct IDs.

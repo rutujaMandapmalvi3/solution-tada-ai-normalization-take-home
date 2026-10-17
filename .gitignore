@@ -14,5 +14,5 @@ node_modules/
 dist/
 build/
 *.egg-info/ 
-# Example CLI output folder (see docs/solution-docs/README.md)
+# Example CLI output folder (see README.md)
 out/

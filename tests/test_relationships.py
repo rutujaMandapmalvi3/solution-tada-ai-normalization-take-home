@@ -1,4 +1,4 @@
-"""Record ids, refs and merge-by-id (docs/solution-docs/DECISIONS.md section 4)."""
+"""Record ids, refs and merge-by-id (docs/DECISIONS.md section 4)."""
 import json
 import unittest
 from pathlib import Path
